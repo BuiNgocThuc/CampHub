@@ -1,5 +1,3 @@
-
-
 spring:
         application:
                 name: be_camphub
@@ -15,3 +13,9 @@ spring:
                 show-sql: true
 server:
         port: 8081
+
+cloudinary:
+        cloudName: "daxuovzwp"
+        apiKey: "961126652335228"
+        secretKey: "W5hSkCyKOPHKaPnyhBcMODhKjm8"
+        secure: true

@@ -1,6 +1,11 @@
 package org.camphub.be_camphub.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
+
+import org.camphub.be_camphub.enums.UserType;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -12,32 +17,39 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @Builder
 public class User {
-        @Id
-        @GeneratedValue(strategy = GenerationType.UUID)
-        String id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    String id;
 
-        @Column(unique = true, nullable = false)
-        String username;
+    @Column(unique = true, nullable = false)
+    String username;
 
-        String password;
+    String password;
 
-        @Column(unique = true, nullable = false)
-        String lastname;
+    @Column(unique = true, nullable = false)
+    String lastname;
 
-        String firstname;
+    String firstname;
 
-        String phone_number;
+    String phone_number;
 
-        String email;
+    String email;
 
-        String ID_number;
+    String ID_number;
 
-        String avatar;
+    String avatar;
 
-        int trust_score;
+    int trust_score;
 
-        double CampHub_coin;
+    double CampHub_coin;
 
-        String status;
+    UserType userType;
+
+    String status;
+
+    LocalDateTime createdAt;
+
+    LocalDateTime updatedAt;
+
+    LocalDateTime deletedAt;
 }
-

@@ -1,0 +1,80 @@
+package org.camphub.be_camphub.controller;
+
+import java.util.UUID;
+
+import org.camphub.be_camphub.dto.request.cart.CartItemCreationRequest;
+import org.camphub.be_camphub.dto.request.cart.CartItemDeleteRequest;
+import org.camphub.be_camphub.dto.request.cart.CartItemPatchRequest;
+import org.camphub.be_camphub.dto.request.cart.CartItemUpdateRequest;
+import org.camphub.be_camphub.dto.response.ApiResponse;
+import org.camphub.be_camphub.dto.response.cart.CartItemResponse;
+import org.camphub.be_camphub.service.CartService;
+import org.springframework.web.bind.annotation.*;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+
+@RestController
+@RequestMapping("cart")
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+public class CartController {
+
+    CartService cartService;
+
+    @PostMapping("/add")
+    ApiResponse<CartItemResponse> addItemToCart(
+            @RequestBody CartItemCreationRequest request,
+            @RequestHeader("X-Account-Id") UUID accountId // get from JWT later
+            ) {
+        CartItemResponse response = cartService.addItemToCart(accountId, request);
+        return ApiResponse.<CartItemResponse>builder()
+                .message("Add item to cart successfully")
+                .result(response)
+                .build();
+    }
+
+    @PutMapping("/{cartItemId}")
+    ApiResponse<CartItemResponse> updateCartItem(
+            @PathVariable("cartItemId") UUID cartItemId, @RequestBody CartItemUpdateRequest request) {
+        CartItemResponse response = cartService.updateCartItem(cartItemId, request);
+        return ApiResponse.<CartItemResponse>builder()
+                .message("Update cart item successfully")
+                .result(response)
+                .build();
+    }
+
+    @PatchMapping("/{cartItemId}")
+    ApiResponse<CartItemResponse> patchCartItem(
+            @PathVariable("cartItemId") UUID cartItemId, @RequestBody CartItemPatchRequest request) {
+        CartItemResponse response = cartService.patchCartItem(cartItemId, request);
+        return ApiResponse.<CartItemResponse>builder()
+                .message("Patch cart item successfully")
+                .result(response)
+                .build();
+    }
+
+    @DeleteMapping("/items")
+    ApiResponse<Void> removeMultipleCartItems(@RequestBody CartItemDeleteRequest request) {
+        cartService.removeMultipleCartItems(request.getCardItemIds());
+        return ApiResponse.<Void>builder()
+                .message("Remove multiple cart items successfully")
+                .build();
+    }
+
+    @DeleteMapping("/item/{cartItemId}")
+    ApiResponse<Void> removeCartItem(@PathVariable("cartItemId") UUID cartItemId) {
+        cartService.removeCartItem(cartItemId);
+        return ApiResponse.<Void>builder()
+                .message("Remove cart item successfully")
+                .build();
+    }
+
+    @DeleteMapping("/clear")
+    ApiResponse<Void> clearCart(@RequestHeader("X-Account-Id") UUID accountId // get from JWT later
+            ) {
+        cartService.clearCart(accountId);
+        return ApiResponse.<Void>builder().message("Clear cart successfully").build();
+    }
+}

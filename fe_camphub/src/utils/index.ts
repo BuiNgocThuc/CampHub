@@ -1,0 +1,1 @@
+export { renderLabelWithAsterisk, cn } from "./commonFunc";
