@@ -104,7 +104,8 @@ public class BookingServiceImpl implements BookingService {
             if (days <= 0) throw new AppException(ErrorCode.INVALID_RENTAL_DATES);
 
             int quantity = Optional.ofNullable(biReq.getQuantity()).orElse(cartItem.getQuantity());
-            double pricePerDay = Optional.ofNullable(biReq.getPricePerDay()).orElse(cartItem.getPrice());
+            double pricePerDay = Optional.ofNullable(biReq.getPricePerDay())
+                    .orElse(cartItem.getPrice().doubleValue());
             double depositAmount = Optional.ofNullable(biReq.getDepositAmount()).orElse(0.0);
 
             BigDecimal subtotal = BigDecimal.valueOf(pricePerDay)

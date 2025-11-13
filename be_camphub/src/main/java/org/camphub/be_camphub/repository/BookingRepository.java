@@ -14,7 +14,5 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     List<Booking> findAllByLessorIdOrderByCreatedAtDesc(UUID lessorId);
 
-    List<Booking> findAllByStatusOrderByCreatedAt(UUID lessorId, String status);
-
     List<Booking> findByStatus(BookingStatus status);
 }

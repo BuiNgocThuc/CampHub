@@ -1,5 +1,6 @@
 package org.camphub.be_camphub.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -7,11 +8,9 @@ import java.util.stream.Stream;
 import org.camphub.be_camphub.dto.request.Item.ItemCreationRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemPatchRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemUpdateRequest;
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 import org.camphub.be_camphub.dto.response.item.ItemResponse;
-import org.camphub.be_camphub.entity.Category;
-import org.camphub.be_camphub.entity.Item;
-import org.camphub.be_camphub.entity.ItemImage;
-import org.camphub.be_camphub.entity.ItemLog;
+import org.camphub.be_camphub.entity.*;
 import org.camphub.be_camphub.enums.ItemActionType;
 import org.camphub.be_camphub.enums.ItemStatus;
 import org.camphub.be_camphub.exception.AppException;
@@ -29,7 +28,6 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class ItemServiceImpl implements ItemService {
     ItemRepository itemRepository;
-    ItemImagesRepository itemImagesRepository;
     ItemLogsRepository itemLogsRepository;
     AccountRepository accountRepository;
     CategoryRepository categoryRepository;
@@ -38,17 +36,20 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public ItemResponse createItem(UUID ownerId, ItemCreationRequest request) {
-        if (categoryRepository.existsById(request.getCategoryId())) {
+        if (!categoryRepository.existsById(request.getCategoryId())) {
             throw new AppException(ErrorCode.CATEGORY_NOT_FOUND);
         }
 
         Item item = itemMapper.creationRequestToEntity(request, ownerId);
         item.setStatus(ItemStatus.PENDING_APPROVAL);
+        item.setCreatedAt(LocalDateTime.now());
+        item.setUpdatedAt(LocalDateTime.now());
         item = itemRepository.save(item);
 
-        saveItemImages(item, request.getImageUrls());
-        logAction(item.getId(), ownerId, ItemActionType.CREATE, null, item.getStatus(), "Owner created new item");
-        return enrichItemResponse(item);
+        logAction(item.getId(), ownerId, ItemActionType.CREATE, null, item.getStatus(),
+                "Owner created a new item awaiting approval", item.getMediaUrls());
+
+        return itemMapper.entityToResponse(item);
     }
 
     @Override
@@ -74,124 +75,100 @@ public class ItemServiceImpl implements ItemService {
         return stream.map(this::enrichItemResponse).toList();
     }
 
+    // ----------------- UPDATE -----------------
     @Override
-    public ItemResponse updateItem(UUID itemId, ItemUpdateRequest request) {
-        Item item = getItem(itemId);
+    public ItemResponse updateItem(UUID ownerId, UUID itemId, ItemUpdateRequest request) {
+        Item item = getOwnedItem(itemId, ownerId);
+
         ItemStatus prevStatus = item.getStatus();
-        if (prevStatus == ItemStatus.BANNED) {
-            throw new AppException(ErrorCode.ITEM_BANNED_CANNOT_UPDATE);
-        }
         itemMapper.updateRequestToEntity(item, request);
-        item.setStatus(ItemStatus.PENDING_APPROVAL); // set lại trạng thái chờ duyệt khi có thay đổi
+
+        item.setStatus(ItemStatus.PENDING_APPROVAL);
+        item.setUpdatedAt(LocalDateTime.now());
         item = itemRepository.save(item);
 
-        updateItemImages(item, request.getImageUrls());
-        logAction(
-                item.getId(),
-                item.getOwnerId(),
-                ItemActionType.UPDATE,
-                prevStatus,
-                item.getStatus(),
-                "Owner updated item details");
-        return enrichItemResponse(item);
+        logAction(itemId, ownerId, ItemActionType.UPDATE, prevStatus, item.getStatus(),
+                "Owner updated item details", item.getMediaUrls());
+
+        return itemMapper.entityToResponse(item);
     }
 
+    // ----------------- PATCH -----------------
     @Override
-    public ItemResponse patchItem(UUID itemId, ItemPatchRequest request) {
-        Item item = getItem(itemId);
+    public ItemResponse patchItem(UUID ownerId, UUID itemId, ItemPatchRequest request) {
+        Item item = getOwnedItem(itemId, ownerId);
+
         ItemStatus prevStatus = item.getStatus();
-        if (prevStatus == ItemStatus.BANNED) {
-            throw new AppException(ErrorCode.ITEM_BANNED_CANNOT_UPDATE);
-        }
         itemMapper.patchRequestToEntity(item, request);
-        item.setStatus(ItemStatus.PENDING_APPROVAL); // set lại trạng thái chờ duyệt khi có thay đổi
+
+        item.setStatus(ItemStatus.PENDING_APPROVAL);
+        item.setUpdatedAt(LocalDateTime.now());
         item = itemRepository.save(item);
 
-        if (request.getImageUrls() != null) {
-            updateItemImages(item, request.getImageUrls());
-        }
+        logAction(itemId, ownerId, ItemActionType.UPDATE, prevStatus, item.getStatus(),
+                "Owner patched item details", item.getMediaUrls() != null ? item.getMediaUrls() : List.of());
 
-        logAction(
-                item.getId(),
-                item.getOwnerId(),
-                ItemActionType.UPDATE,
-                prevStatus,
-                item.getStatus(),
-                "Owner patched item details");
-
-        return enrichItemResponse(item);
+        return itemMapper.entityToResponse(item);
     }
 
     @Override
-    public void deleteItem(UUID itemId) {
-        Item item = getItem(itemId);
-        ItemStatus prevStatus = item.getStatus();
-        if (prevStatus != ItemStatus.AVAILABLE) {
+    public void deleteItem(UUID ownerId, UUID itemId) {
+        Item item = getOwnedItem(itemId, ownerId);
+
+        if (item.getStatus() == ItemStatus.RENTED) {
             throw new AppException(ErrorCode.ITEM_CANNOT_DELETE);
         }
+
+        ItemStatus prevStatus = item.getStatus();
         item.setStatus(ItemStatus.DELETED);
+        item.setUpdatedAt(LocalDateTime.now());
         itemRepository.save(item);
 
-        logAction(
-                item.getId(),
-                item.getOwnerId(),
-                ItemActionType.DELETE,
-                prevStatus,
-                item.getStatus(),
-                "Owner deleted the item");
+        logAction(itemId, ownerId, ItemActionType.DELETE, prevStatus, ItemStatus.DELETED,
+                "Owner marked item as deleted", List.of());
     }
 
+    // ----------------- ADMIN APPROVE -----------------
     @Override
-    public ItemResponse approveItem(UUID itemId, boolean isApproved) {
-        Item item = getItem(itemId);
-        item.setStatus(isApproved ? ItemStatus.AVAILABLE : ItemStatus.REJECTED);
-        item = itemRepository.save(item);
-        logAction(
-                item.getId(),
-                null,
-                isApproved ? ItemActionType.APPROVE : ItemActionType.REJECT,
-                ItemStatus.PENDING_APPROVAL,
-                item.getStatus(),
-                isApproved ? "Admin approved the item" : "Admin rejected the item");
-        return enrichItemResponse(item);
+    public ItemResponse approveItem(UUID adminId, UUID itemId, boolean approved) {
+        Item item = getItemOrThrow(itemId);
+
+        ItemStatus prevStatus = item.getStatus();
+        item.setStatus(approved ? ItemStatus.AVAILABLE : ItemStatus.REJECTED);
+        item.setUpdatedAt(LocalDateTime.now());
+        itemRepository.save(item);
+
+        logAction(itemId, adminId,
+                approved ? ItemActionType.APPROVE : ItemActionType.REJECT,
+                prevStatus, item.getStatus(),
+                approved ? "Admin approved item" : "Admin rejected item",
+                item.getMediaUrls());
+
+        return itemMapper.entityToResponse(item);
     }
 
+    // ----------------- ADMIN LOCK / UNLOCK -----------------
     @Override
-    public ItemResponse lockItem(UUID itemId, boolean isLocked) {
-        Item item = getItem(itemId);
-        // admin only ban  available item
-        item.setStatus(isLocked ? ItemStatus.BANNED : ItemStatus.AVAILABLE);
-        item = itemRepository.save(item);
-        logAction(
-                item.getId(),
-                null,
-                isLocked ? ItemActionType.LOCK : ItemActionType.UNLOCK,
-                !isLocked
-                        ? ItemStatus.BANNED
-                        : ItemStatus.AVAILABLE, // previous status must be opposite of current status
-                isLocked ? ItemStatus.BANNED : ItemStatus.AVAILABLE,
-                isLocked ? "Admin banned the item" : "Admin unbanned the item");
-        return enrichItemResponse(item);
+    public ItemResponse lockItem(UUID adminId, UUID itemId, boolean locked) {
+        Item item = getItemOrThrow(itemId);
+
+        ItemStatus prevStatus = item.getStatus();
+        item.setStatus(locked ? ItemStatus.BANNED : ItemStatus.AVAILABLE);
+        item.setUpdatedAt(LocalDateTime.now());
+        itemRepository.save(item);
+
+        logAction(itemId, adminId,
+                locked ? ItemActionType.LOCK : ItemActionType.UNLOCK,
+                prevStatus, item.getStatus(),
+                locked ? "Admin locked item" : "Admin unlocked item",
+                item.getMediaUrls());
+
+        return itemMapper.entityToResponse(item);
     }
 
     //        ====== Private method ======
     private Item getItem(UUID itemId) {
         return itemRepository.findById(itemId).orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
-    }
-
-    private void saveItemImages(Item item, List<String> urls) {
-        if (urls == null || urls.isEmpty()) return;
-        List<ItemImage> images = urls.stream()
-                .map(url ->
-                        ItemImage.builder().itemId(item.getId()).imageUrl(url).build())
-                .toList();
-
-        itemImagesRepository.saveAll(images);
-    }
-
-    private void updateItemImages(Item item, List<String> urls) {
-        itemImagesRepository.deleteAllByItemId(item.getId());
-        saveItemImages(item, urls);
     }
 
     private ItemResponse enrichItemResponse(Item item) {
@@ -207,28 +184,43 @@ public class ItemServiceImpl implements ItemService {
                 .map(Category::getName)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND)));
 
-        response.setImageUrls(itemImagesRepository.findAllByItemId(item.getId()).stream()
-                .map(ItemImage::getImageUrl)
-                .toList());
-
         return response;
     }
 
     // save item_logs
     private void logAction(
             UUID itemId,
-            UUID accountId,
+            UUID actorId,
             ItemActionType action,
-            ItemStatus previousStatus,
-            ItemStatus currentStatus,
-            String note) {
-        itemLogsRepository.save(ItemLog.builder()
+            ItemStatus prevStatus,
+            ItemStatus newStatus,
+            String note,
+            List<MediaResource> mediaResources
+    ) {
+        ItemLog logEntry = ItemLog.builder()
                 .itemId(itemId)
-                .accountId(accountId)
+                .accountId(actorId)
                 .action(action)
-                .previousStatus(previousStatus)
-                .currentStatus(currentStatus)
+                .previousStatus(prevStatus)
+                .currentStatus(newStatus)
                 .note(note)
-                .build());
+                .evidenceUrls(mediaResources != null ? mediaResources : List.of())
+                .createdAt(LocalDateTime.now())
+                .build();
+        itemLogsRepository.save(logEntry);
+    }
+
+    // ----------------- UTILS -----------------
+    private Item getItemOrThrow(UUID itemId) {
+        return itemRepository.findById(itemId)
+                .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+    }
+
+    private Item getOwnedItem(UUID itemId, UUID ownerId) {
+        Item item = getItemOrThrow(itemId);
+        if (!item.getOwnerId().equals(ownerId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        return item;
     }
 }

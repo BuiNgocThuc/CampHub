@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Table(name = "categories")
@@ -28,6 +30,11 @@ public class Category {
 
     Boolean isDeleted = false;
 
+    @CreatedDate
+    @Column(name = "created_at")
     LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at")
     LocalDateTime updatedAt;
 }

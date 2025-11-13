@@ -12,6 +12,7 @@ import org.springframework.data.annotation.CreatedDate;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Table(name = "disputes")
@@ -60,7 +61,10 @@ public class Dispute {
     String adminNote;
 
     @CreatedDate
+    @Column(name = "created_at")
     LocalDateTime createdAt;
 
+    @LastModifiedDate
+    @Column(name = "resolved_at")
     LocalDateTime resolvedAt;
 }

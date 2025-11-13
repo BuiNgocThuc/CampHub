@@ -19,8 +19,8 @@ public class ItemResponse {
     String categoryName;
     String name;
     String description;
-    BigDecimal price;
-    BigDecimal depositAmount;
+    Double price;
+    Double depositAmount;
     String status;
     List<String> imageUrls;
     LocalDateTime createdAt;

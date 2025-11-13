@@ -19,6 +19,6 @@ public class ItemLogsResponse {
     String previousStatus;
     String currentStatus;
     String note;
-    List<MediaResourceResponse> media;
+    List<String> media;
     String createdAt;
 }

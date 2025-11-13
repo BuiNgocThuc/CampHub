@@ -12,4 +12,5 @@ public class AuthResponse {
     String accessToken;
     String refreshToken;
     boolean isAuthenticated; // check password
+    long expiresIn;
 }

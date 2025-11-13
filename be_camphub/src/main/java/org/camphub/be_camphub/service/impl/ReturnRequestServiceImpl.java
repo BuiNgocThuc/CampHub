@@ -61,7 +61,16 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .lessorId(booking.getLessorId())
                 .reason(request.getReason())
                 .note(request.getNote())
-                .evidenceUrls(request.getEvidenceUrls() == null ? Collections.emptyList() : request.getEvidenceUrls())
+                .evidenceUrls(
+                request.getEvidenceUrls() == null ?
+                        Collections.emptyList() :
+                        request.getEvidenceUrls().stream()
+                                .map(r -> MediaResource.builder()
+                                        .url(r.getUrl())
+                                        .type(r.getType())
+                                        .build())
+                                .toList()
+        )
                 .status(ReturnRequestStatus.PROCESSING)
                 .build();
 
@@ -112,7 +121,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .previousStatus(null)
                 .currentStatus(ItemStatus.RETURN_PENDING_CHECK) // item status on db will be set below
                 .note(Optional.ofNullable(request.getNote()).orElse("Lessee submitted return packing"))
-                .media(request.getPackingMediaUrls().stream()
+                .evidenceUrls(request.getPackingMediaUrls().stream()
                         .map(url -> MediaResource.builder()
                                 .url(url)
                                 .type(mediaUtils.detectMediaType(url))
@@ -122,10 +131,6 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .build();
 
         itemLogRepository.save(packingLog);
-
-        // update booking and item status
-        //                booking.setStatus(BookingStatus.RETURNED_PENDING_CHECK);
-        //                bookingRepository.save(booking);
 
         itemRepository.findById(booking.getItemId()).ifPresent(item -> {
             item.setStatus(ItemStatus.RETURN_PENDING_CHECK);

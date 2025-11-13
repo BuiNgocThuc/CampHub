@@ -1,4 +1,4 @@
-import { LoginPage } from "@/features";
+import { LoginPage } from "@/libs/pages";
 
 export default function Page() {
   return <LoginPage />;

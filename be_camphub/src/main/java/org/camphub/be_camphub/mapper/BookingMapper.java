@@ -20,6 +20,6 @@ public interface BookingMapper {
 
     @Mapping(target = "itemName", ignore = true)
     @Mapping(target = "lessorName", ignore = true)
-    @Mapping(target = "totalAmount", expression = "java(entity.getPricePerDay() * entity.getQuantity())")
+    @Mapping(target = "totalAmount", expression = "java(booking.getPricePerDay() * booking.getQuantity())")
     BookingResponse entityToResponse(Booking booking);
 }

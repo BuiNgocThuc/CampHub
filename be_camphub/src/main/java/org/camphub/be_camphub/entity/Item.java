@@ -12,6 +12,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Table(name = "items")
@@ -45,7 +46,6 @@ public class Item {
 
     @ElementCollection
     @CollectionTable(name = "item_media_urls", joinColumns = @JoinColumn(name = "item_id"))
-    @Column(name = "media_url")
     List<MediaResource> mediaUrls;
 
     @Enumerated(EnumType.STRING)
@@ -55,7 +55,7 @@ public class Item {
     @Column(name = "created_at")
     LocalDateTime createdAt = LocalDateTime.now();
 
-    @LastModifiedBy
+    @LastModifiedDate
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
 }

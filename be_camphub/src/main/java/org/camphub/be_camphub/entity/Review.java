@@ -13,7 +13,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "return_requests")
+@Table(name = "reviews")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Data
 @AllArgsConstructor
@@ -36,14 +36,13 @@ public class Review {
     @Column(name = "item_id", nullable = false)
     UUID itemId;
 
-    int rating; // 1-5 sao
+    Integer rating; // 1-5 sao
 
     @Column(columnDefinition = "text")
     String comment;
 
     @ElementCollection
     @CollectionTable(name = "review_media_urls", joinColumns = @JoinColumn(name = "review_id"))
-    @Column(name = "media_url")
     List<MediaResource> mediaUrls;
 
     @CreatedDate

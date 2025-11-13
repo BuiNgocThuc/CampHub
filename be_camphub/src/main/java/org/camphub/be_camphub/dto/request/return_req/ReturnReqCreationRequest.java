@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import jakarta.validation.constraints.NotNull;
 
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 import org.camphub.be_camphub.enums.ReasonReturnType;
 
 import lombok.*;
@@ -24,5 +25,5 @@ public class ReturnReqCreationRequest {
 
     String note;
 
-    List<String> evidenceUrls;
+    List<MediaResourceRequest> evidenceUrls;
 }

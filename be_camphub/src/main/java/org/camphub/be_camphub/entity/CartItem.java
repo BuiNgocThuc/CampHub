@@ -9,7 +9,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "cart_items")
+@Table(name = "cart_item")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Data
 @AllArgsConstructor
@@ -32,18 +32,9 @@ public class CartItem {
     Integer rentalDays = 1;
 
     @Column(nullable = false, precision = 10, scale = 2)
-    Double price; // giá thuê của 1 sản phẩm / 1 ngày tại thời điểm thêm
+    BigDecimal price; // giá thuê của 1 sản phẩm / 1 ngày tại thời điểm thêm
 
     @Column(precision = 12, scale = 2)
     BigDecimal subtotal; // = price * quantity * rentalDays
 
-    //        @PrePersist
-    //        @PreUpdate
-    //        private void calculateSubtotal() {
-    //                if (price != null && quantity != null && rentalDays != null) {
-    //                        this.subtotal = price
-    //                                .multiply(BigDecimal.valueOf(quantity))
-    //                                .multiply(BigDecimal.valueOf(rentalDays));
-    //                }
-    //        }
 }

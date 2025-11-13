@@ -39,7 +39,7 @@ public class ExtensionRequest {
     @Column(name = "requested_new_end_date", nullable = false)
     LocalDate requestedNewEndDate;
 
-    double additionalFee;
+    Double additionalFee;
 
     @Enumerated(EnumType.STRING)
     ExtensionStatus status;

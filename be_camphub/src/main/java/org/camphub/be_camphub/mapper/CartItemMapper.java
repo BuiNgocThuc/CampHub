@@ -23,6 +23,6 @@ public interface CartItemMapper {
 
     void updateRequestToEntity(@MappingTarget CartItem cartItem, CartItemUpdateRequest request);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE.IGNORE)
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void patchRequestToEntity(@MappingTarget CartItem cartItem, CartItemPatchRequest request);
 }

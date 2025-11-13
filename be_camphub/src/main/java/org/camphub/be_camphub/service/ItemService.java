@@ -15,13 +15,13 @@ public interface ItemService {
 
     List<ItemResponse> getAllItems(String status, UUID categoryId);
 
-    ItemResponse updateItem(UUID itemId, ItemUpdateRequest request);
+    ItemResponse updateItem(UUID ownerId, UUID itemId, ItemUpdateRequest request);
 
-    ItemResponse patchItem(UUID itemId, ItemPatchRequest request);
+    ItemResponse patchItem(UUID ownerId, UUID itemId, ItemPatchRequest request);
 
-    void deleteItem(UUID itemId);
+    void deleteItem(UUID ownerId, UUID itemId);
 
-    ItemResponse approveItem(UUID itemId, boolean isApproved);
+    ItemResponse approveItem(UUID adminId, UUID itemId, boolean approved);
 
-    ItemResponse lockItem(UUID itemId, boolean isLocked);
+    ItemResponse lockItem(UUID adminId, UUID itemId, boolean locked);
 }

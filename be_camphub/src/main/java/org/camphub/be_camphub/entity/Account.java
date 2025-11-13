@@ -37,7 +37,7 @@ public class Account {
     @Column(nullable = false)
     String lastname;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     String email;
 
     @Column(name = "phone_number")

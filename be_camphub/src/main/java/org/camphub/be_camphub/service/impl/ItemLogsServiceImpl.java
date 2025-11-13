@@ -30,7 +30,7 @@ public class ItemLogsServiceImpl implements ItemLogsService {
 
     @Override
     public List<ItemLogsResponse> getLogsByItemId(UUID itemId) {
-        List<ItemLog> itemLogs = itemLogsRepository.findAllByItemIdOrOrderByCreatedAtDesc(itemId);
+        List<ItemLog> itemLogs = itemLogsRepository.findAllByItemIdOrderByCreatedAtDesc(itemId);
         return enrichLogs(itemLogs);
     }
 

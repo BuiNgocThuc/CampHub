@@ -41,7 +41,6 @@ public class ReturnRequest {
 
     @ElementCollection
     @CollectionTable(name = "return_request_evidences", joinColumns = @JoinColumn(name = "return_request_id"))
-    @Column(name = "evidence_urls")
     List<MediaResource> evidenceUrls;
 
     @Enumerated(EnumType.STRING)

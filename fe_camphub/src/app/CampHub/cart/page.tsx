@@ -1,4 +1,4 @@
-import { CartPage } from '@/features';
+import { CartPage } from '@/libs/pages';
 import React from 'react'
 
 export default function Page() {

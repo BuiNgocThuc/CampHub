@@ -72,7 +72,12 @@ public class DisputeServiceImpl implements DisputeService {
             itemRepository.save(item);
         });
 
-        return disputeMapper.entityToResponse(dispute);
+        DisputeResponse response = disputeMapper.entityToResponse(dispute);
+        if (damageType != null) {
+            response.setDamageTypeName(damageType.getName());
+            response.setCompensationRate(damageType.getCompensationRate());
+        }
+        return response;
     }
 
     @Override
@@ -186,13 +191,32 @@ public class DisputeServiceImpl implements DisputeService {
         }
 
         disputeRepository.save(dispute);
-        return disputeMapper.entityToResponse(dispute);
+        DisputeResponse response = disputeMapper.entityToResponse(dispute);
+        if (damageType != null) {
+            response.setDamageTypeName(damageType.getName());
+            response.setCompensationRate(damageType.getCompensationRate());
+        }
+        return response;
     }
 
     @Override
     public List<DisputeResponse> getPendingDisputes() {
         return disputeRepository.findByStatus(DisputeStatus.PENDING_REVIEW).stream()
-                .map(disputeMapper::entityToResponse)
+                .map(dispute -> {
+                    // map cơ bản
+                    DisputeResponse response = disputeMapper.entityToResponse(dispute);
+
+                    // enrich thêm thông tin damageType
+                    if (dispute.getDamageTypeId() != null) {
+                        damageTypeRepository.findById(dispute.getDamageTypeId())
+                                .ifPresent(type -> {
+                                    response.setDamageTypeName(type.getName());
+                                    response.setCompensationRate(type.getCompensationRate());
+                                });
+                    }
+
+                    return response;
+                })
                 .toList();
     }
 }

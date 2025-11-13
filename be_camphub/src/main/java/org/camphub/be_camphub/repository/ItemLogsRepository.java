@@ -11,9 +11,7 @@ import org.springframework.stereotype.Repository;
 public interface ItemLogsRepository extends JpaRepository<ItemLog, UUID> {
     List<ItemLog> findAllByOrderByCreatedAtDesc();
 
-    List<ItemLog> findAllByItemIdOrOrderByCreatedAtDesc(UUID itemId);
+    List<ItemLog> findAllByItemIdOrderByCreatedAtDesc(UUID itemId);
 
     List<ItemLog> findAllByAccountIdOrderByCreatedAtDesc(UUID accountId);
-
-    List<ItemLog> findByItemId(UUID itemId);
 }

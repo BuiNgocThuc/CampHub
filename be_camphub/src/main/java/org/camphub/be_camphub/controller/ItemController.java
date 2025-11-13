@@ -9,6 +9,8 @@ import org.camphub.be_camphub.dto.request.Item.ItemUpdateRequest;
 import org.camphub.be_camphub.dto.response.ApiResponse;
 import org.camphub.be_camphub.dto.response.item.ItemResponse;
 import org.camphub.be_camphub.service.ItemService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.AccessLevel;
@@ -24,7 +26,8 @@ public class ItemController {
 
     @PostMapping
     ApiResponse<ItemResponse> createItem(
-            @RequestBody ItemCreationRequest request, @RequestHeader("X-Account-Id") UUID ownerId) {
+            @RequestBody ItemCreationRequest request, @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message("Create item successfully")
                 .result(itemService.createItem(ownerId, request))
@@ -48,46 +51,67 @@ public class ItemController {
                 .build();
     }
 
-    // only update item details (not status) for owner
+    // Update item (owner)
     @PutMapping("/{id}")
-    ApiResponse<ItemResponse> updateItem(@PathVariable UUID id, @RequestBody ItemUpdateRequest request) {
+    public ApiResponse<ItemResponse> updateItem(
+            @PathVariable UUID id,
+            @RequestBody ItemUpdateRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message("Update item successfully")
-                .result(itemService.updateItem(id, request))
+                .result(itemService.updateItem(ownerId, id, request))
                 .build();
     }
 
+    // Patch item (owner)
     @PatchMapping("/{id}")
-    ApiResponse<ItemResponse> patchItemStatus(@PathVariable UUID id, @RequestBody ItemPatchRequest request) {
+    public ApiResponse<ItemResponse> patchItem(
+            @PathVariable UUID id,
+            @RequestBody ItemPatchRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
-                .message("Patch item status successfully")
-                .result(itemService.patchItem(id, request))
+                .message("Patch item successfully")
+                .result(itemService.patchItem(ownerId, id, request))
                 .build();
     }
 
+    // Delete item (owner)
     @DeleteMapping("/{id}")
-    ApiResponse<Void> deleteItem(@PathVariable UUID id) {
-        itemService.deleteItem(id);
-        return ApiResponse.<Void>builder().message("Delete item successfully").build();
+    public ApiResponse<Void> deleteItem(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
+        itemService.deleteItem(ownerId, id);
+        return ApiResponse.<Void>builder()
+                .message("Delete item successfully")
+                .build();
     }
 
-    // for admin
+    // Admin approve/reject item
     @PutMapping("/{id}/approve")
-    ApiResponse<ItemResponse> approveItem(
-            @PathVariable UUID id, @RequestParam boolean isApproved // approved or rejected
-            ) {
+    public ApiResponse<ItemResponse> approveItem(
+            @PathVariable UUID id,
+            @RequestParam boolean isApproved,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID adminId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message(isApproved ? "Item approved successfully" : "Item rejected successfully")
-                .result(itemService.approveItem(id, isApproved))
+                .result(itemService.approveItem(adminId, id, isApproved))
                 .build();
     }
 
+    // Admin lock/unlock item
     @PutMapping("/{id}/lock")
-    ApiResponse<ItemResponse> lockItem(@PathVariable UUID id, @RequestParam boolean isLocked // banned or available
-            ) {
+    public ApiResponse<ItemResponse> lockItem(
+            @PathVariable UUID id,
+            @RequestParam boolean isLocked,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID adminId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message(isLocked ? "Item locked successfully" : "Item unlocked successfully")
-                .result(itemService.lockItem(id, isLocked))
+                .result(itemService.lockItem(adminId, id, isLocked))
                 .build();
     }
 }

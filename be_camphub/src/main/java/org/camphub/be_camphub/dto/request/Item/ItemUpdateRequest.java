@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 
 @Data
 @Builder
@@ -18,5 +19,5 @@ public class ItemUpdateRequest {
     Double pricePerDay;
     Double depositAmount;
     String conditionNote;
-    List<String> imageUrls;
+    List<MediaResourceRequest> mediaUrls;
 }

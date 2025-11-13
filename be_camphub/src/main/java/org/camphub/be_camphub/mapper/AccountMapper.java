@@ -9,13 +9,14 @@ import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
 public interface AccountMapper {
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "trustScore", constant = "100")
     @Mapping(target = "coinBalance", constant = "0.0")
-    @Mapping(target = "userType", expression = "java(UserType.USER)")
+    @Mapping(target = "userType", expression = "java(org.camphub.be_camphub.enums.UserType.USER)")
     @Mapping(target = "status", constant = "ACTIVE")
     @Mapping(target = "avatar", ignore = true)
-    @Mapping(target = "createdAt", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     Account creationRequestToEntity(AccountCreationRequest request);
@@ -31,3 +32,4 @@ public interface AccountMapper {
 
     AccountResponse entityToResponse(Account account);
 }
+

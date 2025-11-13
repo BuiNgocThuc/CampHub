@@ -1,10 +1,12 @@
 package org.camphub.be_camphub.dto.request.Item;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 
 @Data
 @Builder
@@ -17,4 +19,5 @@ public class ItemCreationRequest {
     UUID categoryId;
     BigDecimal pricePerDay;
     BigDecimal depositAmount;
+    List<MediaResourceRequest> mediaUrls;
 }

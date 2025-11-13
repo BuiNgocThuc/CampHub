@@ -48,7 +48,6 @@ public class ItemLog {
 
     @ElementCollection
     @CollectionTable(name = "item_log_media", joinColumns = @JoinColumn(name = "item_log_id"))
-    @Column(name = "evidence_urls", length = 1000)
     List<MediaResource> evidenceUrls;
 
     @CreatedDate

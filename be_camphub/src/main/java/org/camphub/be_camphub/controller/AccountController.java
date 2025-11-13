@@ -28,7 +28,7 @@ public class AccountController {
         AccountResponse accountResponse = accountService.createAdminAccount(request);
         return ApiResponse.<AccountResponse>builder()
                 .message("Create account for admin Successfully")
-                .result(accountResponse)
+                .result(accountService.createAdminAccount(request))
                 .build();
     }
 
@@ -39,7 +39,7 @@ public class AccountController {
         AccountResponse accountResponse = accountService.updateAccount(id, request);
         return ApiResponse.<AccountResponse>builder()
                 .message("Update account Successfully")
-                .result(accountResponse)
+                .result(accountService.updateAccount(id, request))
                 .build();
     }
 
@@ -49,7 +49,7 @@ public class AccountController {
         AccountResponse accountResponse = accountService.patchAccount(id, request);
         return ApiResponse.<AccountResponse>builder()
                 .message("Patch account Successfully")
-                .result(accountResponse)
+                .result(accountService.patchAccount(id, request))
                 .build();
     }
 
@@ -58,7 +58,7 @@ public class AccountController {
         List<AccountResponse> accounts = accountService.getAccounts();
         return ApiResponse.<List<AccountResponse>>builder()
                 .message("Get accounts Successfully")
-                .result(accounts)
+                .result(accountService.getAccounts())
                 .build();
     }
 
@@ -67,7 +67,7 @@ public class AccountController {
         AccountResponse accountResponse = accountService.getAccountById(id);
         return ApiResponse.<AccountResponse>builder()
                 .message("Get account by id Successfully")
-                .result(accountResponse)
+                .result(accountService.getAccountById(id))
                 .build();
     }
 }

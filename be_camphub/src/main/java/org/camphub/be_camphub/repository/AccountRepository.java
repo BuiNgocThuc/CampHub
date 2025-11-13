@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository;
 public interface AccountRepository extends JpaRepository<Account, UUID> {
     boolean existsByUsername(String username);
 
+    boolean existsByEmail(String email);
+
     Optional<Account> findByUsername(String username);
 
     @Query("SELECT a FROM Account  a WHERE a.username = 'SYSTEM_WALLET'")

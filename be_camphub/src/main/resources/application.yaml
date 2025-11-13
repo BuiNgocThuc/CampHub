@@ -4,13 +4,24 @@ spring:
         
         datasource:
                 url: jdbc:postgresql://localhost:5432/camphub
-                username: postgres
-                password: 3008
+                username: admin
+                password: 123456
                 driver-class-name: org.postgresql.Driver
+
         jpa:
                 hibernate:
                         ddl-auto: update
+
                 show-sql: true
+                properties:
+                        hibernate:
+                                dialect: org.hibernate.dialect.PostgreSQLDialect
+                                format_sql: true
+                                jdbc.time_zone: UTC
+        data:
+          mongodb:
+                  uri: mongodb://admin:123456@localhost:27017/camphub?authSource=admin
+
 server:
         port: 8081
 
@@ -19,3 +30,7 @@ cloudinary:
         apiKey: "961126652335228"
         secretKey: "W5hSkCyKOPHKaPnyhBcMODhKjm8"
         secure: true
+
+
+jwt:
+        signerKey: "88aUvaZSjmdE3CN1/lxIvnNqSQWea5WL6dJk5t2nTL+Wc8koWI/ErYrjUKKL4vhl"
