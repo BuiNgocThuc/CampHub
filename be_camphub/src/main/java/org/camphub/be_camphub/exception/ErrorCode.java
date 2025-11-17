@@ -1,5 +1,6 @@
 package org.camphub.be_camphub.exception;
 
+import lombok.Setter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 
@@ -17,6 +18,7 @@ public enum ErrorCode {
     INVALID_KEY(1001, "Invalid key", HttpStatus.BAD_REQUEST),
     FILE_UPLOAD_FAILED(1002, "File upload failed", HttpStatus.INTERNAL_SERVER_ERROR),
     UNAUTHENTICATED(1003, "Unauthenticated", HttpStatus.UNAUTHORIZED),
+    INVALID_AMOUNT(1004, "Invalid amount", HttpStatus.BAD_REQUEST),
     USERNAME_EXISTED(1011, "Username already exists", HttpStatus.BAD_REQUEST),
     USER_NOT_FOUND(1012, "User not found", HttpStatus.NOT_FOUND),
     INVALID_PASSWORD(1013, "Your password is incorrect", HttpStatus.UNAUTHORIZED),
@@ -44,7 +46,9 @@ public enum ErrorCode {
     INVALID_RETURN_REQUEST_STATUS(8002, "Invalid return request status", HttpStatus.BAD_REQUEST),
     DAMAGE_TYPE_NOT_FOUND(9001, "Damage type not found", HttpStatus.NOT_FOUND),
     DISPUTE_NOT_FOUND(9002, "Dispute not found", HttpStatus.NOT_FOUND),
-    DAMAGE_TYPE_NAME_EXISTED(9003, "Damage type name already exists", HttpStatus.BAD_REQUEST);
+    DAMAGE_TYPE_NAME_EXISTED(9003, "Damage type name already exists", HttpStatus.BAD_REQUEST),
+    TRANSACTION_NOT_FOUND(10001, "Transaction not found", HttpStatus.NOT_FOUND)
+    ;
 
     int code;
     String message;

@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.camphub.be_camphub.dto.request.booking.BookingCreationRequest;
 import org.camphub.be_camphub.dto.request.booking.LesseeReturnRequest;
+import org.camphub.be_camphub.dto.request.booking.OwnerConfirmationRequest;
 import org.camphub.be_camphub.dto.response.booking.BookingResponse;
 
 public interface BookingService {
@@ -19,7 +20,7 @@ public interface BookingService {
      * Nếu từ chối: refund deposit & rental (to lessee), set item BANNED và trừ trust score lessor.
      * Nếu chấp nhận: set WAITING_DELIVERY, lưu delivery log, set item status RENTED (hoặc RENTED_PENDING).
      */
-    BookingResponse ownerRespondBooking(UUID lessorId, UUID bookingId, boolean accept, String deliveryNote);
+    BookingResponse ownerRespondBooking(UUID lessorId, OwnerConfirmationRequest request);
     /**
      * Khách xác nhận đã nhận hàng (hoặc auto sau 24h) -> set IN_USE, ghi log RENT.
      */

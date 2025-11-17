@@ -1,10 +1,13 @@
 package org.camphub.be_camphub.service.impl;
 
 import org.camphub.be_camphub.Utils.SecurityUtils;
-import org.camphub.be_camphub.dto.request.account.AccountCreationRequest;
 import org.camphub.be_camphub.dto.request.auth.AuthRequest;
+import org.camphub.be_camphub.dto.request.auth.RefreshTokenRequest;
+import org.camphub.be_camphub.dto.request.auth.RegisterRequest;
 import org.camphub.be_camphub.dto.response.account.AccountResponse;
 import org.camphub.be_camphub.dto.response.auth.AuthResponse;
+import org.camphub.be_camphub.dto.response.auth.RefreshTokenResponse;
+import org.camphub.be_camphub.dto.response.auth.RegisterResponse;
 import org.camphub.be_camphub.entity.Account;
 import org.camphub.be_camphub.exception.AppException;
 import org.camphub.be_camphub.exception.ErrorCode;
@@ -15,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +52,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AccountResponse register(AccountCreationRequest request) {
+    public RegisterResponse register(RegisterRequest request) {
         if (accountRepository.existsByUsername(request.getUsername())) {
             throw new AppException(ErrorCode.USERNAME_EXISTED);
         }
@@ -58,10 +63,38 @@ public class AuthServiceImpl implements AuthService {
         String encryptedPassword = securityUtils.encryptPassword(request.getPassword());
         request.setPassword(encryptedPassword);
 
-        Account account = accountMapper.creationRequestToEntity(request);
+        Account account = accountMapper.registerRequestToEntity(request);
+        accountRepository.save(account);
 
-        Account saved = accountRepository.save(account);
+        return RegisterResponse.builder()
+                .success(true)
+                .build();
+    }
 
-        return accountMapper.entityToResponse(saved);
+    @Override
+    public RefreshTokenResponse refreshToken(RefreshTokenRequest request) {
+        UUID userId = securityUtils.introspectToken(request.getRefreshToken());
+
+        if (userId == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        Account user = accountRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String newAccessToken = securityUtils.generateAccessToken(user);
+
+        return RefreshTokenResponse.builder()
+                .accessToken(newAccessToken)
+                .expiresIn(60 * 60 * 1000) // 1h
+                .build();
+    }
+
+    @Override
+    public AccountResponse getMyInfo(UUID userId) {
+        Account account = accountRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return accountMapper.entityToResponse(account);
+
     }
 }

@@ -1,0 +1,3 @@
+export const ACCESS_TOKEN = "ACCESS_TOKEN";
+export const REFRESH_TOKEN = "REFRESH_TOKEN";
+export const TOKEN_EXPIRED_TIME = "TOKEN_EXPIRED_TIME";

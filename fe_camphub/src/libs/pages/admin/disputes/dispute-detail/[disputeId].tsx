@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { Button, Chip, Divider, TextField } from "@mui/material";
 import { useState } from "react";
-import { DisputeDecision, DisputeStatus } from "@/libs/constants";
+import { DisputeDecision, DisputeStatus } from "@/libs/core/constants";
 import { mockDamageTypes, mockDisputes } from "@/libs/utils";
 
 export default function DisputeDetailPage() {
@@ -30,8 +30,7 @@ export default function DisputeDetailPage() {
 
     const handleDecision = (decision: DisputeDecision) => {
         alert(
-            `✅ Khiếu nại #${dispute.id} đã được ${
-                decision === DisputeDecision.APPROVED ? "chấp nhận" : "từ chối"
+            `✅ Khiếu nại #${dispute.id} đã được ${decision === DisputeDecision.APPROVED ? "chấp nhận" : "từ chối"
             }.`
         );
         // TODO: gọi API PUT /api/admin/disputes/{id}/decision

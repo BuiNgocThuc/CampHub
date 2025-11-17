@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { ChatMessage, ChatRoom } from "@/libs/types";
+import { ChatMessage, ChatRoom } from "@/libs/core/types";
 import { mockChatRooms, mockChatMessages } from "@/libs/utils";
 
 interface ChatModalProps {
@@ -114,21 +114,19 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
                             />
                             <div className="flex gap-2">
                                 <button
-                                    className={`flex-1 py-1 text-sm rounded ${
-                                        !filterUnread
+                                    className={`flex-1 py-1 text-sm rounded ${!filterUnread
                                             ? "bg-blue-600 text-white"
                                             : "bg-gray-200"
-                                    }`}
+                                        }`}
                                     onClick={() => setFilterUnread(false)}
                                 >
                                     Tất cả
                                 </button>
                                 <button
-                                    className={`flex-1 py-1 text-sm rounded ${
-                                        filterUnread
+                                    className={`flex-1 py-1 text-sm rounded ${filterUnread
                                             ? "bg-blue-600 text-white"
                                             : "bg-gray-200"
-                                    }`}
+                                        }`}
                                     onClick={() => setFilterUnread(true)}
                                 >
                                     Chưa đọc
@@ -145,11 +143,10 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
                                 return (
                                     <div
                                         key={room.id}
-                                        className={`p-3 cursor-pointer hover:bg-gray-100 transition-colors ${
-                                            selectedRoom?.id === room.id
+                                        className={`p-3 cursor-pointer hover:bg-gray-100 transition-colors ${selectedRoom?.id === room.id
                                                 ? "bg-gray-200"
                                                 : ""
-                                        }`}
+                                            }`}
                                         onClick={() => handleSelectRoom(room)}
                                     >
                                         <div className="flex items-center gap-3">
@@ -189,18 +186,16 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
                                 return (
                                     <div
                                         key={msg.id}
-                                        className={`flex ${
-                                            isMine
+                                        className={`flex ${isMine
                                                 ? "justify-end"
                                                 : "justify-start"
-                                        }`}
+                                            }`}
                                     >
                                         <div
-                                            className={`max-w-[70%] px-3 py-2 rounded-lg ${
-                                                isMine
+                                            className={`max-w-[70%] px-3 py-2 rounded-lg ${isMine
                                                     ? "bg-blue-100 text-gray-800"
                                                     : "bg-gray-100 text-gray-800"
-                                            }`}
+                                                }`}
                                         >
                                             {msg.content}
                                             <div className="text-xs text-gray-400 text-right mt-1">

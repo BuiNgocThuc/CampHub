@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Transaction } from "@/libs/types";
+import { Transaction } from "@/libs/core/types";
 import { formatCurrency, formatDateTime, mockAccounts, mockBookings, mockTransactionBookings, mockTransactions } from "@/libs/utils";
 import { Chip, TextField, MenuItem, Divider, IconButton, Tooltip } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { TransactionStatus, TransactionType } from "@/libs/constants";
+import { TransactionStatus, TransactionType } from "@/libs/core/constants";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useRouter } from "next/navigation";
 import TransactionDetailModal from "./transaction-detail";
@@ -18,7 +18,7 @@ export default function TransactionList() {
     const [openDetail, setOpenDetail] = useState(false);
     const router = useRouter();
 
-     //Map accountId -> fullName
+    //Map accountId -> fullName
     const getAccountName = (accountId: string): string => {
         const acc = mockAccounts.find((a) => a.id === accountId);
         return acc ? acc.firstname + " " + acc.lastname : "N/A";

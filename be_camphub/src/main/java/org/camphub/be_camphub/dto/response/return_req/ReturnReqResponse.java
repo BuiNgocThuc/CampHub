@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.camphub.be_camphub.dto.response.MediaResourceResponse;
 import org.camphub.be_camphub.enums.ReasonReturnType;
 import org.camphub.be_camphub.enums.ReturnRequestStatus;
 
@@ -20,12 +21,19 @@ public class ReturnReqResponse {
     UUID bookingId;
     UUID lesseeId;
     UUID lessorId;
-    ReasonReturnType reason;
-    List<String> evidenceUrls;
-    ReturnRequestStatus status;
+
+    String itemName; // Tên đồ thuê
+    String lessorName; // tên đầy đủ của người cho thuê
+    String lesseeName; // tên đầy đủ của người thuê
+
+    String reason;
+    List<MediaResourceResponse> evidenceUrls;
+    String status;
     String note;
     String adminNote;
-    LocalDateTime createdAt;
-    LocalDateTime updatedAt;
-    LocalDateTime resolvedAt;
+    String createdAt;
+    String resolvedAt;
+    String lessorConfirmedAt;
+    String adminReviewedAt;
+    String refundedAt;
 }

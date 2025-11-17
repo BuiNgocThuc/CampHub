@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.camphub.be_camphub.dto.response.MediaResourceResponse;
 
 @Data
 @Builder
@@ -15,14 +16,16 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ItemResponse {
     UUID id;
-    String ownerName;
-    String categoryName;
+    String ownerId; // ID chủ sở hữu vật phẩm
+    UUID categoryId; // ID danh mục vật phẩm
+    String ownerName; // Tên chủ sở hữu vật phẩm
+    String categoryName; // Tên danh mục vật phẩm
+
     String name;
     String description;
-    Double price;
-    Double depositAmount;
+    BigDecimal price;
+    Integer quantity;
+    BigDecimal  depositAmount;
     String status;
-    List<String> imageUrls;
-    LocalDateTime createdAt;
-    LocalDateTime updatedAt;
+    List<MediaResourceResponse> mediaUrls;
 }

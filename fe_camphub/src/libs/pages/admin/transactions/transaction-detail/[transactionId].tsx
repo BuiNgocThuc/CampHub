@@ -8,13 +8,13 @@ import { PrimaryTable } from "@/libs/components";
 import { formatCurrency, formatDateTime } from "@/libs/utils";
 import { mockAccounts, mockBookings, mockTransactionBookings, mockTransactions } from "@/libs/utils/mock-data";
 
-import { Transaction, Booking } from "@/libs/types";
-import { TransactionStatus } from "@/libs/constants";
+import { Transaction, Booking } from "@/libs/core/types";
+import { TransactionStatus } from "@/libs/core/constants";
 
 const TransactionDetail: NextPage = () => {
     const router = useRouter();
     const params = useParams() as { transactionId: string };
-    console.log(params); 
+    console.log(params);
     const transactionId = params.transactionId;
 
     const [transaction, setTransaction] = useState<Transaction | null>(null);

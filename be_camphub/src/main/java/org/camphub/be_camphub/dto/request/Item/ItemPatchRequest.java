@@ -20,7 +20,7 @@ public class ItemPatchRequest {
     String name;
     String description;
     Double pricePerDay;
+    Integer quantity;
     Double depositAmount;
-    String conditionNote;
     List<MediaResourceRequest> mediaUrls;
 }

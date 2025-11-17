@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button, TextField } from "@mui/material";
-import { DamageType } from "@/libs/types";
+import { DamageType } from "@/libs/core/types";
 
 interface DamageTypeFormProps {
     initialData?: DamageType | null;

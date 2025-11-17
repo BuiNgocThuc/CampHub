@@ -12,5 +12,5 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CartItemDeleteRequest {
-    List<UUID> cardItemIds;
+    List<UUID> cartItemIds;
 }

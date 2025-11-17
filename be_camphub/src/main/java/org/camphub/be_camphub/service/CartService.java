@@ -7,7 +7,6 @@ import org.camphub.be_camphub.dto.request.cart.CartItemCreationRequest;
 import org.camphub.be_camphub.dto.request.cart.CartItemPatchRequest;
 import org.camphub.be_camphub.dto.request.cart.CartItemUpdateRequest;
 import org.camphub.be_camphub.dto.response.cart.CartItemResponse;
-import org.camphub.be_camphub.entity.CartItem;
 
 public interface CartService {
     CartItemResponse addItemToCart(UUID accountId, CartItemCreationRequest request);
@@ -22,5 +21,5 @@ public interface CartService {
 
     void removeMultipleCartItems(List<UUID> cartItemIds);
 
-    List<CartItem> getValidCartItems(UUID accountId);
+    List<CartItemResponse> getValidCartItems(UUID accountId);
 }

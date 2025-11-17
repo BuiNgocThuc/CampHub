@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(errorCode.getHttpStatusCode())
                 .body(ApiResponse.builder()
-                        .code(errorCode.getCode())
+                        .status(errorCode.getCode())
                         .message(errorCode.getMessage())
                         .build());
     }
@@ -35,7 +35,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(errorCode.getHttpStatusCode())
                 .body(ApiResponse.builder()
-                        .code(errorCode.getCode())
+                        .status(errorCode.getCode())
                         .message(errorCode.getMessage())
                         .build());
     }
@@ -47,7 +47,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(errorCode.getHttpStatusCode())
                 .body(ApiResponse.builder()
-                        .code(errorCode.getCode())
+                        .status(errorCode.getCode())
                         .message(errorCode.getMessage())
                         .build());
     }
@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
 
         ApiResponse apiResponse = new ApiResponse();
 
-        apiResponse.setCode(errorCode.getCode());
+        apiResponse.setStatus(errorCode.getCode());
         apiResponse.setMessage(errorCode.getMessage());
 
         return ResponseEntity.badRequest().body(apiResponse);

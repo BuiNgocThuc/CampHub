@@ -9,7 +9,7 @@ import RentalSummaryCard from "./RentalSummaryCard";
 import ReviewList from "./ReviewList";
 import ImageGallery from "./ItemGallery";
 import SimilarItemsSection from "./SimilarItemsSection";
-import { Item } from "@/libs/types";
+import { Item } from "@/libs/core/types";
 import { mockItems } from "@/libs/utils";
 import { NextPage } from "next";
 

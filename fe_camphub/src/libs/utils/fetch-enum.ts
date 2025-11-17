@@ -1,4 +1,4 @@
-import { UserType } from "../constants";
+import { UserType } from "../core/constants";
 
 
 export const userTypeOptions = [

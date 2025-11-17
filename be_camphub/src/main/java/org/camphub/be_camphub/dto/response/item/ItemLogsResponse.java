@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.camphub.be_camphub.dto.response.MediaResourceResponse;
 
 @Data
 @Builder
@@ -14,11 +15,12 @@ import lombok.experimental.FieldDefaults;
 public class ItemLogsResponse {
     UUID id;
     UUID itemId;
+    String itemName; // Tên của vật phẩm
     String account; // Tên người thực hiện hành động
     String action;
     String previousStatus;
     String currentStatus;
     String note;
-    List<String> media;
+    List<MediaResourceResponse> media;
     String createdAt;
 }

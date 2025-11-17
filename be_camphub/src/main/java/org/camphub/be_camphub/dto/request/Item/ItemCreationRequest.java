@@ -18,6 +18,7 @@ public class ItemCreationRequest {
     String description;
     UUID categoryId;
     BigDecimal pricePerDay;
+    Integer quantity;
     BigDecimal depositAmount;
     List<MediaResourceRequest> mediaUrls;
 }

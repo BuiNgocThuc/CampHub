@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Chip, IconButton, Tooltip } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import {PrimaryTable, PrimaryModal} from "@/libs/components";
+import { PrimaryTable, PrimaryModal } from "@/libs/components";
 import BookingDetailModal from "./booking-detail";
-import { Booking } from "@/libs/types";
+import { Booking } from "@/libs/core/types";
 import { mockBookings, mockAccounts } from "@/libs/utils/mock-data";
-import { BookingStatus } from "@/libs/constants";
+import { BookingStatus } from "@/libs/core/constants";
 
 export default function BookingManagementPage() {
     const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);

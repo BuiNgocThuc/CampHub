@@ -1,6 +1,6 @@
 "use client";
 
-import { ExtensionRequest } from "@/libs/types";
+import { ExtensionRequest } from "@/libs/core/types";
 import { mockAccounts, mockBookings } from "@/libs/utils/mock-data";
 
 interface ExtensionDetailModalProps {

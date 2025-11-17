@@ -1,16 +1,22 @@
 package org.camphub.be_camphub.Utils;
 
-import org.camphub.be_camphub.enums.MediaType;
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
+import org.camphub.be_camphub.entity.MediaResource;
 import org.springframework.stereotype.Component;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class MediaUtils {
-    public MediaType detectMediaType(String url) {
-        if (url == null) return MediaType.IMAGE;
-        String lower = url.toLowerCase();
-        if (lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".avi")) {
-            return MediaType.VIDEO;
-        }
-        return MediaType.IMAGE;
+    public List<MediaResource> fromRequest(List<MediaResourceRequest> requests) {
+        if (requests == null || requests.isEmpty()) return Collections.emptyList();
+        return requests.stream()
+                .map(r -> MediaResource.builder()
+                        .url(r.getUrl())
+                        .type(r.getType())
+                        .build())
+                .collect(Collectors.toList());
     }
 }

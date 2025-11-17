@@ -5,8 +5,8 @@ import { IconButton, Chip } from "@mui/material";
 import { Eye } from "lucide-react";
 import { PrimaryTable } from "@/libs/components";
 import { mockReturnRequests } from "@/libs/utils";
-import { ReturnRequest } from "@/libs/types";
-import { ReasonReturnType, ReturnRequestStatus } from "@/libs/constants";
+import { ReturnRequest } from "@/libs/core/types";
+import { ReasonReturnType, ReturnRequestStatus } from "@/libs/core/constants";
 
 export default function ReturnRequestList() {
     const router = useRouter();

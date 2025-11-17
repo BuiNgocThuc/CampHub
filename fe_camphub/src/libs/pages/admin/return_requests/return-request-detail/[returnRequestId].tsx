@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button, Chip, Divider } from "@mui/material";
 import type { NextPage } from "next";
 import { mockReturnRequests } from "@/libs/utils";
-import { ReasonReturnType, ReturnRequestStatus } from "@/libs/constants";
+import { ReasonReturnType, ReturnRequestStatus } from "@/libs/core/constants";
 
 const ReturnRequestDetail: NextPage = () => {
     const router = useRouter();
@@ -45,8 +45,8 @@ const ReturnRequestDetail: NextPage = () => {
         request.status === ReturnRequestStatus.APPROVED
             ? "success"
             : request.status === ReturnRequestStatus.REJECTED
-            ? "error"
-            : "warning";
+                ? "error"
+                : "warning";
 
     return (
         <div className="p-6 space-y-6">

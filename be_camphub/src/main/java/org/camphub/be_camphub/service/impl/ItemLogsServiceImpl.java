@@ -4,10 +4,12 @@ import java.util.List;
 import java.util.UUID;
 
 import org.camphub.be_camphub.dto.response.item.ItemLogsResponse;
+import org.camphub.be_camphub.entity.Item;
 import org.camphub.be_camphub.entity.ItemLog;
 import org.camphub.be_camphub.mapper.ItemLogMapper;
 import org.camphub.be_camphub.repository.AccountRepository;
 import org.camphub.be_camphub.repository.ItemLogsRepository;
+import org.camphub.be_camphub.repository.ItemRepository;
 import org.camphub.be_camphub.service.ItemLogsService;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,7 @@ public class ItemLogsServiceImpl implements ItemLogsService {
     ItemLogsRepository itemLogsRepository;
     ItemLogMapper itemLogMapper;
     AccountRepository accountRepository;
+    private final ItemRepository itemRepository;
 
     @Override
     public List<ItemLogsResponse> getAllLogs() {
@@ -49,6 +52,12 @@ public class ItemLogsServiceImpl implements ItemLogsService {
                             .map(a -> a.getFirstname() + " " + a.getLastname())
                             .orElse("Unknown");
                     response.setAccount(accountName);
+
+                    String itemName = itemRepository
+                            .findById(log.getItemId())
+                            .map(Item::getName)
+                            .orElse("Unknown");
+                    response.setItemName(itemName);
                     return response;
                 })
                 .toList();

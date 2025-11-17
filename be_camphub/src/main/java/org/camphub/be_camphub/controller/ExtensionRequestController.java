@@ -7,6 +7,8 @@ import org.camphub.be_camphub.dto.request.extension_req.ExtensionResponseRequest
 import org.camphub.be_camphub.dto.response.ApiResponse;
 import org.camphub.be_camphub.dto.response.extension_req.ExtensionReqResponse;
 import org.camphub.be_camphub.service.ExtensionRequestService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.AccessLevel;
@@ -22,8 +24,8 @@ public class ExtensionRequestController {
 
     @PostMapping
     ApiResponse<ExtensionReqResponse> createExtensionRequest(
-            @RequestBody ExtensionReqCreationRequest request, @RequestHeader("X-Account-Id") UUID lesseeId) {
-        // Implementation goes here
+            @RequestBody ExtensionReqCreationRequest request, @AuthenticationPrincipal Jwt jwt) {
+        UUID lesseeId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ExtensionReqResponse>builder()
                 .message("Create extension request successfully")
                 .result(service.createExtensionRequest(lesseeId, request))
@@ -32,8 +34,8 @@ public class ExtensionRequestController {
 
     @PostMapping("/approve")
     ApiResponse<ExtensionReqResponse> approveExtensionRequest(
-            @RequestBody ExtensionResponseRequest request, @RequestHeader("X-Account-Id") UUID lessorId) {
-        // Implementation goes here
+            @RequestBody ExtensionResponseRequest request, @AuthenticationPrincipal Jwt jwt) {
+        UUID lessorId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ExtensionReqResponse>builder()
                 .message("Approve extension request successfully")
                 .result(service.approveExtensionRequest(lessorId, request))
@@ -42,8 +44,8 @@ public class ExtensionRequestController {
 
     @PostMapping("/reject")
     ApiResponse<ExtensionReqResponse> rejectExtensionRequest(
-            @RequestBody ExtensionResponseRequest request, @RequestHeader("X-Account-Id") UUID lessorId) {
-        // Implementation goes here
+            @RequestBody ExtensionResponseRequest request, @AuthenticationPrincipal Jwt jwt) {
+        UUID lessorId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ExtensionReqResponse>builder()
                 .message("Reject extension request successfully")
                 .result(service.rejectExtensionRequest(lessorId, request))
@@ -52,8 +54,8 @@ public class ExtensionRequestController {
 
     @PostMapping("/{requestId}/cancel")
     ApiResponse<ExtensionReqResponse> cancelExtensionRequest(
-            @PathVariable UUID requestId, @RequestHeader("X-Account-Id") UUID lesseeId) {
-        // Implementation goes here
+            @PathVariable UUID requestId, @AuthenticationPrincipal Jwt jwt) {
+        UUID lesseeId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ExtensionReqResponse>builder()
                 .message("Cancel extension request successfully")
                 .result(service.cancelExtensionRequest(lesseeId, requestId))

@@ -64,7 +64,6 @@ public class Dispute {
     @Column(name = "created_at")
     LocalDateTime createdAt;
 
-    @LastModifiedDate
     @Column(name = "resolved_at")
     LocalDateTime resolvedAt;
 }

@@ -1,7 +1,9 @@
 package org.camphub.be_camphub.controller;
 
+import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
 import org.camphub.be_camphub.dto.request.cart.CartItemCreationRequest;
 import org.camphub.be_camphub.dto.request.cart.CartItemDeleteRequest;
 import org.camphub.be_camphub.dto.request.cart.CartItemPatchRequest;
@@ -9,6 +11,8 @@ import org.camphub.be_camphub.dto.request.cart.CartItemUpdateRequest;
 import org.camphub.be_camphub.dto.response.ApiResponse;
 import org.camphub.be_camphub.dto.response.cart.CartItemResponse;
 import org.camphub.be_camphub.service.CartService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.AccessLevel;
@@ -23,11 +27,12 @@ public class CartController {
 
     CartService cartService;
 
-    @PostMapping("/add")
-    ApiResponse<CartItemResponse> addItemToCart(
-            @RequestBody CartItemCreationRequest request,
-            @RequestHeader("X-Account-Id") UUID accountId // get from JWT later
-            ) {
+    @PostMapping("/items")
+    public ApiResponse<CartItemResponse> addItemToCart(
+            @RequestBody @Valid CartItemCreationRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        UUID accountId = UUID.fromString(jwt.getClaim("userId"));
         CartItemResponse response = cartService.addItemToCart(accountId, request);
         return ApiResponse.<CartItemResponse>builder()
                 .message("Add item to cart successfully")
@@ -35,9 +40,11 @@ public class CartController {
                 .build();
     }
 
-    @PutMapping("/{cartItemId}")
-    ApiResponse<CartItemResponse> updateCartItem(
-            @PathVariable("cartItemId") UUID cartItemId, @RequestBody CartItemUpdateRequest request) {
+    @PutMapping("/items/{cartItemId}")
+    public ApiResponse<CartItemResponse> updateCartItem(
+            @PathVariable UUID cartItemId,
+            @RequestBody @Valid CartItemUpdateRequest request
+    ) {
         CartItemResponse response = cartService.updateCartItem(cartItemId, request);
         return ApiResponse.<CartItemResponse>builder()
                 .message("Update cart item successfully")
@@ -45,9 +52,11 @@ public class CartController {
                 .build();
     }
 
-    @PatchMapping("/{cartItemId}")
-    ApiResponse<CartItemResponse> patchCartItem(
-            @PathVariable("cartItemId") UUID cartItemId, @RequestBody CartItemPatchRequest request) {
+    @PatchMapping("/items/{cartItemId}")
+    public ApiResponse<CartItemResponse> patchCartItem(
+            @PathVariable UUID cartItemId,
+            @RequestBody @Valid CartItemPatchRequest request
+    ) {
         CartItemResponse response = cartService.patchCartItem(cartItemId, request);
         return ApiResponse.<CartItemResponse>builder()
                 .message("Patch cart item successfully")
@@ -56,15 +65,15 @@ public class CartController {
     }
 
     @DeleteMapping("/items")
-    ApiResponse<Void> removeMultipleCartItems(@RequestBody CartItemDeleteRequest request) {
-        cartService.removeMultipleCartItems(request.getCardItemIds());
+    public ApiResponse<Void> removeMultipleCartItems(@RequestBody CartItemDeleteRequest request) {
+        cartService.removeMultipleCartItems(request.getCartItemIds());
         return ApiResponse.<Void>builder()
                 .message("Remove multiple cart items successfully")
                 .build();
     }
 
-    @DeleteMapping("/item/{cartItemId}")
-    ApiResponse<Void> removeCartItem(@PathVariable("cartItemId") UUID cartItemId) {
+    @DeleteMapping("/items/{cartItemId}")
+    public ApiResponse<Void> removeCartItem(@PathVariable UUID cartItemId) {
         cartService.removeCartItem(cartItemId);
         return ApiResponse.<Void>builder()
                 .message("Remove cart item successfully")
@@ -72,9 +81,20 @@ public class CartController {
     }
 
     @DeleteMapping("/clear")
-    ApiResponse<Void> clearCart(@RequestHeader("X-Account-Id") UUID accountId // get from JWT later
-            ) {
+    public ApiResponse<Void> clearCart(@AuthenticationPrincipal Jwt jwt) {
+        UUID accountId = UUID.fromString(jwt.getClaim("userId"));
         cartService.clearCart(accountId);
-        return ApiResponse.<Void>builder().message("Clear cart successfully").build();
+        return ApiResponse.<Void>builder()
+                .message("Clear cart successfully")
+                .build();
+    }
+
+    @GetMapping("/items")
+    public ApiResponse<List<CartItemResponse>> getCartItems(@AuthenticationPrincipal Jwt jwt) {
+        UUID accountId = UUID.fromString(jwt.getClaim("userId"));
+        return ApiResponse.<List<CartItemResponse>>builder()
+                .message("Get cart items successfully")
+                .result(cartService.getValidCartItems(accountId))
+                .build();
     }
 }

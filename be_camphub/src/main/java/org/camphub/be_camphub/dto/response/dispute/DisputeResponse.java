@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.camphub.be_camphub.dto.response.MediaResourceResponse;
 import org.camphub.be_camphub.enums.DisputeDecision;
 import org.camphub.be_camphub.enums.DisputeStatus;
 
@@ -20,15 +21,22 @@ public class DisputeResponse {
     UUID bookingId;
     UUID reporterId;
     UUID defenderId;
+    UUID adminId;
+
+    String reporterName; // tên người báo cáo
+    String defenderName; // tên người bị báo cáo
+    String adminName;    // tên quản trị viên xử lý
+
     String description;
-    List<String> evidenceUrls;
+    List<MediaResourceResponse> evidenceUrls;
     String damageTypeName;
+    String damageTypeId;
     Double compensationRate;
-    DisputeStatus status;
-    DisputeDecision adminDecision;
+    String status;
+    String adminDecision;
     Double compensationAmount;
     String adminNote;
-    UUID adminId;
-    LocalDateTime createdAt;
-    LocalDateTime resolvedAt;
+
+    String createdAt;
+    String resolvedAt;
 }

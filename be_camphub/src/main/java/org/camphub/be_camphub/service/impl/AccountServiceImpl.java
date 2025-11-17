@@ -8,7 +8,9 @@ import org.camphub.be_camphub.Utils.SecurityUtils;
 import org.camphub.be_camphub.dto.request.account.AccountCreationRequest;
 import org.camphub.be_camphub.dto.request.account.AccountPatchRequest;
 import org.camphub.be_camphub.dto.request.account.AccountUpdateRequest;
+import org.camphub.be_camphub.dto.request.account.TopUpRequest;
 import org.camphub.be_camphub.dto.response.account.AccountResponse;
+import org.camphub.be_camphub.dto.response.account.TopUpResponse;
 import org.camphub.be_camphub.entity.Account;
 import org.camphub.be_camphub.enums.UserStatus;
 import org.camphub.be_camphub.enums.UserType;
@@ -101,5 +103,22 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public Account getMyInfo() {
         return null;
+    }
+
+    @Override
+    public TopUpResponse topUpAccount(TopUpRequest request, UUID accountId) {
+        if (request.getAmount() == null || request.getAmount() <= 0) {
+            throw new AppException(ErrorCode.INVALID_AMOUNT);
+        }
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        account.setCoinBalance(account.getCoinBalance() + request.getAmount());
+        accountRepository.save(account);
+
+        return TopUpResponse.builder()
+                .newBalance(account.getCoinBalance())
+                .build();
     }
 }

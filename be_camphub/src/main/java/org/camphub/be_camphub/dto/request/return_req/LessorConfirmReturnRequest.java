@@ -2,6 +2,7 @@ package org.camphub.be_camphub.dto.request.return_req;
 
 import java.util.UUID;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -11,5 +12,6 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class LessorConfirmReturnRequest {
-    UUID bookingId;
+    @NotNull
+    UUID returnRequestId;
 }

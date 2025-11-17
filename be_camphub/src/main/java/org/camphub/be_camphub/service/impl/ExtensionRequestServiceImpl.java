@@ -34,6 +34,7 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
     ExtensionRequestRepository extensionRequestRepository;
     BookingRepository bookingRepository;
     AccountRepository accountRepository;
+    ItemRepository itemRepository;
     TransactionRepository transactionRepository;
     TransactionBookingRepository transactionBookingRepository;
 
@@ -76,7 +77,7 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
 
         ExtensionRequest saved = extensionRequestRepository.save(req);
 
-        return extensionRequestMapper.entityToResponse(saved);
+        return enrichExtensionRequestResponse(saved);
     }
 
     @Override
@@ -131,7 +132,7 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         ext.setNote(request.getNote());
         extensionRequestRepository.save(ext);
 
-        return extensionRequestMapper.entityToResponse(ext);
+        return enrichExtensionRequestResponse(ext);
     }
 
     @Override
@@ -148,7 +149,7 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         ext.setNote(request.getNote());
         extensionRequestRepository.save(ext);
 
-        return extensionRequestMapper.entityToResponse(ext);
+        return enrichExtensionRequestResponse(ext);
     }
 
     @Override
@@ -163,7 +164,7 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         ext.setStatus(ExtensionStatus.CANCELLED);
         extensionRequestRepository.save(ext);
 
-        return extensionRequestMapper.entityToResponse(ext);
+        return enrichExtensionRequestResponse(ext);
     }
 
     @Override
@@ -177,4 +178,31 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         pending.forEach(r -> r.setStatus(ExtensionStatus.EXPIRED));
         extensionRequestRepository.saveAll(pending);
     }
+
+    private ExtensionReqResponse enrichExtensionRequestResponse(ExtensionRequest req) {
+
+        ExtensionReqResponse res = extensionRequestMapper.entityToResponse(req);
+
+        // 1. Load booking
+        Booking booking = bookingRepository.findById(req.getBookingId())
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+
+        // 2. Load item
+        Item item = itemRepository.findById(booking.getItemId())
+                .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+        res.setItemName(item.getName());
+
+        // 3. Load lessor
+        Account lessor = accountRepository.findById(booking.getLessorId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        res.setLessorName(lessor.getLastname() + " " + lessor.getFirstname());
+
+        // 4. Load lessee
+        Account lessee = accountRepository.findById(booking.getLesseeId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        res.setLesseeName(lessee.getLastname() + " " + lessee.getFirstname());
+
+        return res;
+    }
+
 }

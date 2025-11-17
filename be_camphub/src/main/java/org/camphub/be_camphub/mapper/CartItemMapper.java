@@ -11,16 +11,18 @@ import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
 public interface CartItemMapper {
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "cartId", source = "cartId")
-    @Mapping(
-            target = "subtotal",
-            expression =
-                    "java(request.getPrice().multiply(new java.math.BigDecimal(request.getQuantity() * request.getRentalDays())))")
+    @Mapping(target = "subtotal",
+            expression = "java(request.getPrice().multiply(new java.math.BigDecimal(request.getQuantity() * request.getRentalDays())))")
     CartItem creationRequestToEntity(CartItemCreationRequest request, UUID cartId);
 
+    @Mapping(target = "itemName", ignore = true)
+    @Mapping(target = "itemImage", ignore = true)
     CartItemResponse entityToResponse(CartItem cartItem);
 
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateRequestToEntity(@MappingTarget CartItem cartItem, CartItemUpdateRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

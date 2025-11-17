@@ -1,22 +1,19 @@
 package org.camphub.be_camphub.mapper;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.camphub.be_camphub.dto.request.dispute.DisputeCreationRequest;
 import org.camphub.be_camphub.dto.response.dispute.DisputeResponse;
 import org.camphub.be_camphub.entity.Dispute;
-import org.camphub.be_camphub.entity.MediaResource;
-import org.camphub.be_camphub.enums.MediaType;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = MediaResourceMapper.class)
 public interface DisputeMapper {
     @Mapping(target = "damageTypeName", ignore = true)
     @Mapping(target = "compensationRate", ignore = true)
-    @Mapping(target = "evidenceUrls", expression = "java(parseEvidenceUrls(dispute.getEvidences()))")
+    @Mapping(target = "reporterName", ignore = true)
+    @Mapping(target = "defenderName", ignore = true)
+    @Mapping(target = "adminName", ignore = true)
+    @Mapping(target = "evidenceUrls", source = "evidences", qualifiedByName = "toResponse")
     DisputeResponse entityToResponse(Dispute dispute);
 
     @Mapping(target = "id", ignore = true)
@@ -29,33 +26,7 @@ public interface DisputeMapper {
     @Mapping(target = "adminId", ignore = true)
     @Mapping(target = "resolvedAt", ignore = true)
     @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
-    @Mapping(target = "evidences", expression = "java(toMediaResources(request.getEvidenceUrls()))")
-    @Mapping(target = "damageTypeId", ignore = true) // sẽ set ở service
+    @Mapping(target = "evidences", source = "evidenceUrls", qualifiedByName = "fromRequest")
     @Mapping(target = "description", source = "note")
     Dispute creationRequestToEntity(DisputeCreationRequest request);
-
-    default List<String> parseEvidenceUrls(List<MediaResource> evidences) {
-        if (evidences == null) return Collections.emptyList();
-        return evidences.stream()
-                .map(MediaResource::getUrl)
-                .collect(Collectors.toList());
-    }
-
-
-    default List<MediaResource> toMediaResources(List<String> urls) {
-        if (urls == null || urls.isEmpty()) return List.of();
-        return urls.stream()
-                .map(url -> {
-                    // Đoán type dựa trên phần mở rộng
-                    String lower = url.toLowerCase();
-                    MediaType type = (lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".avi"))
-                            ? MediaType.VIDEO
-                            : MediaType.IMAGE;
-                    return MediaResource.builder()
-                            .url(url)
-                            .type(type)
-                            .build();
-                })
-                .toList();
-    }
 }

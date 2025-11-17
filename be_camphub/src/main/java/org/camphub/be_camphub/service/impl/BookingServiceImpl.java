@@ -12,6 +12,7 @@ import org.camphub.be_camphub.Utils.MediaUtils;
 import org.camphub.be_camphub.dto.request.booking.BookingCreationRequest;
 import org.camphub.be_camphub.dto.request.booking.BookingItemRequest;
 import org.camphub.be_camphub.dto.request.booking.LesseeReturnRequest;
+import org.camphub.be_camphub.dto.request.booking.OwnerConfirmationRequest;
 import org.camphub.be_camphub.dto.response.booking.BookingResponse;
 import org.camphub.be_camphub.entity.*;
 import org.camphub.be_camphub.enums.*;
@@ -163,8 +164,14 @@ public class BookingServiceImpl implements BookingService {
                     .status(BookingStatus.PENDING_CONFIRM)
                     .build();
 
+            // Subtract the quantity if the product is still available
+
             // update status for item
-            item.setStatus(ItemStatus.RENTED_PENDING_CONFIRM);
+            if(item.getQuantity() - booking.getQuantity() > 0) {
+                item.setQuantity(item.getQuantity() - booking.getQuantity());
+            } else {
+                item.setStatus(ItemStatus.RENTED_PENDING_CONFIRM);
+            }
             itemRepository.save(item);
 
             // item log
@@ -178,7 +185,7 @@ public class BookingServiceImpl implements BookingService {
             itemLogRepository.save(log);
 
             bookingRepository.save(booking);
-            responses.add(bookingMapper.entityToResponse(booking));
+            responses.add(enrichBookingResponse(booking));
         }
 
         // link transaction to all bookings
@@ -206,9 +213,9 @@ public class BookingServiceImpl implements BookingService {
      */
     @Override
     @Transactional
-    public BookingResponse ownerRespondBooking(UUID lessorId, UUID bookingId, boolean accept, String deliveryNote) {
+    public BookingResponse ownerRespondBooking(UUID lessorId, OwnerConfirmationRequest request) {
         Booking booking =
-                bookingRepository.findById(bookingId).orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+                bookingRepository.findById(request.getBookingId()).orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
         if (!booking.getLessorId().equals(lessorId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -219,7 +226,7 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
 
         // reject booking
-        if (!accept) {
+        if (!request.getIsAccepted()) {
             // refund rental + deposit for this booking
             BigDecimal days =
                     BigDecimal.valueOf(ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate()) + 1);
@@ -275,10 +282,10 @@ public class BookingServiceImpl implements BookingService {
                     .itemId(item.getId())
                     .accountId(lessorId)
                     .action(ItemActionType.REJECT_RENTAL)
-                    .note("Owner rejected booking: " + bookingId)
+                    .note("Owner rejected booking: " + request.getBookingId())
                     .build());
 
-            return bookingMapper.entityToResponse(booking);
+            return enrichBookingResponse(booking);
         } else {
             // accept booking
             booking.setStatus(BookingStatus.WAITING_DELIVERY);
@@ -295,12 +302,15 @@ public class BookingServiceImpl implements BookingService {
                     .itemId(item.getId())
                     .accountId(lessorId)
                     .action(ItemActionType.APPROVE_RENTAL)
-                    .note(Optional.ofNullable(deliveryNote).orElse("Owner accepted booking and will deliver"))
+                            .previousStatus(ItemStatus.AVAILABLE)
+                            .currentStatus(ItemStatus.RENTED)
+                    .note(Optional.ofNullable(request.getDeliveryNote()).orElse("Owner accepted booking and will deliver"))
+                    .evidenceUrls(mediaUtils.fromRequest(request.getPackagingMediaUrls()))
                     .createdAt(LocalDateTime.now())
                     .build());
         }
 
-        return bookingMapper.entityToResponse(booking);
+        return enrichBookingResponse(booking);
     }
 
     //         Lessee confirm received -> set IN_USE, add rent log.
@@ -326,7 +336,7 @@ public class BookingServiceImpl implements BookingService {
                 .createdAt(LocalDateTime.now())
                 .build());
 
-        return bookingMapper.entityToResponse(booking);
+        return enrichBookingResponse(booking);
     }
 
     @Override
@@ -339,11 +349,11 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingResponse> getBookingsByLessor(UUID lessorId) {
         return bookingRepository.findAllByLessorIdOrderByCreatedAtDesc(lessorId).stream()
-                .map(bookingMapper::entityToResponse)
+                .map(this::enrichBookingResponse)
                 .toList();
     }
 
-    // Lessee return item
+    // lessee return item --> set RETURNED_PENDING_CHECK, add return log, update item status
     @Override
     @Transactional
     public BookingResponse lesseeReturnItem(UUID lesseeId, LesseeReturnRequest request) {
@@ -363,6 +373,7 @@ public class BookingServiceImpl implements BookingService {
         booking.setStatus(BookingStatus.RETURNED_PENDING_CHECK);
         bookingRepository.save(booking);
 
+        List<MediaResource> evidenceUrls = mediaUtils.fromRequest(request.getMediaUrls());
         // save ItemLog
         ItemLog log = ItemLog.builder()
                 .id(UUID.randomUUID())
@@ -372,12 +383,7 @@ public class BookingServiceImpl implements BookingService {
                 .previousStatus(ItemStatus.RENTED)
                 .currentStatus(ItemStatus.RETURN_PENDING_CHECK)
                 .note(request.getNote())
-                //                        .media(request.getMediaUrls().stream()
-                //                                .map(url -> MediaResource.builder()
-                //                                        .url(url)
-                //                                        .type(mediaUtils.detectMediaType(url))
-                //                                        .build())
-                //                                .toList())
+                .evidenceUrls(evidenceUrls)
                 .build();
 
         itemLogRepository.save(log);
@@ -388,7 +394,7 @@ public class BookingServiceImpl implements BookingService {
         item.setStatus(ItemStatus.RETURN_PENDING_CHECK);
         itemRepository.save(item);
 
-        return bookingMapper.entityToResponse(booking);
+        return enrichBookingResponse(booking);
     }
 
     @Override
@@ -424,7 +430,7 @@ public class BookingServiceImpl implements BookingService {
         item.setStatus(ItemStatus.AVAILABLE);
         itemRepository.save(item);
 
-        return bookingMapper.entityToResponse(booking);
+        return enrichBookingResponse(booking);
     }
 
     @Override
@@ -473,7 +479,7 @@ public class BookingServiceImpl implements BookingService {
                     " Booking {} trả trễ {} ngày → trừ {} coin ({}%)",
                     bookingId, daysLate, penalty, (int) (penaltyRate * 100));
         } else if (daysLate >= 4) {
-            //  handleUnreturnedBooking
+              handleUnreturnedBooking(booking);
             log.warn("Booking {} trả sau hơn 3 ngày — sẽ không hoàn cọc (đã xử lý ở forfeited flow)", bookingId);
             return;
         }
@@ -653,5 +659,28 @@ public class BookingServiceImpl implements BookingService {
         accountRepository.save(system);
         accountRepository.save(lessor);
         accountRepository.save(lessee);
+    }
+
+    private BookingResponse enrichBookingResponse(Booking booking) {
+        BookingResponse response = bookingMapper.entityToResponse(booking);
+
+        // load item
+        Item item = itemRepository
+                .findById(booking.getItemId())
+                .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+        response.setItemName(item.getName());
+
+        // load lessor
+        Account lessor = accountRepository
+                .findById(booking.getLessorId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        response.setLessorName(lessor.getLastname() + " " + lessor.getFirstname());
+
+        // load lessee
+        Account lessee = accountRepository
+                .findById(booking.getLesseeId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        response.setLesseeName(lessee.getLastname() + " " + lessee.getFirstname());
+        return response;
     }
 }

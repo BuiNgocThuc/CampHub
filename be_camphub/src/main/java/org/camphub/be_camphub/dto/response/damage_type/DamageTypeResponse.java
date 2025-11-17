@@ -16,6 +16,4 @@ public class DamageTypeResponse {
     String name;
     String description;
     Double compensationRate;
-    LocalDateTime createdAt;
-    LocalDateTime updatedAt;
 }

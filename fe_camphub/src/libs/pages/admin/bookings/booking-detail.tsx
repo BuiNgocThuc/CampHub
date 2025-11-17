@@ -1,6 +1,6 @@
 "use client";
 
-import { Booking } from "@/libs/types";
+import { Booking } from "@/libs/core/types";
 import { mockItems, mockAccounts } from "@/libs/utils/mock-data";
 
 interface BookingDetailModalProps {

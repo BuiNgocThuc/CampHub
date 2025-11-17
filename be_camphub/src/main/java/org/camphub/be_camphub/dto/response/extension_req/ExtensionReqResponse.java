@@ -1,12 +1,6 @@
 package org.camphub.be_camphub.dto.response.extension_req;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
-
-import jakarta.persistence.*;
-
-import org.camphub.be_camphub.enums.ExtensionStatus;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -25,17 +19,19 @@ public class ExtensionReqResponse {
 
     UUID lessorId;
 
-    LocalDate oldEndDate;
+    String itemName;
+    String lesseeName; // tên đầy đủ của người thuê
+    String lessorName; // tên đầy đủ của người cho thuê
 
-    LocalDate requestedNewEndDate;
+    String oldEndDate;
+
+    String requestedNewEndDate;
 
     double additionalFee;
 
-    @Enumerated(EnumType.STRING)
-    ExtensionStatus status;
+    String status;
 
     String note;
 
-    LocalDateTime createdAt;
-    LocalDateTime updatedAt;
+    String createdAt;
 }

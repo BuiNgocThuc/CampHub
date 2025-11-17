@@ -3,6 +3,7 @@ package org.camphub.be_camphub.dto.request.review;
 import java.util.List;
 import java.util.UUID;
 
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 import org.camphub.be_camphub.entity.MediaResource;
 
 import lombok.*;
@@ -17,7 +18,8 @@ public class ReviewCreationRequest {
     UUID bookingId;
     UUID reviewerId;
     UUID reviewedId; // đối tượng được đánh giá
+    UUID itemId;
     Integer rating;
     String content;
-    List<MediaResource> mediaUrls;
+    List<MediaResourceRequest> mediaUrls;
 }

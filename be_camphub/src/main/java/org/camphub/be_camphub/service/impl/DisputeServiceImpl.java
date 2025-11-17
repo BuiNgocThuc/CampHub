@@ -41,44 +41,41 @@ public class DisputeServiceImpl implements DisputeService {
     @Override
     @Transactional
     public DisputeResponse createDispute(UUID lessorId, DisputeCreationRequest request) {
-        Booking booking = bookingRepository
-                .findById(request.getBookingId())
+
+        // 1. Load booking
+        Booking booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
-        if (!booking.getLessorId().equals(lessorId)) throw new AppException(ErrorCode.UNAUTHORIZED);
+        if (!booking.getLessorId().equals(lessorId))
+            throw new AppException(ErrorCode.UNAUTHORIZED);
 
-        DamageType damageType = damageTypeRepository
-                .findById(request.getDamageTypeId())
-                .orElseThrow(() -> new AppException(ErrorCode.DAMAGE_TYPE_NOT_FOUND));
 
+        // 3. Đóng các ReturnRequest đang mở (PENDING / WAITING ...)
+        closeOpenReturnRequest(booking);
+
+        // 4. Cập nhật booking
         booking.setStatus(BookingStatus.DISPUTE_PENDING_REVIEW);
         bookingRepository.save(booking);
 
-        Dispute dispute = Dispute.builder()
-                .id(UUID.randomUUID())
-                .bookingId(booking.getId())
-                .reporterId(lessorId)
-                .defenderId(booking.getLesseeId())
-                .description(request.getNote())
-                .damageTypeId(request.getDamageTypeId())
-                //                        .evidenceUrls(disputeMapper.toEvidenceJson(request.getEvidenceUrls()))
-                .status(DisputeStatus.PENDING_REVIEW)
-                .build();
+        // 5. Tạo dispute bằng mapper (chuẩn nhất)
+        Dispute dispute = disputeMapper.creationRequestToEntity(request);
+        dispute.setId(UUID.randomUUID());
+        dispute.setReporterId(lessorId);
+        dispute.setDefenderId(booking.getLesseeId());
+        dispute.setBookingId(booking.getId());
 
         disputeRepository.save(dispute);
 
+        // 6. Ban item tạm thời
         itemRepository.findById(booking.getItemId()).ifPresent(item -> {
             item.setStatus(ItemStatus.BANNED);
             itemRepository.save(item);
         });
 
-        DisputeResponse response = disputeMapper.entityToResponse(dispute);
-        if (damageType != null) {
-            response.setDamageTypeName(damageType.getName());
-            response.setCompensationRate(damageType.getCompensationRate());
-        }
-        return response;
+        // 7. Build response
+        return enrichDisputeResponse(dispute);
     }
+
 
     @Override
     @Transactional
@@ -162,7 +159,7 @@ public class DisputeServiceImpl implements DisputeService {
             bookingRepository.save(booking);
 
             //  Giảm trust_score của khách thuê (lessee)
-            double penalty = 0.0;
+            double penalty;
             if (rate < 0.1) penalty = 2.0;
             else if (rate < 0.3) penalty = 5.0;
             else penalty = 10.0;
@@ -191,32 +188,52 @@ public class DisputeServiceImpl implements DisputeService {
         }
 
         disputeRepository.save(dispute);
-        DisputeResponse response = disputeMapper.entityToResponse(dispute);
-        if (damageType != null) {
-            response.setDamageTypeName(damageType.getName());
-            response.setCompensationRate(damageType.getCompensationRate());
-        }
-        return response;
+        return enrichDisputeResponse(dispute);
     }
 
     @Override
     public List<DisputeResponse> getPendingDisputes() {
         return disputeRepository.findByStatus(DisputeStatus.PENDING_REVIEW).stream()
-                .map(dispute -> {
-                    // map cơ bản
-                    DisputeResponse response = disputeMapper.entityToResponse(dispute);
-
-                    // enrich thêm thông tin damageType
-                    if (dispute.getDamageTypeId() != null) {
-                        damageTypeRepository.findById(dispute.getDamageTypeId())
-                                .ifPresent(type -> {
-                                    response.setDamageTypeName(type.getName());
-                                    response.setCompensationRate(type.getCompensationRate());
-                                });
-                    }
-
-                    return response;
-                })
+                .map(this::enrichDisputeResponse)
                 .toList();
     }
+
+    private void closeOpenReturnRequest(Booking booking) {
+        List<ReturnRequestStatus> activeStatuses = List.of(
+                ReturnRequestStatus.PENDING,
+                ReturnRequestStatus.PROCESSING
+        );
+
+        returnRequestRepository.findFirstByBookingIdAndStatusIn(booking.getId(), activeStatuses)
+                .ifPresent(rr -> {
+                    rr.setStatus(ReturnRequestStatus.CLOSED_BY_DISPUTE);
+                    rr.setResolvedAt(LocalDateTime.now());
+                    returnRequestRepository.save(rr);
+                });
+    }
+
+    private DisputeResponse enrichDisputeResponse(Dispute dispute) {
+        DisputeResponse response = disputeMapper.entityToResponse(dispute);
+        accountRepository.findById(dispute.getReporterId())
+                .ifPresent(acc -> response.setReporterName(acc.getLastname() + " " + acc.getFirstname()));
+
+        accountRepository.findById(dispute.getDefenderId())
+                .ifPresent(acc -> response.setDefenderName(acc.getLastname() + " " + acc.getFirstname()));
+
+        if (dispute.getAdminId() != null) {
+            accountRepository.findById(dispute.getAdminId())
+                    .ifPresent(acc -> response.setAdminName(acc.getLastname() + " " + acc.getFirstname()));
+        }
+
+        if (dispute.getDamageTypeId() != null) {
+            damageTypeRepository.findById(dispute.getDamageTypeId())
+                    .ifPresent(dt -> {
+                        response.setDamageTypeName(dt.getName());
+                        response.setCompensationRate(dt.getCompensationRate());
+                    });
+        }
+
+        return response;
+    }
+
 }

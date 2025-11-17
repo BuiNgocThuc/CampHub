@@ -41,6 +41,9 @@ public class Item {
     @Column(name = "price_per_day")
     Double pricePerDay;
 
+    @Column(name = "quantity")
+    Integer quantity;
+
     @Column(name = "deposit_amount")
     Double depositAmount;
 

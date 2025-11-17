@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Chip, IconButton, Tooltip } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import {PrimaryTable, PrimaryModal} from "@/libs/components";
+import { PrimaryTable, PrimaryModal } from "@/libs/components";
 import ExtensionDetailModal from "./extension-detail";
 import { mockExtensionRequests, mockAccounts } from "@/libs/utils/mock-data";
-import { ExtensionStatus } from "@/libs/constants";
-import { ExtensionRequest } from "@/libs/types";
+import { ExtensionStatus } from "@/libs/core/constants";
+import { ExtensionRequest } from "@/libs/core/types";
 
 export default function ExtensionManagementPage() {
     const [selectedRequest, setSelectedRequest] = useState<ExtensionRequest | null>(null);

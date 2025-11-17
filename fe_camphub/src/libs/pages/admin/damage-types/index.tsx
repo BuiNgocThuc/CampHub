@@ -2,9 +2,9 @@
 import { useState } from "react";
 import { Button, IconButton } from "@mui/material";
 import { Edit, Trash2 } from "lucide-react";
-import {PrimaryTable, PrimaryModal} from "@/libs/components";
+import { PrimaryTable, PrimaryModal } from "@/libs/components";
 import { mockDamageTypes } from "@/libs/utils/mock-data";
-import { DamageType } from "@/libs/types";
+import { DamageType } from "@/libs/core/types";
 import DamageTypeForm from "./damage-type-detail";
 
 export default function DamageTypeManagement() {

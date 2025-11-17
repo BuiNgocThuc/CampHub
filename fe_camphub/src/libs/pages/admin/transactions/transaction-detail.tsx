@@ -2,9 +2,9 @@
 
 import { Chip } from "@mui/material";
 import { formatCurrency, formatDateTime } from "@/libs/utils";
-import { Booking, Transaction } from "@/libs/types";
-import { TransactionStatus, TransactionType } from "@/libs/constants";
-import { PrimaryModal, PrimaryTable} from "@/libs/components/";
+import { Booking, Transaction } from "@/libs/core/types";
+import { TransactionStatus, TransactionType } from "@/libs/core/constants";
+import { PrimaryModal, PrimaryTable } from "@/libs/components/";
 
 interface TransactionDetailModalProps {
     open: boolean;
@@ -47,8 +47,8 @@ export default function TransactionDetailModal({
                         row.status === "COMPLETED"
                             ? "success"
                             : row.status === "IN_USE"
-                            ? "warning"
-                            : "default"
+                                ? "warning"
+                                : "default"
                     }
                 />
             ),
@@ -87,8 +87,8 @@ export default function TransactionDetailModal({
                                 transaction.status === TransactionStatus.SUCCESS
                                     ? "success"
                                     : transaction.status === TransactionStatus.FAILED
-                                    ? "error"
-                                    : "warning"
+                                        ? "error"
+                                        : "warning"
                             }
                             size="small"
                         />

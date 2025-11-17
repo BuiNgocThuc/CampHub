@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Eye } from "lucide-react";
 import { PrimaryTable, PrimaryModal } from "@/libs/components";
-import { Dispute, DamageType } from "@/libs/types";
-import { DisputeStatus } from "@/libs/constants";
+import { Dispute, DamageType } from "@/libs/core/types";
+import { DisputeStatus } from "@/libs/core/constants";
 import { mockDisputes, mockDamageTypes } from "@/libs/utils";
 
 // Chi tiết khiếu nại hiển thị trong modal

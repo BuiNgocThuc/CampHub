@@ -9,11 +9,13 @@ import org.camphub.be_camphub.dto.request.cart.CartItemUpdateRequest;
 import org.camphub.be_camphub.dto.response.cart.CartItemResponse;
 import org.camphub.be_camphub.entity.Cart;
 import org.camphub.be_camphub.entity.CartItem;
+import org.camphub.be_camphub.entity.Item;
 import org.camphub.be_camphub.exception.AppException;
 import org.camphub.be_camphub.exception.ErrorCode;
 import org.camphub.be_camphub.mapper.CartItemMapper;
 import org.camphub.be_camphub.repository.CartItemRepository;
 import org.camphub.be_camphub.repository.CartRepository;
+import org.camphub.be_camphub.repository.ItemRepository;
 import org.camphub.be_camphub.service.CartService;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +30,7 @@ public class CartServiceImpl implements CartService {
     CartItemRepository cartItemRepository;
     CartRepository cartRepository;
     CartItemMapper cartItemMapper;
+    ItemRepository itemRepository;
 
     @Override
     public CartItemResponse addItemToCart(UUID accountId, CartItemCreationRequest request) {
@@ -39,7 +42,7 @@ public class CartServiceImpl implements CartService {
 
         CartItem cartItem = cartItemMapper.creationRequestToEntity(request, cart.getId());
 
-        return cartItemMapper.entityToResponse(cartItemRepository.save(cartItem));
+        return enrichCartItemResponse(cartItemRepository.save(cartItem));
     }
 
     @Override
@@ -51,7 +54,7 @@ public class CartServiceImpl implements CartService {
         cartItemMapper.updateRequestToEntity(cartItem, request);
 
         CartItem updated = cartItemRepository.save(cartItem);
-        return cartItemMapper.entityToResponse(updated);
+        return enrichCartItemResponse(updated);
     }
 
     @Override
@@ -63,7 +66,7 @@ public class CartServiceImpl implements CartService {
         cartItemMapper.patchRequestToEntity(cartItem, request);
 
         CartItem updated = cartItemRepository.save(cartItem);
-        return cartItemMapper.entityToResponse(updated);
+        return enrichCartItemResponse(updated);
     }
 
     @Override
@@ -93,7 +96,28 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public List<CartItem> getValidCartItems(UUID accountId) {
-        return List.of();
+    public List<CartItemResponse> getValidCartItems(UUID accountId) {
+        Cart cart = cartRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
+
+        List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
+        return cartItems.stream()
+                .map(this::enrichCartItemResponse)
+                .toList();
+    }
+
+    private CartItemResponse enrichCartItemResponse(CartItem cartItem) {
+        CartItemResponse response = cartItemMapper.entityToResponse(cartItem);
+        // Load Item
+        Item item = itemRepository.findById(cartItem.getItemId())
+                .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+        boolean isAvailable = item.getQuantity() >= cartItem.getQuantity();
+        String itemName = item.getName();
+        String itemImage = item.getMediaUrls().isEmpty() ? null : item.getMediaUrls().get(0).getUrl();
+
+        response.setIsAvailable(isAvailable);
+        response.setItemName(itemName);
+        response.setItemImage(itemImage);
+        return response;
     }
 }

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 
 @Data
 @Builder
@@ -15,8 +16,8 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class LesseeSubmitReturnRequest {
     @NotNull
-    UUID returnRequestId;
+    UUID bookingId;
 
     String note;
-    List<String> packingMediaUrls;
+    List<MediaResourceRequest> packingMediaUrls;
 }

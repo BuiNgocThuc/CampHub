@@ -1,5 +1,5 @@
-import { Transaction, TransactionBooking, Review, Category, Item, ExtensionRequest, DamageType, ItemLog, Dispute, ChatMessage, ChatRoom, ReturnRequest } from "@/libs/types";
-import { TransactionStatus, TransactionType, UserStatus, UserType, ItemActionType, ItemStatus, BookingStatus, MediaType, ExtensionStatus, ReasonReturnType, ReturnRequestStatus, DisputeStatus, DisputeDecision } from "@/libs/constants";
+import { Transaction, TransactionBooking, Review, Category, Item, ExtensionRequest, DamageType, ItemLog, Dispute, ChatMessage, ChatRoom, ReturnRequest } from "@/libs/core/types";
+import { TransactionStatus, TransactionType, UserStatus, UserType, ItemActionType, ItemStatus, BookingStatus, MediaType, ExtensionStatus, ReasonReturnType, ReturnRequestStatus, DisputeStatus, DisputeDecision } from "@/libs/core/constants";
 
 import { v4 as uuid } from "uuid";
 
@@ -514,41 +514,41 @@ export const mockDisputes: Dispute[] = [
 
 
 export const mockChatRooms: ChatRoom[] = [
-  {
-    id: uuid(),
-    chatCode: "CH001",
-    participantIds: ["user1", "user2"],
-    lastMessage: "Còn lều 2 người không?",
-    lastTimestamp: new Date().toISOString(),
-    unreadMessageCounts: { user1: 0, user2: 1 },
-  },
-  {
-    id: uuid(),
-    chatCode: "CH002",
-    participantIds: ["user1", "user3"],
-    lastMessage: "Ok cảm ơn!",
-    lastTimestamp: new Date().toISOString(),
-    unreadMessageCounts: { user1: 0, user3: 0 },
-  },
+    {
+        id: uuid(),
+        chatCode: "CH001",
+        participantIds: ["user1", "user2"],
+        lastMessage: "Còn lều 2 người không?",
+        lastTimestamp: new Date().toISOString(),
+        unreadMessageCounts: { user1: 0, user2: 1 },
+    },
+    {
+        id: uuid(),
+        chatCode: "CH002",
+        participantIds: ["user1", "user3"],
+        lastMessage: "Ok cảm ơn!",
+        lastTimestamp: new Date().toISOString(),
+        unreadMessageCounts: { user1: 0, user3: 0 },
+    },
 ];
 
 export const mockChatMessages: ChatMessage[] = [
-  {
-    id: uuid(),
-    chatCode: "CH001",
-    senderId: "user2",
-    receiverId: "user1",
-    content: "Còn lều 2 người không?",
-    timestamp: new Date().toISOString(),
-    isRead: false,
-  },
-  {
-    id: uuid(),
-    chatCode: "CH001",
-    senderId: "user1",
-    receiverId: "user2",
-    content: "Vẫn còn nhé!",
-    timestamp: new Date().toISOString(),
-    isRead: true,
-  },
+    {
+        id: uuid(),
+        chatCode: "CH001",
+        senderId: "user2",
+        receiverId: "user1",
+        content: "Còn lều 2 người không?",
+        timestamp: new Date().toISOString(),
+        isRead: false,
+    },
+    {
+        id: uuid(),
+        chatCode: "CH001",
+        senderId: "user1",
+        receiverId: "user2",
+        content: "Vẫn còn nhé!",
+        timestamp: new Date().toISOString(),
+        isRead: true,
+    },
 ];

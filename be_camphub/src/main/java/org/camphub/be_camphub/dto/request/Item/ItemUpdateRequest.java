@@ -17,7 +17,7 @@ public class ItemUpdateRequest {
     String name;
     String description;
     Double pricePerDay;
+    Integer quantity;
     Double depositAmount;
-    String conditionNote;
     List<MediaResourceRequest> mediaUrls;
 }

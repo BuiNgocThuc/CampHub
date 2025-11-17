@@ -15,8 +15,16 @@ public class CartItemResponse {
     UUID id;
     UUID cartId;
     UUID itemId;
+
+    // Item details
+    String itemName;
+    // image URL of the item
+    String itemImage;
+
     Integer quantity;
     Integer rentalDays;
     BigDecimal price;
     BigDecimal subtotal;
+
+    Boolean isAvailable; // if quantity are available
 }

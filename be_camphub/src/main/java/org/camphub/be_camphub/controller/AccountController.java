@@ -6,9 +6,13 @@ import java.util.UUID;
 import org.camphub.be_camphub.dto.request.account.AccountCreationRequest;
 import org.camphub.be_camphub.dto.request.account.AccountPatchRequest;
 import org.camphub.be_camphub.dto.request.account.AccountUpdateRequest;
+import org.camphub.be_camphub.dto.request.account.TopUpRequest;
 import org.camphub.be_camphub.dto.response.ApiResponse;
 import org.camphub.be_camphub.dto.response.account.AccountResponse;
+import org.camphub.be_camphub.dto.response.account.TopUpResponse;
 import org.camphub.be_camphub.service.AccountService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.AccessLevel;
@@ -25,7 +29,6 @@ public class AccountController {
     // create account for admin
     @PostMapping
     ApiResponse<AccountResponse> createAccountForAdmin(@RequestBody AccountCreationRequest request) {
-        AccountResponse accountResponse = accountService.createAdminAccount(request);
         return ApiResponse.<AccountResponse>builder()
                 .message("Create account for admin Successfully")
                 .result(accountService.createAdminAccount(request))
@@ -36,7 +39,6 @@ public class AccountController {
     @PutMapping("/{id}")
     ApiResponse<AccountResponse> updateAccountForAdmin(
             @PathVariable UUID id, @RequestBody AccountUpdateRequest request) {
-        AccountResponse accountResponse = accountService.updateAccount(id, request);
         return ApiResponse.<AccountResponse>builder()
                 .message("Update account Successfully")
                 .result(accountService.updateAccount(id, request))
@@ -46,7 +48,6 @@ public class AccountController {
     // patch account
     @PatchMapping("/{id}")
     ApiResponse<AccountResponse> patchAccount(@PathVariable UUID id, @RequestBody AccountPatchRequest request) {
-        AccountResponse accountResponse = accountService.patchAccount(id, request);
         return ApiResponse.<AccountResponse>builder()
                 .message("Patch account Successfully")
                 .result(accountService.patchAccount(id, request))
@@ -55,7 +56,6 @@ public class AccountController {
 
     @GetMapping
     ApiResponse<List<AccountResponse>> getAccounts() {
-        List<AccountResponse> accounts = accountService.getAccounts();
         return ApiResponse.<List<AccountResponse>>builder()
                 .message("Get accounts Successfully")
                 .result(accountService.getAccounts())
@@ -64,10 +64,20 @@ public class AccountController {
 
     @GetMapping("/{id}")
     ApiResponse<AccountResponse> getAccountById(@PathVariable UUID id) {
-        AccountResponse accountResponse = accountService.getAccountById(id);
         return ApiResponse.<AccountResponse>builder()
                 .message("Get account by id Successfully")
                 .result(accountService.getAccountById(id))
+                .build();
+    }
+
+    @PostMapping("/top-up")
+    ApiResponse<TopUpResponse> topUpAccount(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody TopUpRequest request) {
+        UUID accountId = UUID.fromString(jwt.getClaimAsString("account_id"));
+        return ApiResponse.<TopUpResponse>builder()
+                .message("Top up account Successfully")
+                .result(accountService.topUpAccount(request, accountId))
                 .build();
     }
 }

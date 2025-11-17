@@ -9,19 +9,21 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AccountResponse {
+    String id;
     String username;
-
-    String password;
-
     String firstname;
-
     String lastname;
-
     String email;
-
     String phoneNumber;
-
     String idNumber;
-
     String avatar;
+
+    Double trustScore;
+    Double coinBalance;
+
+    String userType;
+    String status;
+
+    String createdAt;
+    String updatedAt;
 }

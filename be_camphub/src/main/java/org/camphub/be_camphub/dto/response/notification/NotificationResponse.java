@@ -18,12 +18,11 @@ public class NotificationResponse {
     UUID id;
     UUID receiverId;
     UUID senderId;
-    NotificationType type;
+    String type;
     String title;
     String content;
-    ReferenceType referenceType;
+    String referenceType;
     UUID referenceId;
     boolean isRead;
-    LocalDateTime createdAt;
-    LocalDateTime readAt;
+    String createdAt;
 }

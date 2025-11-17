@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 
 @Data
 @Builder
@@ -22,5 +23,5 @@ public class DisputeCreationRequest {
 
     String note;
 
-    List<String> evidenceUrls; // Ảnh/video làm bằng chứng
+    List<MediaResourceRequest> evidenceUrls; // Ảnh/video làm bằng chứng
 }

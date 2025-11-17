@@ -36,5 +36,4 @@ public class CartItem {
 
     @Column(precision = 12, scale = 2)
     BigDecimal subtotal; // = price * quantity * rentalDays
-
 }

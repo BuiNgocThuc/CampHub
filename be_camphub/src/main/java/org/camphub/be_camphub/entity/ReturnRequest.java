@@ -61,4 +61,13 @@ public class ReturnRequest {
     LocalDateTime updatedAt;
 
     LocalDateTime resolvedAt;
+
+    @Column(name = "lessor_confirmed_at")
+    LocalDateTime lessorConfirmedAt; // New field to track lessor confirmation time
+
+    @Column(name = "admin_reviewed_at")
+    LocalDateTime adminReviewedAt; // New field to track admin review time
+
+    @Column(name = "refunded_at")
+    LocalDateTime refundedAt; // New field to track refund time
 }

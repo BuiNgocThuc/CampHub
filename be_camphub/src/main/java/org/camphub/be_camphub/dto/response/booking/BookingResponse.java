@@ -19,15 +19,18 @@ public class BookingResponse {
     UUID lesseeId;
     UUID lessorId;
     UUID itemId;
+
     String itemName;
-    String lessorName;
+    String lessorName; // tên đầy đủ của người cho thuê
+    String lesseeName; // tên đầy đủ của người thuê
+
     Integer quantity;
     Double pricePerDay;
     Double depositAmount;
     Double totalAmount;
-    LocalDate startDate;
-    LocalDate endDate;
+    String startDate;
+    String endDate;
     String note;
-    BookingStatus status;
-    LocalDateTime createdAt;
+    String status;
+    String createdAt;
 }

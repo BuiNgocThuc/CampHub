@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Divider } from "@mui/material";
-import { ItemLog } from "@/libs/types";
+import { ItemLog } from "@/libs/core/types";
 
 interface ItemLogDetailProps {
     log?: ItemLog;

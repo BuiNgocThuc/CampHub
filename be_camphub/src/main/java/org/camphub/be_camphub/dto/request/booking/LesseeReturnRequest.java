@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 
 @Data
 @Builder
@@ -19,5 +20,5 @@ public class LesseeReturnRequest {
 
     String note;
 
-    List<String> mediaUrls; // link ảnh/video đã upload lên Cloudinary
+    List<MediaResourceRequest> mediaUrls;
 }

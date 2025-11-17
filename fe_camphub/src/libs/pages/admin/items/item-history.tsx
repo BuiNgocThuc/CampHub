@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, IconButton, Chip } from "@mui/material";
 import { Eye } from "lucide-react";
 import { PrimaryTable, PrimaryModal } from "@/libs/components";
-import { ItemActionType, ItemStatus } from "@/libs/constants";
+import { ItemActionType, ItemStatus } from "@/libs/core/constants";
 import { mockItemLogs } from "@/libs/utils";
 import ItemLogDetail from "./item-log-detail";
 

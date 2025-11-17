@@ -38,10 +38,4 @@ public class AccountPatchRequest {
     UserType userType;
 
     UserStatus status;
-
-    LocalDateTime createdAt = LocalDateTime.now();
-
-    LocalDateTime updatedAt;
-
-    LocalDateTime deletedAt;
 }

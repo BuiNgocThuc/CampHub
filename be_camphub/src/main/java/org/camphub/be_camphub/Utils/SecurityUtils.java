@@ -2,7 +2,9 @@ package org.camphub.be_camphub.Utils;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import lombok.experimental.NonFinal;
 import org.camphub.be_camphub.entity.Account;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -63,5 +66,24 @@ public class SecurityUtils {
 
     public String generateRefreshToken(Account user) {
         return generateToken(user, 60 * 24 * 7);
+    }
+
+    public UUID introspectToken(String token) {
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(token);
+            JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
+
+            boolean verified = signedJWT.verify(verifier);
+            Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+
+            if (verified && expiryTime.after(new Date())) {
+                String userIdStr = (String) signedJWT.getJWTClaimsSet().getClaim("userId");
+                return UUID.fromString(userIdStr);
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("Error introspecting token", e);
+            return null;
+        }
     }
 }
