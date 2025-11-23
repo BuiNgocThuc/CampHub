@@ -1,3 +1,4 @@
+// PrimaryTable.tsx
 "use client";
 import {
     Table,
@@ -14,10 +15,11 @@ export interface Column<T> {
     field: keyof T | string;
     headerName: string;
     width?: number;
-    render?: (row: T) => ReactNode; // dùng row kiểu T
+    // Cho phép render nhận cả index (rất cần cho STT)
+    render?: (row: T, index: number) => ReactNode;
 }
 
-export interface PrimaryTableProps<T> {
+export interface PrimaryTableProps<T extends { id: string | number }> {
     columns: Column<T>[];
     rows: T[];
     onRowClick?: (row: T) => void;
@@ -36,7 +38,7 @@ export default function PrimaryTable<T extends { id: string | number }>({
                         {columns.map((col) => (
                             <TableCell
                                 key={String(col.field)}
-                                className="font-semibold"
+                                className="font-semibold text-gray-700"
                                 style={{ width: col.width }}
                             >
                                 {col.headerName}
@@ -45,18 +47,18 @@ export default function PrimaryTable<T extends { id: string | number }>({
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {rows.map((row) => (
+                    {rows.map((row, index) => (
                         <TableRow
                             key={row.id}
                             hover
                             onClick={() => onRowClick?.(row)}
-                            className="cursor-pointer"
+                            className="cursor-pointer transition-colors"
                         >
                             {columns.map((col) => (
                                 <TableCell key={String(col.field)}>
                                     {col.render
-                                        ? col.render(row)
-                                        : (row as any)[col.field]} {/* fallback nếu không có render */}
+                                        ? col.render(row, index)
+                                        : (row as any)[col.field]}
                                 </TableCell>
                             ))}
                         </TableRow>

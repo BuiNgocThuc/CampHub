@@ -7,6 +7,7 @@ import org.camphub.be_camphub.dto.request.auth.RefreshTokenRequest;
 import org.camphub.be_camphub.dto.request.auth.RegisterRequest;
 import org.camphub.be_camphub.dto.response.account.AccountResponse;
 import org.camphub.be_camphub.dto.response.auth.AuthResponse;
+import org.camphub.be_camphub.dto.response.auth.MyInfoResponse;
 import org.camphub.be_camphub.dto.response.auth.RefreshTokenResponse;
 import org.camphub.be_camphub.dto.response.auth.RegisterResponse;
 
@@ -17,5 +18,5 @@ public interface AuthService {
     AuthResponse authenticate(AuthRequest request);
     RegisterResponse register(RegisterRequest request);
     RefreshTokenResponse refreshToken(RefreshTokenRequest refreshToken);
-    AccountResponse getMyInfo(UUID accountId);
+    MyInfoResponse getMyInfo(UUID accountId);
 }

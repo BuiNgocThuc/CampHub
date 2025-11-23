@@ -3,6 +3,7 @@ package org.camphub.be_camphub.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.camphub.be_camphub.dto.request.return_req.AdminDecisionRequest;
 import org.camphub.be_camphub.dto.request.return_req.LesseeSubmitReturnRequest;
 import org.camphub.be_camphub.dto.request.return_req.LessorConfirmReturnRequest;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/return-requests")
 @RequiredArgsConstructor
@@ -95,6 +97,16 @@ public class ReturnRequestController {
         return ApiResponse.<List<ReturnReqResponse>>builder()
                 .message("Fetch pending return requests successfully")
                 .result(returnRequestService.getPendingRequests())
+                .build();
+    }
+
+    // Lấy tất cả yêu cầu trả hàng (cho admin)
+    @GetMapping
+    public ApiResponse<List<ReturnReqResponse>> getAllReturnRequests() {
+        log.info("Fetching all return requests");
+        return ApiResponse.<List<ReturnReqResponse>>builder()
+                .message("Fetch all return requests successfully")
+                .result(returnRequestService.getAllReturnRequests())
                 .build();
     }
 }

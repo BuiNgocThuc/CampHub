@@ -16,12 +16,10 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
-        // Lấy claim userType từ token
         String userType = jwt.getClaim("userType");
         Collection<GrantedAuthority> authorities = new ArrayList<>();
 
         if (userType != null) {
-            // Spring Security yêu cầu role phải có prefix ROLE_
             authorities.add(new SimpleGrantedAuthority("ROLE_" + userType));
         }
 

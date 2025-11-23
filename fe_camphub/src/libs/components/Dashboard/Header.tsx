@@ -1,26 +1,28 @@
 "use client";
 
+import { useAuthStore } from "@/libs/stores";
 import NotificationDropdown from "./NotificationDropdown";
 import { Bell, ShoppingCart, UserCircle, Search, CircleUserRound } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-type Props = {
-  cartCount?: number;
-  notifCount?: number;
-  avatarSrc?: string | null;
-};
 
-export default function Header({
-  cartCount = 0,
-  notifCount = 0,
-  avatarSrc = "/img/default-avatar.png",
-}: Props) {
+export default function Header() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [showNoti, setShowNoti] = useState(false);
+
+  const user = useAuthStore((s) => s.user);
+  const fetchMyInfo = useAuthStore((s) => s.fetchMyInfo);
+  const logout = useAuthStore((s) => s.logout);
+
+  useEffect(() => {
+    if (!user) {
+      fetchMyInfo(); // gọi async, chỉ chạy 1 lần nếu user chưa có
+    }
+  }, [user, fetchMyInfo]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +30,8 @@ export default function Header({
     if (!query) return;
     router.push(`/search?q=${encodeURIComponent(query)}`);
   };
+
+
 
   return (
     <header className="w-full bg-white shadow-sm border-b border-gray-200">
@@ -101,12 +105,14 @@ export default function Header({
             title="Giỏ hàng"
           >
             <ShoppingCart size={20} className="text-gray-700" />
-            {cartCount > 0 && (
+
+            {(user?.cartItemCount ?? 0) > 0 && (
               <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-semibold leading-none text-white bg-red-500 rounded-full">
-                {cartCount}
+                {user?.cartItemCount}
               </span>
             )}
           </div>
+
 
           {/* Notifications */}
           <div
@@ -116,9 +122,10 @@ export default function Header({
             onClick={() => setShowNoti((prev) => !prev)}
           >
             <Bell size={20} className="text-gray-700" />
-            {notifCount > 0 && (
+
+            {(user?.unreadNotifications ?? 0) > 0 && (
               <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-semibold leading-none text-white bg-red-500 rounded-full">
-                {notifCount > 9 ? "9+" : notifCount}
+                {user?.unreadNotifications! > 9 ? "9+" : user?.unreadNotifications}
               </span>
             )}
             {showNoti && (
@@ -127,56 +134,102 @@ export default function Header({
           </div>
 
           {/* User avatar */}
-          <div
-            className="flex items-center cursor-pointer p-1 rounded-full hover:bg-gray-100"
-            onClick={() => router.push("/profile")}
-            aria-label="Tài khoản"
-            title="Tài khoản"
-          >
-            <CircleUserRound size={24} className="text-gray-700" />
+          <div className="relative group">
+            <div
+              className="flex items-center gap-2 cursor-pointer p-1 rounded-full hover:bg-gray-100"
+            >
+              {user?.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt="avatar"
+                  className="w-7 h-7 rounded-full object-cover"
+                />
+              ) : (
+                <CircleUserRound size={24} className="text-gray-700" />
+              )}
+
+              {/* Username */}
+              <span className="text-sm font-medium text-gray-800">
+                {user?.username ?? "Guest"}
+              </span>
+            </div>
+
+            {/* Dropdown menu */}
+            <div className="
+    absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg border
+    opacity-0 invisible group-hover:opacity-100 group-hover:visible
+    transition-all duration-200 z-50
+  ">
+              <button
+                onClick={() => router.push("/profile")}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+              >
+                Tài khoản của tôi
+              </button>
+
+              <button
+                onClick={() => router.push("/rentals")}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+              >
+                Đơn thuê
+              </button>
+
+              <button
+                onClick={() => {
+                  logout();
+                  router.push("/auth/login");
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600"
+              >
+                Đăng xuất
+              </button>
+            </div>
           </div>
         </div>
+
       </div>
 
       {/* Mobile search overlay */}
-      {mobileSearchOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black/40 flex items-start pt-24 px-4">
-          <div className="w-full">
-            <form
-              onSubmit={(e) => {
-                handleSubmit(e);
-                setMobileSearchOpen(false);
-              }}
-              className="w-full"
-            >
-              <div className="flex items-center gap-2 bg-white rounded-full p-2 shadow">
-                <input
-                  autoFocus
-                  aria-label="Tìm kiếm"
-                  name="q"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Tìm sản phẩm, ví dụ: lều 4 người"
-                  className="flex-1 px-4 py-3 rounded-full text-sm bg-transparent focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-full bg-blue-600 text-white"
-                >
-                  Tìm
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileSearchOpen(false)}
-                  className="ml-2 px-3 py-2 rounded-full hover:bg-gray-100"
-                >
-                  Hủy
-                </button>
-              </div>
-            </form>
+      {
+        mobileSearchOpen && (
+          <div className="md:hidden fixed inset-0 z-50 bg-black/40 flex items-start pt-24 px-4">
+            <div className="w-full">
+              <form
+                onSubmit={(e) => {
+                  handleSubmit(e);
+                  setMobileSearchOpen(false);
+                }}
+                className="w-full"
+              >
+                <div className="flex items-center gap-2 bg-white rounded-full p-2 shadow">
+                  <input
+                    autoFocus
+                    aria-label="Tìm kiếm"
+                    name="q"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Tìm sản phẩm, ví dụ: lều 4 người"
+                    className="flex-1 px-4 py-3 rounded-full text-sm bg-transparent focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-full bg-blue-600 text-white"
+                  >
+                    Tìm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileSearchOpen(false)}
+                    className="ml-2 px-3 py-2 rounded-full hover:bg-gray-100"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
-    </header>
+        )
+      }
+    </header >
   );
 }

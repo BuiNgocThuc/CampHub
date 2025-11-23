@@ -20,18 +20,12 @@ spring:
                                 jdbc.time_zone: UTC
         data:
           mongodb:
-                  uri: mongodb://admin:123456@localhost:27017/camphub?authSource=admin
-
+            uri: mongodb://admin:123456@localhost:27017/camphub?authSource=admin
+            uuid-representation: standard
 server:
         port: 8081
         servlet:
                 context-path: /camphub/api/v1
-
-cloudinary:
-        cloudName: "daxuovzwp"
-        apiKey: "961126652335228"
-        secretKey: "W5hSkCyKOPHKaPnyhBcMODhKjm8"
-        secure: true
 
 
 jwt:

@@ -60,7 +60,7 @@ public class BookingController {
                 .build();
     }
 
-    @PutMapping("/{bookingId}/return")
+    @PutMapping("/return")
     ApiResponse<BookingResponse> returnItem(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody LesseeReturnRequest request) {
@@ -92,19 +92,33 @@ public class BookingController {
                 .build();
     }
 
-    @GetMapping("/lessee/{lesseeId}")
-    ApiResponse<List<BookingResponse>> getBookingsByLessee(@PathVariable UUID lesseeId) {
+//     lấy các đơn thuê mình đi thuê
+    @GetMapping("/lessee")
+    ApiResponse<List<BookingResponse>> getBookingsByLessee(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        UUID lesseeId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<List<BookingResponse>>builder()
                 .message("Get bookings by lessee")
                 .result(bookingService.getBookingsByLessee(lesseeId))
                 .build();
     }
 
-    @GetMapping("/lessor/{lessorId}")
-    ApiResponse<List<BookingResponse>> getBookingsByLessor(@PathVariable UUID lessorId) {
+    // lấy các đơn thuê mình cho thuê
+    @GetMapping("/lessor")
+    ApiResponse<List<BookingResponse>> getBookingsByLessor(@AuthenticationPrincipal Jwt jwt) {
+        UUID lessorId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<List<BookingResponse>>builder()
                 .message("Get bookings by lessor")
                 .result(bookingService.getBookingsByLessor(lessorId))
+                .build();
+    }
+
+    @GetMapping
+    ApiResponse<List<BookingResponse>> getAllBookings() {
+        return ApiResponse.<List<BookingResponse>>builder()
+                .message("Get all bookings")
+                .result(bookingService.getAllBookings())
                 .build();
     }
 }

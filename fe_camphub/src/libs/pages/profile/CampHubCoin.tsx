@@ -3,8 +3,13 @@
 import { PrimaryButton } from "@/libs/components";
 import { Coins } from "lucide-react";
 
-export default function CampHubCoin() {
-  const balance = 230000;
+interface CampHubCoinProps {
+  balance: number;
+  isLoading?: boolean;
+}
+
+export default function CampHubCoin({ balance, isLoading = false }: CampHubCoinProps) {
+  if (isLoading) return <div>Đang tải số dư...</div>;
 
   return (
     <div>
@@ -13,7 +18,7 @@ export default function CampHubCoin() {
         <div>
           <p className="text-gray-600">Số dư hiện tại</p>
           <h3 className="text-2xl font-bold text-blue-600">
-            {balance.toLocaleString()} đ
+            {balance.toLocaleString("vi-VN")} Xu
           </h3>
         </div>
         {/* primary button */}

@@ -3,8 +3,6 @@
 import {
     Users,
     Package,
-    Tag,
-    History,
     CreditCard,
     Undo2,
     AlertTriangle,
@@ -13,6 +11,7 @@ import {
     CalendarClock
 } from "lucide-react";
 import SidebarItem from "./SidebarItem";
+import { useAuthStore } from "@/libs/stores";
 
 const menuItems = [
     { label: "Quản lý tài khoản", icon: Users, href: "/admin/accounts" },
@@ -26,6 +25,7 @@ const menuItems = [
 ];
 
 export default function Sidebar() {
+     const user = useAuthStore((s) => s.user);
     return (
         <aside className="w-64 bg-white border-r h-screen sticky top-0 p-4 flex flex-col">
             <h2 className="text-xl font-bold mb-6 text-blue-600 text-center">

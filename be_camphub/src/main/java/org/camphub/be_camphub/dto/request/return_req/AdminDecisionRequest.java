@@ -13,6 +13,5 @@ import lombok.experimental.FieldDefaults;
 public class AdminDecisionRequest {
     UUID returnRequestId;
     Boolean isApproved;
-    Double refundAmount;
     String adminNote;
 }

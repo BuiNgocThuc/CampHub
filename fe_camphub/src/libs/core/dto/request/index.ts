@@ -34,3 +34,6 @@ export * from "./return-request.request";
 
 // review
 export * from "./review.request";
+
+// chat
+export * from "./chat.request";

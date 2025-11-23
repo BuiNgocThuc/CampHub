@@ -1,18 +1,24 @@
 package org.camphub.be_camphub.service.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.camphub.be_camphub.Utils.SecurityUtils;
 import org.camphub.be_camphub.dto.request.auth.AuthRequest;
 import org.camphub.be_camphub.dto.request.auth.RefreshTokenRequest;
 import org.camphub.be_camphub.dto.request.auth.RegisterRequest;
 import org.camphub.be_camphub.dto.response.account.AccountResponse;
 import org.camphub.be_camphub.dto.response.auth.AuthResponse;
+import org.camphub.be_camphub.dto.response.auth.MyInfoResponse;
 import org.camphub.be_camphub.dto.response.auth.RefreshTokenResponse;
 import org.camphub.be_camphub.dto.response.auth.RegisterResponse;
 import org.camphub.be_camphub.entity.Account;
+import org.camphub.be_camphub.entity.Cart;
 import org.camphub.be_camphub.exception.AppException;
 import org.camphub.be_camphub.exception.ErrorCode;
 import org.camphub.be_camphub.mapper.AccountMapper;
 import org.camphub.be_camphub.repository.AccountRepository;
+import org.camphub.be_camphub.repository.CartItemRepository;
+import org.camphub.be_camphub.repository.CartRepository;
+import org.camphub.be_camphub.repository.NotificationRepository;
 import org.camphub.be_camphub.service.AuthService;
 import org.springframework.stereotype.Service;
 
@@ -21,11 +27,15 @@ import lombok.experimental.FieldDefaults;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class AuthServiceImpl implements AuthService {
     AccountRepository accountRepository;
+    CartItemRepository cartItemRepository;
+    CartRepository cartRepository;
+    NotificationRepository notificationRepository;
     AccountMapper accountMapper;
     SecurityUtils securityUtils;
 
@@ -91,10 +101,30 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AccountResponse getMyInfo(UUID userId) {
+    public MyInfoResponse getMyInfo(UUID userId) {
+        log.info("Fetching info for user ID in service layer: {}", userId);
         Account account = accountRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return accountMapper.entityToResponse(account);
+        Cart cart = cartRepository.findByAccountId(userId)
+                .orElseGet(() -> {
+                    Cart newCart = Cart.builder()
+                            .accountId(userId)
+                            .build();
+                    return cartRepository.save(newCart);
+                });
 
+        Integer cartItemCount = cartItemRepository.countByCartId(cart.getId());
+
+        Integer unreadNotificationCount = notificationRepository.countByReceiverIdAndIsReadFalse(userId);
+
+        log.info("User ID: {} has {} items in cart and {} unread notifications",
+                userId, cartItemCount, unreadNotificationCount);
+        return MyInfoResponse.builder()
+                .id(account.getId())
+                .username(account.getUsername())
+                .avatarUrl(account.getAvatar())
+                .cartItemCount(cartItemCount)
+                .unreadNotifications(unreadNotificationCount)
+                .build();
     }
 }

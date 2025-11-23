@@ -8,6 +8,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface ChatMessageRepository extends MongoRepository<ChatMessage, UUID> {
+public interface ChatMessageRepository extends MongoRepository<ChatMessage, String> {
     List<ChatMessage> findByChatCodeOrderByTimestampAsc(String chatCode);
 }

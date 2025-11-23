@@ -1,7 +1,5 @@
 package org.camphub.be_camphub.entity;
 
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,9 +21,7 @@ import java.util.UUID;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
 public class ChatRoom {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    UUID id;
-
+    String id;
     String chatCode;
     List<UUID> participantIds;
     String lastMessage;

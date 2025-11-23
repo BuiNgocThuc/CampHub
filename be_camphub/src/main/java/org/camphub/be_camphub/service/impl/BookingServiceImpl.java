@@ -136,7 +136,7 @@ public class BookingServiceImpl implements BookingService {
 
         // record transaction
         Transaction tx = Transaction.builder()
-                .id(UUID.randomUUID())
+                
                 .fromAccountId(lessee.getId())
                 .toAccountId(systemWallet.getId())
                 .amount(required.doubleValue())
@@ -176,7 +176,6 @@ public class BookingServiceImpl implements BookingService {
 
             // item log
             ItemLog log = ItemLog.builder()
-                    .id(UUID.randomUUID())
                     .itemId(item.getId())
                     .accountId(lesseeId)
                     .action(ItemActionType.RENT)
@@ -191,7 +190,7 @@ public class BookingServiceImpl implements BookingService {
         // link transaction to all bookings
         List<TransactionBooking> txBookings = responses.stream()
                 .map(resp -> TransactionBooking.builder()
-                        .id(UUID.randomUUID())
+                        
                         .transactionId(tx.getId())
                         .bookingId(resp.getId())
                         .build())
@@ -248,7 +247,7 @@ public class BookingServiceImpl implements BookingService {
 
             // transaction
             Transaction tx = Transaction.builder()
-                    .id(UUID.randomUUID())
+                    
                     .fromAccountId(systemWallet.getId())
                     .toAccountId(lessee.getId())
                     .amount(refundTotal.doubleValue())
@@ -258,7 +257,7 @@ public class BookingServiceImpl implements BookingService {
             transactionRepository.save(tx);
 
             transactionBookingRepository.save(TransactionBooking.builder()
-                    .id(UUID.randomUUID())
+                    
                     .transactionId(tx.getId())
                     .bookingId(booking.getId())
                     .build());
@@ -278,7 +277,6 @@ public class BookingServiceImpl implements BookingService {
 
             // log
             itemLogRepository.save(ItemLog.builder()
-                    .id(UUID.randomUUID())
                     .itemId(item.getId())
                     .accountId(lessorId)
                     .action(ItemActionType.REJECT_RENTAL)
@@ -298,7 +296,6 @@ public class BookingServiceImpl implements BookingService {
 
             // log deliver info (deliveryNote may be null)
             itemLogRepository.save(ItemLog.builder()
-                    .id(UUID.randomUUID())
                     .itemId(item.getId())
                     .accountId(lessorId)
                     .action(ItemActionType.APPROVE_RENTAL)
@@ -328,7 +325,6 @@ public class BookingServiceImpl implements BookingService {
 
         // log rent action
         itemLogRepository.save(ItemLog.builder()
-                .id(UUID.randomUUID())
                 .itemId(booking.getItemId())
                 .accountId(lesseeId)
                 .action(ItemActionType.RENT)
@@ -353,10 +349,19 @@ public class BookingServiceImpl implements BookingService {
                 .toList();
     }
 
+    @Override
+    public List<BookingResponse> getAllBookings() {
+        return bookingRepository.findAll().stream()
+                .map(this::enrichBookingResponse)
+                .toList();
+    }
+
     // lessee return item --> set RETURNED_PENDING_CHECK, add return log, update item status
     @Override
     @Transactional
     public BookingResponse lesseeReturnItem(UUID lesseeId, LesseeReturnRequest request) {
+        log.info("Lessee {} is returning booking {}", lesseeId, request.getBookingId());
+
         Booking booking = bookingRepository
                 .findById(request.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
@@ -371,12 +376,11 @@ public class BookingServiceImpl implements BookingService {
 
         // update booking status to RETURNED_PENDING_CHECK
         booking.setStatus(BookingStatus.RETURNED_PENDING_CHECK);
-        bookingRepository.save(booking);
+
 
         List<MediaResource> evidenceUrls = mediaUtils.fromRequest(request.getMediaUrls());
         // save ItemLog
-        ItemLog log = ItemLog.builder()
-                .id(UUID.randomUUID())
+        ItemLog itemLog = ItemLog.builder()
                 .itemId(booking.getItemId())
                 .accountId(lesseeId)
                 .action(ItemActionType.RETURN)
@@ -386,12 +390,16 @@ public class BookingServiceImpl implements BookingService {
                 .evidenceUrls(evidenceUrls)
                 .build();
 
-        itemLogRepository.save(log);
+        log.info("ItemLog for return: {}", itemLog);
 
         Item item = itemRepository
                 .findById(booking.getItemId())
                 .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
         item.setStatus(ItemStatus.RETURN_PENDING_CHECK);
+
+
+        bookingRepository.save(booking);
+        itemLogRepository.save(itemLog);
         itemRepository.save(item);
 
         return enrichBookingResponse(booking);
@@ -413,7 +421,6 @@ public class BookingServiceImpl implements BookingService {
 
         // record item log
         itemLogRepository.save(ItemLog.builder()
-                .id(UUID.randomUUID())
                 .itemId(booking.getItemId())
                 .accountId(lessorId)
                 .action(ItemActionType.CHECK_RETURN)
@@ -622,7 +629,7 @@ public class BookingServiceImpl implements BookingService {
         lessor.setCoinBalance(lessor.getCoinBalance() + totalAmount);
 
         Transaction compTx = Transaction.builder()
-                .id(UUID.randomUUID())
+                
                 .fromAccountId(system.getId())
                 .toAccountId(lessor.getId())
                 .amount(totalAmount)
@@ -633,14 +640,13 @@ public class BookingServiceImpl implements BookingService {
         transactionRepository.save(compTx);
 
         transactionBookingRepository.save(TransactionBooking.builder()
-                .id(UUID.randomUUID())
+                
                 .transactionId(compTx.getId())
                 .bookingId(booking.getId())
                 .build());
 
         // ghi Item_Log
         itemLogRepository.save(ItemLog.builder()
-                .id(UUID.randomUUID())
                 .itemId(booking.getItemId())
                 .accountId(booking.getLesseeId())
                 .action(ItemActionType.UNRETURNED)

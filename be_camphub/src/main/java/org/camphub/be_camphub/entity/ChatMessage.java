@@ -21,8 +21,7 @@ import java.util.UUID;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
 public class ChatMessage {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    UUID id;
+    String id;
     String chatCode;
     UUID senderId;
     UUID receiverId;

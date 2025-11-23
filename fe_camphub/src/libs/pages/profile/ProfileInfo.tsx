@@ -1,159 +1,172 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   PrimaryButton,
   CustomizedButton,
   PrimaryTextField,
 } from "@/libs/components";
+import { Account } from "@/libs/core/types";
 
-export default function ProfileInfo() {
+
+interface ProfileInfoProps {
+  account: Account;
+}
+
+export default function ProfileInfo({ account }: ProfileInfoProps) {
   const [editMode, setEditMode] = useState(false);
+  const [editedAccount, setEditedAccount] = useState<Account>(account);
 
-  const [profile, setProfile] = useState({
-    username: "nguyenvana",
-    firstname: "Nguyễn",
-    lastname: "Văn A",
-    email: "nguyenvana@gmail.com",
-    phone_number: "0123456789",
-    ID_number: "012345678901",
-    address: "Hà Nội, Việt Nam",
-    avatar: "/img/profiles/avatar-default.png",
-    trust_score: 85,
-    coin_balance: 120.5,
-    user_type: "USER",
-    status: "ACTIVE",
-    created_at: "2024-07-12",
-    updated_at: "2025-10-01",
-  });
+  // Khi props account thay đổi (ví dụ: reload từ server), đồng bộ lại state
+  useEffect(() => {
+    setEditedAccount(account);
+  }, [account]);
 
   const handleSave = () => {
-    // TODO: Gọi API lưu thông tin tài khoản
+    // TODO: Gọi API cập nhật thông tin
+    console.log("Cập nhật profile:", editedAccount);
     setEditMode(false);
   };
 
-  return (
-    <div className="bg-white shadow-sm rounded-2xl p-6">
-      <h2 className="text-xl font-semibold mb-6">Thông tin cá nhân</h2>
+  const handleCancel = () => {
+    setEditedAccount(account); // reset về dữ liệu gốc
+    setEditMode(false);
+  };
 
-      {/* Avatar */}
-      <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
-        <div className="relative w-28 h-28">
-          <Image
-            src={profile.avatar}
-            alt="Avatar"
-            width={112}
-            height={112}
-            className="rounded-full object-cover border"
-          />
+  // Format ngày giờ đẹp
+  const formatDate = (isoString: string) => {
+    return new Date(isoString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  return (
+    <div className="bg-white shadow-sm rounded-2xl p-6 lg:p-8">
+      <h2 className="text-2xl font-bold mb-8 text-gray-800">
+        Thông tin cá nhân
+      </h2>
+
+      {/* Avatar + Info chính */}
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-10">
+        <div className="relative">
+          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
+            <Image
+              src={editedAccount.avatar || "/img/profiles/avatar-default.png"}
+              alt="Avatar"
+              width={128}
+              height={128}
+              className="object-cover w-full h-full"
+              priority
+            />
+          </div>
           {editMode && (
-            <button className="absolute bottom-1 right-1 bg-blue-600 text-white text-xs px-2 py-1 rounded-lg">
+            <button className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg transition">
               Thay đổi
             </button>
           )}
         </div>
 
-        <div className="text-center md:text-left">
-          <p className="text-lg font-semibold">
-            {profile.firstname} {profile.lastname}
-          </p>
-          <p className="text-gray-500">@{profile.username}</p>
-          <div className="flex gap-3 mt-2 text-sm">
-            <span className="px-3 py-1 bg-green-100 text-green-600 rounded-full">
-              {profile.status}
-            </span>
-            <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full">
-              {profile.user_type}
-            </span>
+        <div className="flex-1 text-center md:text-left">
+          <h3 className="text-2xl font-bold text-gray-900">
+            {editedAccount.firstname} {editedAccount.lastname}
+          </h3>
+          <p className="text-lg text-gray-500 mt-1">@{editedAccount.username}</p>
+
+          <div className="flex flex-wrap gap-8 mt-5 text-sm font-medium">
+            <div>
+              <span className="text-gray-600">Điểm uy tín:</span>{" "}
+              <span className="text-orange-600 text-xl">
+                {editedAccount.trustScore} ★
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Số dư Xu:</span>{" "}
+              <span className="text-amber-600 text-xl">
+                {editedAccount.coinBalance.toLocaleString("vi-VN")}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Thông tin cơ bản */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* Các trường chỉnh sửa được */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <PrimaryTextField
           label="Họ"
-          value={profile.firstname}
+          value={editedAccount.firstname}
           onChange={(e) =>
-            setProfile({ ...profile, firstname: e.target.value })
+            setEditedAccount({ ...editedAccount, firstname: e.target.value })
           }
           disabled={!editMode}
         />
         <PrimaryTextField
           label="Tên"
-          value={profile.lastname}
-          onChange={(e) => setProfile({ ...profile, lastname: e.target.value })}
+          value={editedAccount.lastname}
+          onChange={(e) =>
+            setEditedAccount({ ...editedAccount, lastname: e.target.value })
+          }
           disabled={!editMode}
         />
         <PrimaryTextField
           label="Email"
-          value={profile.email}
-          onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+          value={editedAccount.email}
+          onChange={(e) =>
+            setEditedAccount({ ...editedAccount, email: e.target.value })
+          }
           disabled={!editMode}
         />
         <PrimaryTextField
           label="Số điện thoại"
-          value={profile.phone_number}
+          value={editedAccount.phoneNumber}
           onChange={(e) =>
-            setProfile({ ...profile, phone_number: e.target.value })
+            setEditedAccount({ ...editedAccount, phoneNumber: e.target.value })
           }
           disabled={!editMode}
         />
         <PrimaryTextField
           label="CMND/CCCD"
-          value={profile.ID_number}
+          value={editedAccount.idNumber}
           onChange={(e) =>
-            setProfile({ ...profile, ID_number: e.target.value })
+            setEditedAccount({ ...editedAccount, idNumber: e.target.value })
           }
-          disabled={!editMode}
-        />
-        <PrimaryTextField
-          label="Địa chỉ"
-          value={profile.address}
-          onChange={(e) => setProfile({ ...profile, address: e.target.value })}
           disabled={!editMode}
         />
       </div>
 
-      {/* Thông tin phụ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
-        <PrimaryTextField
-          label="Điểm uy tín"
-          value={profile.trust_score.toString()}
-          disabled
-        />
-        <PrimaryTextField
-          label="Số dư CampHub Xu"
-          value={profile.coin_balance.toString()}
-          disabled
-        />
+      {/* Thông tin chỉ xem */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl">
         <PrimaryTextField
           label="Ngày tạo tài khoản"
-          value={profile.created_at}
+          value={formatDate(editedAccount.createdAt)}
           disabled
         />
         <PrimaryTextField
           label="Cập nhật gần nhất"
-          value={profile.updated_at}
+          value={formatDate(editedAccount.updatedAt)}
           disabled
         />
       </div>
 
       {/* Nút hành động */}
-      <div className="mt-8 flex gap-3">
+      <div className="mt-10 flex justify-end gap-4">
         {editMode ? (
           <>
             <PrimaryButton content="Lưu thay đổi" onClick={handleSave} />
             <CustomizedButton
-              content="Hủy"
+              content="Hủy bỏ"
               color="#EF4444"
-              onClick={() => setEditMode(false)}
+              className={"hover:bg-[#DC2626] text-white"}
+              onClick={handleCancel}
             />
           </>
         ) : (
           <PrimaryButton
-            content="Chỉnh sửa"
+            content="Chỉnh sửa thông tin"
             onClick={() => setEditMode(true)}
           />
         )}

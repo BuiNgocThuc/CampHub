@@ -4,6 +4,7 @@ export * from "./api-response";
 export * from "./auth/AuthResponse";
 export * from "./auth/RegisterResponse";
 export * from "./auth/RefreshTokenResponse";
+export * from "./auth/my-info.response";
 
 // account
 export * from "./account.response";
@@ -40,3 +41,6 @@ export * from "./review.response";
 
 // transaction
 export * from "./transaction.response";
+
+// chat
+export * from "./chat.response";

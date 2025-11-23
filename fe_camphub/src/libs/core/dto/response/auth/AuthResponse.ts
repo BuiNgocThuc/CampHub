@@ -1,6 +1,6 @@
 export interface AuthResponse {
     accessToken: string;
     refreshToken: string;
-    isAuthenticated: boolean;
+    authenticated: boolean;
     expiresIn: number;
 }

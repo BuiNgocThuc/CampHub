@@ -4,7 +4,7 @@ import { Button } from "@mui/material";
 interface PrimaryBtnProps {
   content: string;
   type?: "button" | "submit" | "reset";
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   icon?: React.ReactNode;
   className?: string;

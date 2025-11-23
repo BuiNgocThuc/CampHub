@@ -1,6 +1,5 @@
 import { createMap, createMapper } from "@automapper/core";
-import { PojosMetadataMap } from "@automapper/pojos";
-import { pojos } from "@automapper/pojos/src/lib/pojos";
+import { pojos, PojosMetadataMap } from "@automapper/pojos";
 import { Category } from "../types";
 import { CategoryCreationRequest, CategoryPatchRequest, CategoryUpdateRequest } from "../dto/request";
 import { CategoryResponse } from "../dto/response";

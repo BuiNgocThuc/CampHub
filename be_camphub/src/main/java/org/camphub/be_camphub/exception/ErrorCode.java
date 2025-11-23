@@ -47,7 +47,8 @@ public enum ErrorCode {
     DAMAGE_TYPE_NOT_FOUND(9001, "Damage type not found", HttpStatus.NOT_FOUND),
     DISPUTE_NOT_FOUND(9002, "Dispute not found", HttpStatus.NOT_FOUND),
     DAMAGE_TYPE_NAME_EXISTED(9003, "Damage type name already exists", HttpStatus.BAD_REQUEST),
-    TRANSACTION_NOT_FOUND(10001, "Transaction not found", HttpStatus.NOT_FOUND)
+    TRANSACTION_NOT_FOUND(10001, "Transaction not found", HttpStatus.NOT_FOUND),
+    CHAT_ROOM_NOT_FOUND(11001, "Chat room not found", HttpStatus.NOT_FOUND)
     ;
 
     int code;

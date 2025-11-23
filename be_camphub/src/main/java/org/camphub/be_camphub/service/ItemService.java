@@ -24,4 +24,6 @@ public interface ItemService {
     ItemResponse approveItem(UUID adminId, UUID itemId, boolean approved);
 
     ItemResponse lockItem(UUID adminId, UUID itemId, boolean locked);
+
+    List<ItemResponse> getItemsByOwnerId(UUID ownerId);
 }

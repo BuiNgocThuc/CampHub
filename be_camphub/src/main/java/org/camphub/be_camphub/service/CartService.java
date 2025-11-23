@@ -22,4 +22,6 @@ public interface CartService {
     void removeMultipleCartItems(List<UUID> cartItemIds);
 
     List<CartItemResponse> getValidCartItems(UUID accountId);
+
+    Integer getCartItemCount(UUID accountId);
 }

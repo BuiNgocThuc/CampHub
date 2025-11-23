@@ -20,5 +20,7 @@ public interface ReturnRequestService {
 
     List<ReturnReqResponse> getPendingRequests();
 
+    List<ReturnReqResponse> getAllReturnRequests();
+
     void autoRefundUnprocessedRequests();
 }

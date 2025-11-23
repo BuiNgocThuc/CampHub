@@ -137,7 +137,6 @@ public class DisputeServiceImpl implements DisputeService {
 
             // Ghi transaction: compensation payout
             Transaction compTx = Transaction.builder()
-                    .id(UUID.randomUUID())
                     .fromAccountId(system.getId())
                     .toAccountId(lessor.getId())
                     .amount(compAmount)
@@ -149,7 +148,7 @@ public class DisputeServiceImpl implements DisputeService {
 
             // Link transaction -> booking
             transactionBookingRepository.save(TransactionBooking.builder()
-                    .id(UUID.randomUUID())
+                    
                     .transactionId(compTx.getId())
                     .bookingId(booking.getId())
                     .build());

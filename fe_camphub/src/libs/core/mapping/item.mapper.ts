@@ -1,103 +1,160 @@
 // src/libs/mappers/item.mapper.ts
 import { createMap, createMapper, forMember, mapFrom } from "@automapper/core";
-import { PojosMetadataMap, pojos } from "@automapper/pojos";
+import { pojos, PojosMetadataMap } from "@automapper/pojos";
 
 import { Item } from "../types";
-import { ItemResponse } from "../dto/response";
-import { ItemCreationRequest, ItemPatchRequest, ItemUpdateRequest } from "../dto/request";
+import {
+    ItemCreationRequest,
+    ItemPatchRequest,
+    ItemUpdateRequest,
+} from "../dto/request/item.request";
+import { ItemResponse } from "../dto/response/item.response";
 
-// ===============================
-// Mapper init
-// ===============================
 export const itemMapper = createMapper({
     strategyInitializer: pojos(),
 });
 
-// ===============================
-// Metadata declarations
-// ===============================
-PojosMetadataMap.create<Item>("Item", {});
-PojosMetadataMap.create<ItemResponse>("ItemResponse", {});
-PojosMetadataMap.create<ItemCreationRequest>("ItemCreationRequest", {});
-PojosMetadataMap.create<ItemUpdateRequest>("ItemUpdateRequest", {});
-PojosMetadataMap.create<ItemPatchRequest>("ItemPatchRequest", {});
+const defineMetadata = () => {
+    // Item model
+    PojosMetadataMap.create<Item>("Item", {
+        id: String,
+        ownerId: String,
+        categoryId: String,
+        ownerName: String,
+        categoryName: String,
+        name: String,
+        description: String,
+        price: Number,
+        quantity: Number,
+        depositAmount: Number,
+        status: String,
+        mediaUrls: Array,
+    });
 
-// ===============================
-// Mapping: DTO Response → Model
-// ===============================
+    // DTOs
+    PojosMetadataMap.create<ItemResponse>("ItemResponse", {
+        id: String,
+        ownerId: String,
+        categoryId: String,
+        ownerName: String,
+        categoryName: String,
+        name: String,
+        description: String,
+        price: Number,
+        quantity: Number,
+        depositAmount: Number,
+        status: String,
+        mediaUrls: Array,
+    });
+
+    PojosMetadataMap.create<ItemCreationRequest>("ItemCreationRequest", {
+        name: String,
+        ownerId: String,
+        categoryId: String,
+        description: String,
+        pricePerDay: Number,
+        quantity: Number,
+        depositAmount: Number,
+        mediaUrls: Array,
+    });
+
+    PojosMetadataMap.create<ItemUpdateRequest>("ItemUpdateRequest", {
+        name: String,
+        categoryId: String,
+        description: String,
+        pricePerDay: Number,
+        depositAmount: Number,
+        quantity: Number,
+        mediaUrls: Array,
+    });
+
+    PojosMetadataMap.create<ItemPatchRequest>("ItemPatchRequest", {
+        name: String,
+        categoryId: String,
+        description: String,
+        pricePerDay: Number,
+        quantity: Number,
+        depositAmount: Number,
+        mediaUrls: Array,
+    });
+};
+
+defineMetadata();
+
+// =============================
+// Mapping: ItemResponse → Item (gần giống nhau → map tự động)
+// =============================
 createMap<ItemResponse, Item>(
     itemMapper,
     "ItemResponse",
     "Item"
+    // Không cần forMember vì các field giống hệt
 );
 
-// ===============================
-// Mapping: Model → CreationRequest DTO
-// ===============================
+// =============================
+// Mapping: Item → CreationRequest (price → pricePerDay)
+// =============================
 createMap<Item, ItemCreationRequest>(
     itemMapper,
     "Item",
     "ItemCreationRequest",
     forMember(
-        (dest) => dest.pricePerDay,
-        mapFrom((src) => src.price)
+        (d) => d.pricePerDay,
+        mapFrom((s) => s.price)
     ),
+    forMember(
+        (d) => d.ownerId,
+        mapFrom((s) => s.ownerId)
+    ),
+    forMember(
+        (d) => d.categoryId,
+        mapFrom((s) => s.categoryId)
+    )
 );
 
-// ===============================
-// Mapping: Model → UpdateRequest DTO
-// ===============================
+// =============================
+// Mapping: Item → UpdateRequest
+// =============================
 createMap<Item, ItemUpdateRequest>(
     itemMapper,
     "Item",
     "ItemUpdateRequest",
     forMember(
-        (dest) => dest.pricePerDay,
-        mapFrom((src) => src.price)
-    ),
+        (d) => d.pricePerDay,
+        mapFrom((s) => s.price)
+    )
 );
 
-// ===============================
-// Mapping: Model → PatchRequest DTO
-// ===============================
+// =============================
+// Mapping: Item → PatchRequest (chỉ map những field có giá trị)
+// =============================
 createMap<Item, ItemPatchRequest>(
     itemMapper,
     "Item",
     "ItemPatchRequest",
     forMember(
-        (dest) => dest.pricePerDay,
-        mapFrom((src) => src.price)
+        (d) => d.pricePerDay,
+        mapFrom((s) => s.price)
     ),
+    // Các field khác sẽ tự động map nếu có giá trị, null/undefined sẽ bị bỏ
 );
 
-// ===============================
-// Export API
-// ===============================
-export const itemMap = {
-    fromResponse: (response: ItemResponse): Item =>
-        itemMapper.map<ItemResponse, Item>(
-            response,
-            "ItemResponse",
-            "Item"
-        ),
+// =============================
+// Export API tiện dụng
+// =============================
+export const mapItem = {
+    fromResponse: (dto: ItemResponse): Item =>
+        itemMapper.map<ItemResponse, Item>(dto, "ItemResponse", "Item"),
 
-    toCreationRequest: (model: Item): ItemCreationRequest =>
-        itemMapper.map<Item, ItemCreationRequest>(
-            model,
-            "Item",
-            "ItemCreationRequest"
-        ),
+    toCreateDto: (item: Item): ItemCreationRequest =>
+        itemMapper.map<Item, ItemCreationRequest>(item, "Item", "ItemCreationRequest"),
 
-    toUpdateRequest: (model: Item): ItemUpdateRequest =>
-        itemMapper.map<Item, ItemUpdateRequest>(
-            model,
-            "Item",
-            "ItemUpdateRequest"
-        ),
+    toUpdateDto: (item: Item): ItemUpdateRequest =>
+        itemMapper.map<Item, ItemUpdateRequest>(item, "Item", "ItemUpdateRequest"),
 
-    toPatchRequest: (model: Item): ItemPatchRequest =>
+    toPatchDto: (item: Partial<Item>): ItemPatchRequest =>
         itemMapper.map<Item, ItemPatchRequest>(
-            model,
+            item as Item,
             "Item",
             "ItemPatchRequest"
         ),

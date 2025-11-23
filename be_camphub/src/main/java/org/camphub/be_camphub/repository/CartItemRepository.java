@@ -19,5 +19,5 @@ public interface CartItemRepository extends JpaRepository<CartItem, UUID> {
             + "WHERE ci.id IN :ids AND c.accountId = :ownerId")
     List<CartItem> findAllByCartIdInAndCartOwner(@Param("ids") List<UUID> ids, @Param("ownerId") UUID ownerId);
 
-    //        void deleteAllById(Iterable<UUID> ids);
+    Integer countByCartId(UUID cartId);
 }

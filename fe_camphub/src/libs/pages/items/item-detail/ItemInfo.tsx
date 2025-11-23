@@ -1,6 +1,6 @@
 "use client";
 
-import { useChatStore } from "@/libs/stores/useChatStore";
+import { useChatStore } from "@/libs/stores/chat.store";
 import { Star, MessageCircle } from "lucide-react";
 
 interface OwnerInfo {

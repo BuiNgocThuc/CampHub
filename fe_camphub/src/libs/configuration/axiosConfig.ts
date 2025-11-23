@@ -7,6 +7,8 @@ import { RefreshTokenResponse } from '../core/dto/response';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+console.log("BASE_URL:", BASE_URL);
+
 export const api = axios.create({
     baseURL: BASE_URL,
     headers: {

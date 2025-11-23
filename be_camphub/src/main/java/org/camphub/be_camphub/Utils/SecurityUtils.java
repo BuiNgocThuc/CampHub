@@ -10,6 +10,7 @@ import org.camphub.be_camphub.entity.Account;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -26,21 +29,21 @@ public class SecurityUtils {
     @Value("${jwt.signerKey}")
     protected String SIGNER_KEY;
 
+    PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+
     // encrypt password function
     public String encryptPassword(String password) {
-        log.info("Password: {}", password);
-        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
         return passwordEncoder.encode(password);
     }
 
     // check match password function
     public boolean checkMatchPassword(String password, String encodedPassword) {
-        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
         return passwordEncoder.matches(password, encodedPassword);
     }
 
     public String generateToken(Account account, long expirationMinutes) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
+
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .subject(account.getUsername())
                 .issuer("CampHub.com")
@@ -69,20 +72,40 @@ public class SecurityUtils {
     }
 
     public UUID introspectToken(String token) {
+        Jwt jwt = validateToken(token);
+        if (jwt == null) return null;
+
+        Object userIdObj = jwt.getClaim("userId");
+        if (userIdObj == null) return null;
+
+        try {
+            return UUID.fromString(userIdObj.toString());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid userId in JWT", e);
+            return null;
+        }
+    }
+
+    public Jwt validateToken(String token) {
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
             JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
+            if (!signedJWT.verify(verifier)) return null;
 
-            boolean verified = signedJWT.verify(verifier);
             Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+            if (expiryTime.before(new Date())) return null;
 
-            if (verified && expiryTime.after(new Date())) {
-                String userIdStr = (String) signedJWT.getJWTClaimsSet().getClaim("userId");
-                return UUID.fromString(userIdStr);
-            }
-            return null;
+            Map<String, Object> claims = new HashMap<>(signedJWT.getJWTClaimsSet().getClaims());
+
+            claims.replaceAll((k, v) -> v instanceof Date d ? d.toInstant() : v);
+
+            return Jwt.withTokenValue(token)
+                    .headers(h -> h.put("alg", "HS512"))
+                    .claims(c -> c.putAll(claims))
+                    .build();
+
         } catch (Exception e) {
-            log.error("Error introspecting token", e);
+            log.error("Invalid JWT", e);
             return null;
         }
     }

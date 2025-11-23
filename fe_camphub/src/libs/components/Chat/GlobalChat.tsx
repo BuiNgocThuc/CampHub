@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import ChatModal from "./ChatModal";
 import { useChatStore } from "@/libs/stores";
 

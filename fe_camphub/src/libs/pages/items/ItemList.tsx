@@ -1,6 +1,5 @@
 "use client";
 
-import { ChatModal } from "@/libs/components";
 import CategoryList from "./CategoryList";
 import ItemCard from "./ItemCard";
 import { useState } from "react";
@@ -37,7 +36,6 @@ const dummyItems = [
 ];
 
 export default function ItemList() {
-  const [openChat, setOpenChat] = useState(false);
   return (
     <section className="max-w-7xl mx-auto px-4 md:px-8 py-10">
       <h2 className="text-2xl font-bold text-gray-800 mb-8">

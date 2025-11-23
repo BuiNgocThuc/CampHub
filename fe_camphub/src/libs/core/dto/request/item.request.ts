@@ -1,9 +1,11 @@
+import { ownerResponse } from './../../../api/booking-api';
 import { MediaResource } from "../../types";
 
 export interface ItemCreationRequest {
     name: string;
-    description: string;
+    ownerId: string;
     categoryId: string;
+    description: string;
     pricePerDay: number;
     quantity: number;
     depositAmount: number;
@@ -11,8 +13,8 @@ export interface ItemCreationRequest {
 }
 
 export interface ItemPatchRequest {
-    categoryId?: string;
     name?: string;
+    categoryId?: string;
     description?: string;
     pricePerDay?: number;
     quantity?: number;
@@ -21,8 +23,8 @@ export interface ItemPatchRequest {
 }
 
 export interface ItemUpdateRequest {
-    categoryId: string;
     name: string;
+    categoryId: string;
     description: string;
     pricePerDay: number;
     depositAmount: number;

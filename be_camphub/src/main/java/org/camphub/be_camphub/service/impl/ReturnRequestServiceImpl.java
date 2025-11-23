@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import jakarta.transaction.Transactional;
 
+import lombok.extern.slf4j.Slf4j;
 import org.camphub.be_camphub.Utils.MediaUtils;
 import org.camphub.be_camphub.dto.request.return_req.AdminDecisionRequest;
 import org.camphub.be_camphub.dto.request.return_req.LesseeSubmitReturnRequest;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
@@ -91,7 +93,6 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         // Chỉ log vào ItemLog
         itemLogRepository.save(
                 ItemLog.builder()
-                        .id(UUID.randomUUID())
                         .itemId(booking.getItemId())
                         .accountId(lesseeId)
                         .action(ItemActionType.RETURN)
@@ -144,7 +145,6 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         itemLogRepository.save(
                 ItemLog.builder()
-                        .id(UUID.randomUUID())
                         .itemId(booking.getItemId())
                         .accountId(lessorId)
                         .action(ItemActionType.CHECK_RETURN)
@@ -195,7 +195,6 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         // lưu transaction
         Transaction tx = Transaction.builder()
-                .id(UUID.randomUUID())
                 .fromAccountId(system.getId())
                 .toAccountId(lessee.getId())
                 .amount(refundAmount)
@@ -207,7 +206,6 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         transactionBookingRepository.save(
                 TransactionBooking.builder()
-                        .id(UUID.randomUUID())
                         .bookingId(booking.getId())
                         .transactionId(tx.getId())
                         .build()
@@ -253,7 +251,15 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
     @Override
     public List<ReturnReqResponse> getPendingRequests() {
-        return returnRequestRepository.findByStatus(ReturnRequestStatus.PROCESSING).stream()
+        return returnRequestRepository.findByStatus(ReturnRequestStatus.PENDING).stream()
+                .map(this::enrichReturnRequestResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ReturnReqResponse> getAllReturnRequests() {
+        log.info("Fetching all return requests from database");
+        return returnRequestRepository.findAll().stream()
                 .map(this::enrichReturnRequestResponse)
                 .collect(Collectors.toList());
     }
@@ -284,6 +290,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     }
 
     ReturnReqResponse enrichReturnRequestResponse(ReturnRequest req) {
+        log.info("Enriching return request response for request ID: {}", req.getId());
         ReturnReqResponse res = returnRequestMapper.entityToResponse(req);
 
         // Load booking

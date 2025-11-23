@@ -24,6 +24,15 @@ import lombok.experimental.FieldDefaults;
 public class ItemController {
     ItemService itemService;
 
+    @GetMapping("/my")
+    ApiResponse<List<ItemResponse>> getMyItems(@AuthenticationPrincipal Jwt jwt) {
+        UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
+        return ApiResponse.<List<ItemResponse>>builder()
+                .message("Get my items successfully")
+                .result(itemService.getItemsByOwnerId(ownerId))
+                .build();
+    }
+
     @PostMapping
     ApiResponse<ItemResponse> createItem(
             @RequestBody ItemCreationRequest request, @AuthenticationPrincipal Jwt jwt) {
@@ -90,7 +99,7 @@ public class ItemController {
     }
 
     // Admin approve/reject item
-    @PutMapping("/{id}/approve")
+    @PutMapping("/approve/{id}")
     public ApiResponse<ItemResponse> approveItem(
             @PathVariable UUID id,
             @RequestParam boolean isApproved,
@@ -103,7 +112,7 @@ public class ItemController {
     }
 
     // Admin lock/unlock item
-    @PutMapping("/{id}/lock")
+    @PutMapping("/lock/{id}")
     public ApiResponse<ItemResponse> lockItem(
             @PathVariable UUID id,
             @RequestParam boolean isLocked,

@@ -1,14 +1,13 @@
 package org.camphub.be_camphub.service.impl;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.camphub.be_camphub.dto.request.Item.ItemCreationRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemPatchRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemUpdateRequest;
-import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 import org.camphub.be_camphub.dto.response.item.ItemResponse;
 import org.camphub.be_camphub.entity.*;
 import org.camphub.be_camphub.enums.ItemActionType;
@@ -46,8 +45,15 @@ public class ItemServiceImpl implements ItemService {
         item.setUpdatedAt(LocalDateTime.now());
         item = itemRepository.save(item);
 
-        logAction(item.getId(), ownerId, ItemActionType.CREATE, null, item.getStatus(),
-                "Owner created a new item awaiting approval", item.getMediaUrls());
+        logAction(
+            item.getId(),
+            ownerId,
+            ItemActionType.CREATE,
+            null,
+            item.getStatus(),
+            "Owner created a new item awaiting approval",
+            item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of()
+        );
 
         return itemMapper.entityToResponse(item);
     }
@@ -88,7 +94,7 @@ public class ItemServiceImpl implements ItemService {
         item = itemRepository.save(item);
 
         logAction(itemId, ownerId, ItemActionType.UPDATE, prevStatus, item.getStatus(),
-                "Owner updated item details", item.getMediaUrls());
+                "Owner updated item details", item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
         return itemMapper.entityToResponse(item);
     }
@@ -106,7 +112,7 @@ public class ItemServiceImpl implements ItemService {
         item = itemRepository.save(item);
 
         logAction(itemId, ownerId, ItemActionType.UPDATE, prevStatus, item.getStatus(),
-                "Owner patched item details", item.getMediaUrls() != null ? item.getMediaUrls() : List.of());
+                "Owner patched item details", item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
         return itemMapper.entityToResponse(item);
     }
@@ -142,7 +148,7 @@ public class ItemServiceImpl implements ItemService {
                 approved ? ItemActionType.APPROVE : ItemActionType.REJECT,
                 prevStatus, item.getStatus(),
                 approved ? "Admin approved item" : "Admin rejected item",
-                item.getMediaUrls());
+                item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
         return itemMapper.entityToResponse(item);
     }
@@ -161,16 +167,45 @@ public class ItemServiceImpl implements ItemService {
                 locked ? ItemActionType.LOCK : ItemActionType.UNLOCK,
                 prevStatus, item.getStatus(),
                 locked ? "Admin locked item" : "Admin unlocked item",
-                item.getMediaUrls());
+                item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
         return itemMapper.entityToResponse(item);
     }
 
-    //        ====== Private method ======
-    private Item getItem(UUID itemId) {
-        return itemRepository.findById(itemId).orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+    @Override
+    public List<ItemResponse> getItemsByOwnerId(UUID ownerId) {
+        List<Item> items = itemRepository.findAllByOwnerId(ownerId);
+        if (items.isEmpty()) return List.of();
+
+        // 1. Lấy tên owner 1 lần (vì tất cả item cùng owner)
+        String ownerName = accountRepository.findById(ownerId)
+                .map(acc -> acc.getFirstname() + " " + acc.getLastname())
+                .orElse("Người dùng đã xóa");
+
+        // 2. Batch lấy tên tất cả category (chỉ 1 query)
+        Set<UUID> categoryIds = items.stream()
+                .map(Item::getCategoryId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, String> categoryNameMap = categoryRepository.findAllById(categoryIds)
+                .stream()
+                .collect(Collectors.toMap(Category::getId, Category::getName));
+
+        // 3. Enrich nhanh như chớp
+        return items.stream()
+                .map(item -> {
+                    ItemResponse resp = itemMapper.entityToResponse(item);
+                    resp.setOwnerName(ownerName); // 1 lần duy nhất
+                    resp.setCategoryName(
+                            categoryNameMap.getOrDefault(item.getCategoryId(), "Danh mục đã xóa")
+                    );
+                    return resp;
+                })
+                .toList();
     }
 
+    //        ====== Private method ======
     private ItemResponse enrichItemResponse(Item item) {
         ItemResponse response = itemMapper.entityToResponse(item);
 

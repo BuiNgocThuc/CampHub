@@ -1,35 +1,30 @@
-// itemApi.ts
+// item-api.ts
 import { api } from "@/libs/configuration";
-import {
-    ItemCreationRequest,
-    ItemUpdateRequest,
-    ItemPatchRequest,
-} from "../core/dto/request";
 import { ApiResponse, ItemResponse } from "../core/dto/response";
+import { Item } from "../core/types";
+import { mapItem } from "../core/mapping/item.mapper";
 
 // Create item (owner)
 export const createItem = async (
-    request: ItemCreationRequest
-): Promise<ApiResponse<ItemResponse>> => {
+    item: Item
+): Promise<Item> => {
+    const request = mapItem.toCreateDto(item);
     try {
         const response = await api.post<ApiResponse<ItemResponse>>(
             "/items",
             request
         );
-        return response.data;
+        
+        return mapItem.fromResponse(response.data.result);
     } catch (error) {
         throw error;
     }
 };
 
 // Get item by ID
-export const getItemById = async (id: string): Promise<ApiResponse<ItemResponse>> => {
-    try {
-        const response = await api.get<ApiResponse<ItemResponse>>(`/items/${id}`);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
+export const getItemById = async (id: string): Promise<Item> => {
+    const response = await api.get<ApiResponse<ItemResponse>>(`/items/${id}`);
+    return mapItem.fromResponse(response.data.result);
 };
 
 // Get all items with optional filters
@@ -51,12 +46,12 @@ export const getAllItems = async (
 
 // Update item (owner)
 export const updateItem = async (
-    id: string,
-    request: ItemUpdateRequest
-): Promise<ApiResponse<ItemResponse>> => {
+    item: Item
+): Promise<Item> => {
     try {
-        const response = await api.put<ApiResponse<ItemResponse>>(`/items/${id}`, request);
-        return response.data;
+        const request = mapItem.toUpdateDto(item);
+        const response = await api.put<ApiResponse<ItemResponse>>(`/items/${item.id}`, request);
+        return mapItem.fromResponse(response.data.result);
     } catch (error) {
         throw error;
     }
@@ -64,12 +59,12 @@ export const updateItem = async (
 
 // Patch item (owner)
 export const patchItem = async (
-    id: string,
-    request: ItemPatchRequest
-): Promise<ApiResponse<ItemResponse>> => {
+    item: Partial<Item>
+): Promise<Item> => {
     try {
-        const response = await api.patch<ApiResponse<ItemResponse>>(`/items/${id}`, request);
-        return response.data;
+        const request = mapItem.toPatchDto(item);
+        const response = await api.patch<ApiResponse<ItemResponse>>(`/items/${item.id}`, request);
+        return mapItem.fromResponse(response.data.result);
     } catch (error) {
         throw error;
     }
@@ -86,35 +81,30 @@ export const deleteItem = async (id: string): Promise<ApiResponse<void>> => {
 };
 
 // Admin approve/reject item
-export const approveItem = async (
-    id: string,
-    isApproved: boolean
-): Promise<ApiResponse<ItemResponse>> => {
-    try {
-        const response = await api.put<ApiResponse<ItemResponse>>(
-            `/items/${id}/approve`,
-            null,
-            { params: { isApproved } }
-        );
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
+export const approveItem = async (id: string, isApproved: boolean): Promise<Item> => {
+    const response = await api.put<ApiResponse<ItemResponse>>(
+        `/items/${id}/approve`,
+        null,
+        { params: { isApproved } }
+    );
+    return mapItem.fromResponse(response.data.result);
 };
 
-// Admin lock/unlock item
-export const lockItem = async (
-    id: string,
-    isLocked: boolean
-): Promise<ApiResponse<ItemResponse>> => {
-    try {
-        const response = await api.put<ApiResponse<ItemResponse>>(
-            `/items/${id}/lock`,
-            null,
-            { params: { isLocked } }
-        );
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
+export const lockItem = async (id: string, isLocked: boolean): Promise<Item> => {
+    const response = await api.put<ApiResponse<ItemResponse>>(
+        `/items/${id}/lock`,
+        null,
+        { params: { isLocked } }
+    );
+    return mapItem.fromResponse(response.data.result);
+};
+
+// Lấy danh sách item của user hiện tại (rất hay dùng)
+export const getMyItems = async (
+    status?: string
+): Promise<Item[]> => {
+    const response = await api.get<ApiResponse<ItemResponse[]>>("/items/my", {
+        params: { status },
+    });
+    return response.data.result.map(mapItem.fromResponse);
 };

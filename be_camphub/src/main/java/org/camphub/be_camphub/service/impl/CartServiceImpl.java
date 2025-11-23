@@ -106,6 +106,14 @@ public class CartServiceImpl implements CartService {
                 .toList();
     }
 
+    @Override
+    public Integer getCartItemCount(UUID accountId) {
+        Cart cart = cartRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
+
+        return cartItemRepository.countByCartId(cart.getId());
+    }
+
     private CartItemResponse enrichCartItemResponse(CartItem cartItem) {
         CartItemResponse response = cartItemMapper.entityToResponse(cartItem);
         // Load Item

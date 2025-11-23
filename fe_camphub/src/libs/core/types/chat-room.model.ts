@@ -5,4 +5,7 @@ export interface ChatRoom {
     lastMessage?: string;
     lastTimestamp?: string;
     unreadMessageCounts: Record<string, number>;
+
+    receiverUsername: string;
+    avatarUrl?: string;
 }

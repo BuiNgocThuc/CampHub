@@ -10,9 +10,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface ChatRoomRepository extends MongoRepository<ChatRoom, UUID> {
+public interface ChatRoomRepository extends MongoRepository<ChatRoom, String> {
     Optional<ChatRoom> findByChatCode(String chatCode);
 
     @Query("{'participantIds': {$all: ?0, $size: 2}}")
-    Optional<ChatRoom> findByParticipantIdsIn(List<UUID> participantIds);
+    Optional<ChatRoom> findByParticipantIdsContainsAll(List<UUID> participantIds);
+
+    @Query("{ 'participantIds': ?0 }")
+    List<ChatRoom> findByParticipantIdsContaining(UUID userId);
 }

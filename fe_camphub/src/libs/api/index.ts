@@ -39,3 +39,6 @@ export * from "./review-api";
 
 // 14. transaction
 export * from "./transaction-api";
+
+// 15. chat
+export * from "./chat-api";

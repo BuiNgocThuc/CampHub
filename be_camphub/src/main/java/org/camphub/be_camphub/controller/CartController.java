@@ -97,4 +97,14 @@ public class CartController {
                 .result(cartService.getValidCartItems(accountId))
                 .build();
     }
+
+    @GetMapping("/items/count")
+    public ApiResponse<Integer> getCartItemCount(@AuthenticationPrincipal Jwt jwt) {
+        UUID accountId = UUID.fromString(jwt.getClaim("userId"));
+        Integer count = cartService.getCartItemCount(accountId);
+        return ApiResponse.<Integer>builder()
+                .message("Get cart item count successfully")
+                .result(count)
+                .build();
+    }
 }

@@ -15,10 +15,11 @@ import java.util.UUID;
 @Builder
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
 public class ChatMessageResponse {
-    UUID id;
+    String id;
+    String chatCode;
     UUID senderId;
     UUID receiverId;
     String content;
-    String timestamp;
+    Instant timestamp;
     Boolean isRead;
 }

@@ -2,84 +2,152 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { ChatMessage, ChatRoom } from "@/libs/core/types";
-import { mockChatRooms, mockChatMessages } from "@/libs/utils";
+import { ChatRoom } from "@/libs/core/types";
+import { useChatSocket } from "@/libs/hooks";
+import { useAuthStore } from "@/libs/stores";
+import { getChatRooms } from "@/libs/api";
 
 interface ChatModalProps {
     initialReceiverId?: string;
-    onClose?: () => void; // optional — chỉ dùng nếu muốn đóng từ trong modal
+    initialReceiverUsername?: string;
+    onClose?: () => void;
 }
 
-export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps) {
+export default function ChatModal({ initialReceiverId, initialReceiverUsername, onClose }: ChatModalProps) {
+    const user = useAuthStore((state) => state.user);
+    const currentUserId = user?.id ?? "user1";
+    const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
     const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [search, setSearch] = useState("");
     const [filterUnread, setFilterUnread] = useState(false);
+    const [input, setInput] = useState("");
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-    const currentUserId = "user1";
-    const [input, setInput] = useState("");
+    const { messages, sendMessage, subscribeToChatRoom, lastMessages } = useChatSocket();
+
+    // Load chat rooms khi mở modal
+    useEffect(() => {
+        const fetchRooms = async () => {
+            try {
+                const res = await getChatRooms(currentUserId);
+                if (res.result) {
+                    setChatRooms(res.result);
+                    // Nếu có initialReceiverId, auto select room
+                    if (initialReceiverId) {
+                        const room = res.result.find(r =>
+                            r.participantIds.includes(initialReceiverId)
+                        );
+                        if (room) {
+                            handleSelectRoom(room);
+                        } else {
+                            // tạo room tạm thời
+                            const tempRoom: ChatRoom = {
+                            id: "temp-" + initialReceiverId,
+                            chatCode: "", // room giả => không có chatCode
+                            participantIds: [currentUserId, initialReceiverId],
+                            receiverUsername: initialReceiverUsername ?? "Người dùng",
+                            avatarUrl: undefined,
+
+                            lastMessage: "",
+                            lastTimestamp: new Date().toISOString(),
+                            unreadMessageCounts: {
+                                [currentUserId]: 0,
+                                [initialReceiverId]: 0,
+                            },
+                        };
+
+                        setSelectedRoom(tempRoom);
+                        }
+                    } else {
+                        setSelectedRoom(null);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch chat rooms", err);
+            }
+        };
+
+        fetchRooms();
+    }, [currentUserId, initialReceiverId]);
 
     // Cuộn xuống cuối khi có tin nhắn mới
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    // Khi ChatModal mở với receiverId (VD: click "Chat ngay")
+    // update sidebar last message
     useEffect(() => {
-        if (initialReceiverId) {
-            const existingRoom = mockChatRooms.find((r) =>
-                r.participantIds.includes(initialReceiverId)
-            );
-            if (existingRoom) {
-                setSelectedRoom(existingRoom);
-                const msgs = mockChatMessages.filter(
-                    (m) => m.chatCode === existingRoom.chatCode
-                );
-                setMessages(msgs);
-            } else {
-                // Tạo room mới tạm thời
+        if (!lastMessages) return;
+
+        setChatRooms((prevRooms) => {
+            const updatedRooms = [...prevRooms];
+
+            Object.entries(lastMessages).forEach(([chatCode, msg]) => {
+                const index = updatedRooms.findIndex((room) => room.chatCode === chatCode);
+                if (index === -1) return;
+
+                const oldRoom = updatedRooms[index];
+
+                const isSender = msg.senderId === currentUserId;
+
                 const newRoom: ChatRoom = {
-                    id: crypto.randomUUID(),
-                    chatCode: crypto.randomUUID(),
-                    participantIds: [initialReceiverId, currentUserId],
-                    lastMessage: "",
-                    lastTimestamp: new Date().toISOString(),
-                    unreadMessageCounts: { user1: 0, [initialReceiverId]: 0 },
+                    ...oldRoom,
+                    lastMessage: msg.content,
+                    lastTimestamp: msg.timestamp,
+                    unreadMessageCounts: {
+                        ...oldRoom.unreadMessageCounts,
+                        [currentUserId]:
+                            !isSender && selectedRoom?.chatCode !== chatCode
+                                ? (oldRoom.unreadMessageCounts[currentUserId] || 0) + 1
+                                : oldRoom.unreadMessageCounts[currentUserId]
+                    }
                 };
-                setSelectedRoom(newRoom);
-                setMessages([]); // chưa có tin nhắn nào
-            }
-        }
-    }, [initialReceiverId]);
+
+                // Đưa phòng lên đầu danh sách
+                updatedRooms.splice(index, 1);
+                updatedRooms.unshift(newRoom);
+
+            });
+
+            return updatedRooms;
+        });
+    }, [lastMessages, currentUserId, selectedRoom]);
 
     const handleSelectRoom = (room: ChatRoom) => {
-        setSelectedRoom(room);
-        const msgs = mockChatMessages.filter((m) => m.chatCode === room.chatCode);
-        setMessages(msgs);
+        // reset unread count
+        setChatRooms(prev =>
+            prev.map(r =>
+                r.chatCode === room.chatCode
+                    ? {
+                        ...r,
+                        unreadMessageCounts: {
+                            ...r.unreadMessageCounts,
+                            [currentUserId]: 0
+                        }
+                    }
+                    : r
+            )
+        );
+        const freshRoom = chatRooms.find(r => r.chatCode === room.chatCode) ?? room;
+        setSelectedRoom(freshRoom);
+        subscribeToChatRoom(room.chatCode);
     };
 
     const handleSend = () => {
         if (!input.trim() || !selectedRoom) return;
-        const newMsg: ChatMessage = {
-            id: crypto.randomUUID(),
-            chatCode: selectedRoom.chatCode,
+        const receiverId = selectedRoom.participantIds.find(id => id !== currentUserId)!;
+        sendMessage({
             senderId: currentUserId,
-            receiverId: selectedRoom.participantIds.find((id) => id !== currentUserId)!,
+            receiverId,
             content: input,
-            timestamp: new Date().toISOString(),
-            isRead: false,
-        };
-        setMessages((prev) => [...prev, newMsg]);
+        });
         setInput("");
     };
 
-    const filteredRooms = mockChatRooms.filter((room) => {
-        const otherId = room.participantIds.find((id) => id !== currentUserId)!;
+    const filteredRooms = chatRooms.filter((room) => {
+        const otherId = room.participantIds.find(id => id !== currentUserId)!;
         const matchSearch = otherId.includes(search);
-        const matchUnread = filterUnread
-            ? room.unreadMessageCounts[currentUserId] > 0
-            : true;
+        const matchUnread = filterUnread ? room.unreadMessageCounts[currentUserId] > 0 : true;
         return matchSearch && matchUnread;
     });
 
@@ -115,8 +183,8 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
                             <div className="flex gap-2">
                                 <button
                                     className={`flex-1 py-1 text-sm rounded ${!filterUnread
-                                            ? "bg-blue-600 text-white"
-                                            : "bg-gray-200"
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-gray-200"
                                         }`}
                                     onClick={() => setFilterUnread(false)}
                                 >
@@ -124,8 +192,8 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
                                 </button>
                                 <button
                                     className={`flex-1 py-1 text-sm rounded ${filterUnread
-                                            ? "bg-blue-600 text-white"
-                                            : "bg-gray-200"
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-gray-200"
                                         }`}
                                     onClick={() => setFilterUnread(true)}
                                 >
@@ -137,23 +205,18 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
                         {/* Chat Rooms */}
                         <div className="flex-1 overflow-y-auto">
                             {filteredRooms.map((room) => {
-                                const otherId = room.participantIds.find(
-                                    (id) => id !== currentUserId
-                                )!;
+                                const otherId = room.participantIds.find(id => id !== currentUserId)!;
                                 return (
                                     <div
                                         key={room.id}
-                                        className={`p-3 cursor-pointer hover:bg-gray-100 transition-colors ${selectedRoom?.id === room.id
-                                                ? "bg-gray-200"
-                                                : ""
-                                            }`}
+                                        className={`p-3 cursor-pointer hover:bg-gray-100 transition-colors ${selectedRoom?.id === room.id ? "bg-gray-200" : ""}`}
                                         onClick={() => handleSelectRoom(room)}
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="relative w-10 h-10">
                                                 <Image
-                                                    src="/default-avatar.png"
-                                                    alt={`User ${otherId}`}
+                                                    src={room.avatarUrl || '/default-avatar.png'}
+                                                    alt={room.receiverUsername}
                                                     fill
                                                     className="rounded-full object-cover"
                                                 />
@@ -165,7 +228,7 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium truncate">
-                                                    User {otherId}
+                                                    {room.receiverUsername}
                                                 </p>
                                                 <p className="text-sm text-gray-500 truncate">
                                                     {room.lastMessage}
@@ -180,38 +243,53 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
 
                     {/* Chat Window */}
                     <div className="flex-1 flex flex-col">
-                        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
-                            {messages.map((msg) => {
-                                const isMine = msg.senderId === currentUserId;
-                                return (
-                                    <div
-                                        key={msg.id}
-                                        className={`flex ${isMine
-                                                ? "justify-end"
-                                                : "justify-start"
-                                            }`}
-                                    >
-                                        <div
-                                            className={`max-w-[70%] px-3 py-2 rounded-lg ${isMine
-                                                    ? "bg-blue-100 text-gray-800"
-                                                    : "bg-gray-100 text-gray-800"
-                                                }`}
-                                        >
-                                            {msg.content}
-                                            <div className="text-xs text-gray-400 text-right mt-1">
-                                                {new Date(
-                                                    msg.timestamp
-                                                ).toLocaleTimeString([], {
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })}
+                        {selectedRoom && (
+                            <div className="flex items-center px-4 py-3 border-b bg-white shadow-sm">
+                                <h2 className="text-base font-semibold text-gray-700">
+                                    {selectedRoom.receiverUsername}
+                                </h2>
+                            </div>
+                        )}
+
+                        {/* Welcome Screen */}
+                        {!selectedRoom && (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 bg-gray-50">
+                                <Image
+                                    src="/welcome-chat.png"
+                                    alt="Welcome"
+                                    width={120}
+                                    height={120}
+                                    className="opacity-80 mb-4"
+                                />
+                                <h2 className="text-xl font-semibold text-gray-700">
+                                    Chào mừng bạn đến với CampHub Chat
+                                </h2>
+                                <p className="text-gray-500 mt-2">
+                                    Hãy chọn một cuộc trò chuyện hoặc bắt đầu mới với chủ thuê!
+                                </p>
+                            </div>
+                        )}
+                        {selectedRoom && (
+                            <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
+                                {messages
+                                    .filter((msg) => selectedRoom ? msg.chatCode === selectedRoom.chatCode : true)
+                                    .map((msg) => {
+                                        const isMine = msg.senderId === currentUserId;
+                                        return (
+                                            <div key={msg.id ?? msg.timestamp} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                                                <div className={`max-w-[70%] px-3 py-2 rounded-lg ${isMine ? "bg-blue-100 text-gray-800" : "bg-gray-100 text-gray-800"}`}>
+                                                    {msg.content}
+                                                    <div className="text-xs text-gray-400 text-right mt-1">
+                                                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            <div ref={messagesEndRef} />
-                        </div>
+                                        );
+                                    })}
+                                <div ref={messagesEndRef} />
+                            </div>
+                        )}
+
 
                         {/* Input */}
                         {selectedRoom && (
@@ -221,12 +299,8 @@ export default function ChatModal({ initialReceiverId, onClose }: ChatModalProps
                                     className="flex-1 border rounded-lg px-3 py-2 text-sm"
                                     placeholder="Nhập tin nhắn..."
                                     value={input}
-                                    onChange={(e) =>
-                                        setInput(e.target.value)
-                                    }
-                                    onKeyDown={(e) =>
-                                        e.key === "Enter" && handleSend()
-                                    }
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
                                 />
                                 <button
                                     className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"

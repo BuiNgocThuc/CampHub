@@ -1,26 +1,24 @@
 package org.camphub.be_camphub.controller;
 
-import com.nimbusds.jose.JOSEException;
+import lombok.extern.slf4j.Slf4j;
 import org.camphub.be_camphub.dto.request.auth.AuthRequest;
 import org.camphub.be_camphub.dto.request.auth.RefreshTokenRequest;
 import org.camphub.be_camphub.dto.request.auth.RegisterRequest;
 import org.camphub.be_camphub.dto.response.ApiResponse;
-import org.camphub.be_camphub.dto.response.account.AccountResponse;
 import org.camphub.be_camphub.dto.response.auth.AuthResponse;
+import org.camphub.be_camphub.dto.response.auth.MyInfoResponse;
 import org.camphub.be_camphub.dto.response.auth.RefreshTokenResponse;
 import org.camphub.be_camphub.dto.response.auth.RegisterResponse;
 import org.camphub.be_camphub.service.AuthService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
-import java.text.ParseException;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -46,8 +44,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh-token")
-    public ApiResponse<RefreshTokenResponse> refresh(@RequestBody RefreshTokenRequest request)
-            throws ParseException, JOSEException {
+    public ApiResponse<RefreshTokenResponse> refresh(@RequestBody RefreshTokenRequest request) {
         RefreshTokenResponse response = authService.refreshToken(request);
         return ApiResponse.<RefreshTokenResponse>builder()
                 .result(response)
@@ -63,11 +60,11 @@ public class AuthController {
                 .build();
     }
 
-    @GetMapping("/my-info")
-    public ApiResponse<AccountResponse> getMyInfo(@AuthenticationPrincipal Jwt jwt) {
-        UUID myId = UUID.fromString(jwt.getClaimAsString("id"));
-        AccountResponse response = authService.getMyInfo(myId);
-        return ApiResponse.<AccountResponse>builder()
+    @GetMapping("/me")
+    public ApiResponse<MyInfoResponse> getMyInfo(@AuthenticationPrincipal Jwt jwt) {
+        UUID myId = UUID.fromString(jwt.getClaimAsString("userId"));
+        MyInfoResponse response = authService.getMyInfo(myId);
+        return ApiResponse.<MyInfoResponse>builder()
                 .result(response)
                 .message("User info retrieved successfully")
                 .build();
