@@ -4,7 +4,6 @@ import { MediaResource } from "../../types";
 export interface AdminDecisionRequest {
     returnRequestId: string;
     isApproved: boolean;
-    refundAmount: number;
     adminNote?: string;
 }
 export interface LesseeSubmitReturnRequest {

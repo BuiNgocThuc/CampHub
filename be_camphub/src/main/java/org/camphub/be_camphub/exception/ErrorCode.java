@@ -1,6 +1,5 @@
 package org.camphub.be_camphub.exception;
 
-import lombok.Setter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 
@@ -31,6 +30,7 @@ public enum ErrorCode {
     ITEM_BANNED_CANNOT_UPDATE(4002, "Invalid item status", HttpStatus.BAD_REQUEST),
     ITEM_CANNOT_DELETE(4003, "Cannot delete the unavailable item", HttpStatus.BAD_REQUEST),
     ITEM_NOT_AVAILABLE(4004, "Item is not available for rent", HttpStatus.BAD_REQUEST),
+    INSUFFICIENT_ITEM_QUANTITY(4005, "Insufficient item quantity", HttpStatus.BAD_REQUEST),
     SYSTEM_WALLET_NOT_FOUND(5001, "System wallet not found", HttpStatus.NOT_FOUND),
     INVALID_RENTAL_DATES(6001, "Invalid rental dates", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_BALANCE(6002, "Insufficient balance", HttpStatus.BAD_REQUEST),
@@ -48,8 +48,7 @@ public enum ErrorCode {
     DISPUTE_NOT_FOUND(9002, "Dispute not found", HttpStatus.NOT_FOUND),
     DAMAGE_TYPE_NAME_EXISTED(9003, "Damage type name already exists", HttpStatus.BAD_REQUEST),
     TRANSACTION_NOT_FOUND(10001, "Transaction not found", HttpStatus.NOT_FOUND),
-    CHAT_ROOM_NOT_FOUND(11001, "Chat room not found", HttpStatus.NOT_FOUND)
-    ;
+    CHAT_ROOM_NOT_FOUND(11001, "Chat room not found", HttpStatus.NOT_FOUND);
 
     int code;
     String message;

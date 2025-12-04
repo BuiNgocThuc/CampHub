@@ -1,69 +1,95 @@
+// app/admin/extension-requests/ExtensionDetailModal.tsx
 "use client";
 
+import { Box, Chip, Divider, Stack, Typography } from "@mui/material";
 import { ExtensionRequest } from "@/libs/core/types";
-import { mockAccounts, mockBookings } from "@/libs/utils/mock-data";
+import { format } from "date-fns";
+import { ExtensionStatus } from "@/libs/core/constants";
 
 interface ExtensionDetailModalProps {
     request: ExtensionRequest;
 }
 
+const statusConfig: Record<ExtensionStatus, { label: string; color: "success" | "warning" | "error" | "default" }> = {
+    PENDING: { label: "Đang chờ duyệt", color: "warning" },
+    APPROVED: { label: "Đã duyệt", color: "success" },
+    REJECTED: { label: "Bị từ chối", color: "error" },
+    CANCELLED: { label: "Đã hủy", color: "default" },
+    EXPIRED: { label: "Hết hạn", color: "default" },
+};
+
 export default function ExtensionDetailModal({ request }: ExtensionDetailModalProps) {
-    const booking = mockBookings.find((b) => b.id === request.bookingId);
-    const lessee = mockAccounts.find((a) => a.id === request.lesseeId);
-    const lessor = mockAccounts.find((a) => a.id === request.lessorId);
+    const status = statusConfig[request.status];
 
     return (
-        <div className="space-y-5 text-sm">
-            {/* Thông tin yêu cầu */}
-            <section>
-                <h2 className="font-semibold text-lg mb-2">Thông tin yêu cầu</h2>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-                    <p><strong>Mã yêu cầu:</strong> {request.id}</p>
-                    <p><strong>Mã đơn thuê:</strong> {request.bookingId}</p>
-                    <p><strong>Trạng thái:</strong> {request.status}</p>
-                    <p><strong>Ngày tạo:</strong> {new Date(request.createdAt).toLocaleString()}</p>
-                </div>
-            </section>
+        <Box sx={{ minWidth: 600 }}>
+            <Stack spacing={4}>
+                {/* Header */}
+                <Box>
+                    <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        Chi tiết yêu cầu gia hạn
+                    </Typography>
+                    <Chip label={status.label} color={status.color} sx={{ fontWeight: 600 }} />
+                </Box>
 
-            {/* Thời gian gia hạn */}
-            <section>
-                <h2 className="font-semibold text-lg mb-2">Thời gian gia hạn</h2>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-                    <p><strong>Ngày cũ:</strong> {request.oldEndDate || "(Chưa có)"}</p>
-                    <p><strong>Ngày đề xuất mới:</strong> {request.requestedNewEndDate}</p>
-                    <p><strong>Phí bổ sung:</strong> {request.additionalFee.toLocaleString()}₫</p>
-                </div>
-            </section>
+                <Divider />
 
-            {/* Thông tin người thuê và chủ thuê */}
-            <section>
-                <h2 className="font-semibold text-lg mb-2">Người liên quan</h2>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-                    <p><strong>Người thuê:</strong> {lessee ? `${lessee.firstname} ${lessee.lastname}` : "(Không xác định)"}</p>
-                    <p><strong>Chủ thuê:</strong> {lessor ? `${lessor.firstname} ${lessor.lastname}` : "(Không xác định)"}</p>
-                </div>
-            </section>
+                {/* Thông tin chính */}
+                <Stack spacing={3}>
+                    <Box>
+                        <Typography fontWeight="bold" color="primary" gutterBottom>
+                            Thông tin yêu cầu
+                        </Typography>
+                        <GridRow label="Mã yêu cầu" value={request.id} />
+                        <GridRow label="Mã đơn thuê" value={request.bookingId} />
+                        <GridRow label="Thời gian tạo" value={format(new Date(request.createdAt), "dd/MM/yyyy HH:mm")} />
+                    </Box>
 
-            {/* Thông tin đơn thuê */}
-            <section>
-                <h2 className="font-semibold text-lg mb-2">Thông tin đơn thuê</h2>
-                {booking ? (
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-                        <p><strong>Mã đơn thuê:</strong> {booking.id}</p>
-                        <p><strong>Trạng thái đơn:</strong> {booking.status}</p>
-                        <p><strong>Ngày bắt đầu:</strong> {booking.startDate}</p>
-                        <p><strong>Ngày kết thúc:</strong> {booking.endDate}</p>
-                    </div>
-                ) : (
-                    <p>(Không tìm thấy thông tin đơn thuê)</p>
-                )}
-            </section>
+                    <Box>
+                        <Typography fontWeight="bold" color="primary" gutterBottom>
+                            Thời gian gia hạn
+                        </Typography>
+                        <GridRow label="Ngày kết thúc cũ" value={request.oldEndDate || "—"} />
+                        <GridRow label="Ngày đề xuất mới" value={request.requestedNewEndDate} />
+                        <GridRow
+                            label="Phí gia hạn"
+                            value={
+                                <Typography fontWeight="bold" color="error">
+                                    {Number(request.additionalFee).toLocaleString("vi-VN")} ₫
+                                </Typography>
+                            }
+                        />
+                    </Box>
 
-            {/* Ghi chú */}
-            <section>
-                <h2 className="font-semibold text-lg mb-2">Ghi chú</h2>
-                <p>{request.note || "(Không có ghi chú)"}</p>
-            </section>
-        </div>
+                    <Box>
+                        <Typography fontWeight="bold" color="primary" gutterBottom>
+                            Người liên quan
+                        </Typography>
+                        <GridRow label="Người thuê" value={request.lesseeName} />
+                        <GridRow label="Chủ đồ" value={request.lessorName} />
+                        <GridRow label="Sản phẩm" value={request.itemName} />
+                    </Box>
+
+                    {request.note && (
+                        <Box>
+                            <Typography fontWeight="bold" color="primary" gutterBottom>
+                                Ghi chú
+                            </Typography>
+                            <Typography variant="body2" sx={{ bgcolor: "grey.50", p: 2, borderRadius: 1 }}>
+                                {request.note}
+                            </Typography>
+                        </Box>
+                    )}
+                </Stack>
+            </Stack>
+        </Box>
     );
 }
+
+// Helper component
+const GridRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <Box display="flex" justifyContent="space-between" py={0.5}>
+        <Typography color="text.secondary">{label}:</Typography>
+        <Typography fontWeight="medium">{value}</Typography>
+    </Box>
+);

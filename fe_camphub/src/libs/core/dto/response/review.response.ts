@@ -7,6 +7,7 @@ export interface ReviewResponse {
     reviewedId: string;
     itemName: string;
     reviewerName: string;
+    reviewerAvatar: string;
     rating: number;
     comment: string;
     mediaUrls: MediaResource[];

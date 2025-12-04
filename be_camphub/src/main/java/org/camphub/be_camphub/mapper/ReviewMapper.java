@@ -1,4 +1,5 @@
 package org.camphub.be_camphub.mapper;
+
 import org.camphub.be_camphub.dto.request.review.ReviewCreationRequest;
 import org.camphub.be_camphub.dto.response.review.ReviewResponse;
 import org.camphub.be_camphub.entity.Review;
@@ -14,6 +15,7 @@ public interface ReviewMapper {
     Review toEntity(ReviewCreationRequest request);
 
     @Mapping(target = "reviewerName", ignore = true) // sẽ set trong service
-    @Mapping(target = "itemName", ignore = true)     // sẽ set trong service
+    @Mapping(target = "itemName", ignore = true) // sẽ set trong service
+    @Mapping(target = "reviewerAvatar", ignore = true) // sẽ set trong service
     ReviewResponse toResponse(Review entity);
 }

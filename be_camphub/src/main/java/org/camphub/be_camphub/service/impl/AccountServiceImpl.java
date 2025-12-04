@@ -111,14 +111,12 @@ public class AccountServiceImpl implements AccountService {
             throw new AppException(ErrorCode.INVALID_AMOUNT);
         }
 
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Account account =
+                accountRepository.findById(accountId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         account.setCoinBalance(account.getCoinBalance() + request.getAmount());
         accountRepository.save(account);
 
-        return TopUpResponse.builder()
-                .newBalance(account.getCoinBalance())
-                .build();
+        return TopUpResponse.builder().newBalance(account.getCoinBalance()).build();
     }
 }

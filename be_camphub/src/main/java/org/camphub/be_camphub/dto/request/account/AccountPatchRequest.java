@@ -1,7 +1,5 @@
 package org.camphub.be_camphub.dto.request.account;
 
-import java.time.LocalDateTime;
-
 import org.camphub.be_camphub.enums.UserStatus;
 import org.camphub.be_camphub.enums.UserType;
 

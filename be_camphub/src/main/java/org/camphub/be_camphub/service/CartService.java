@@ -24,4 +24,6 @@ public interface CartService {
     List<CartItemResponse> getValidCartItems(UUID accountId);
 
     Integer getCartItemCount(UUID accountId);
+
+    boolean validateQuantity(UUID cartItemId, Integer quantity);
 }

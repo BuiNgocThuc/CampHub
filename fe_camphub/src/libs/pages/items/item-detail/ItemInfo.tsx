@@ -18,6 +18,7 @@ interface CategoryInfo {
 interface ItemInfoProps {
   name: string;
   pricePerDay: number;
+  quantity: number;
   owner: OwnerInfo;
   category: CategoryInfo;
   averageRating: number;
@@ -27,6 +28,7 @@ interface ItemInfoProps {
 export default function ItemInfo({
   name,
   pricePerDay,
+  quantity,
   owner,
   category,
   averageRating,
@@ -42,8 +44,13 @@ export default function ItemInfo({
         <Star className="w-5 h-5 mr-1 fill-yellow-500" />
         {averageRating.toFixed(1)} ({totalReviews} đánh giá)
       </div>
-      <div className="text-lg font-semibold text-green-600">
-        {pricePerDay.toLocaleString()}đ / ngày
+      <div className="flex items-center gap-4">
+        <div className="text-lg font-semibold text-green-600">
+          {pricePerDay.toLocaleString()}đ / ngày
+        </div>
+        <div className="text-base font-medium text-gray-700">
+          Số lượng: <span className="font-bold text-blue-600">{quantity}</span> sản phẩm
+        </div>
       </div>
 
       {/* Owner info + Chat button */}

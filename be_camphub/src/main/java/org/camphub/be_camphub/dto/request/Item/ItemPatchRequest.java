@@ -3,11 +3,12 @@ package org.camphub.be_camphub.dto.request.Item;
 import java.util.List;
 import java.util.UUID;
 
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 
 @Data
 @Builder

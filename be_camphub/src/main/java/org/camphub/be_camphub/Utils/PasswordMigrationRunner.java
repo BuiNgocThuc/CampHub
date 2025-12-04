@@ -1,14 +1,14 @@
 package org.camphub.be_camphub.Utils;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.camphub.be_camphub.entity.Account;
 import org.camphub.be_camphub.repository.AccountRepository;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor

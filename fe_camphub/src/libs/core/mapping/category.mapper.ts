@@ -8,12 +8,29 @@ export const categoryMapper = createMapper({
     strategyInitializer: pojos(),
 })
 
-// declare metadata if needed in future
-PojosMetadataMap.create<Category>("Category", {});
-PojosMetadataMap.create<CategoryCreationRequest>("CategoryCreationRequest", {});
-PojosMetadataMap.create<CategoryUpdateRequest>("CategoryUpdateRequest", {});
-PojosMetadataMap.create<CategoryPatchRequest>("CategoryPatchRequest", {});
-PojosMetadataMap.create<CategoryResponse>("CategoryResponse", {});
+// declare metadata 
+PojosMetadataMap.create<Category>("Category", {
+    id: String,          
+    name: String,
+    description: String,
+});
+PojosMetadataMap.create<CategoryCreationRequest>("CategoryCreationRequest", {
+    name: String,
+    description: String,
+});
+PojosMetadataMap.create<CategoryUpdateRequest>("CategoryUpdateRequest", {
+    name: String,
+    description: String,
+});
+PojosMetadataMap.create<CategoryPatchRequest>("CategoryPatchRequest", {
+    name: String,
+    description: String,
+});
+PojosMetadataMap.create<CategoryResponse>("CategoryResponse", {
+    id: String,          
+    name: String,
+    description: String,
+});
 
 // Mapping DTO response to Model
 createMap<CategoryResponse, Category>(

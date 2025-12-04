@@ -24,6 +24,9 @@ export const createItem = async (
 // Get item by ID
 export const getItemById = async (id: string): Promise<Item> => {
     const response = await api.get<ApiResponse<ItemResponse>>(`/items/${id}`);
+    console.log(response.data.result);
+    const ress = mapItem.fromResponse(response.data.result);
+    console.log(ress);
     return mapItem.fromResponse(response.data.result);
 };
 
@@ -31,14 +34,14 @@ export const getItemById = async (id: string): Promise<Item> => {
 export const getAllItems = async (
     status?: string,
     categoryId?: string
-): Promise<ApiResponse<ItemResponse[]>> => {
+): Promise<Item[]> => {
     try {
         const params: Record<string, any> = {};
         if (status) params.status = status;
         if (categoryId) params.categoryId = categoryId;
 
         const response = await api.get<ApiResponse<ItemResponse[]>>("/items", { params });
-        return response.data;
+        return response.data.result.map(mapItem.fromResponse);
     } catch (error) {
         throw error;
     }
@@ -99,7 +102,7 @@ export const lockItem = async (id: string, isLocked: boolean): Promise<Item> => 
     return mapItem.fromResponse(response.data.result);
 };
 
-// Lấy danh sách item của user hiện tại (rất hay dùng)
+// Lấy danh sách item của user hiện tại
 export const getMyItems = async (
     status?: string
 ): Promise<Item[]> => {

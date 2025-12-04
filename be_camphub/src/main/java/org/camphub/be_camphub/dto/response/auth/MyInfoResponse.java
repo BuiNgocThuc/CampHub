@@ -1,9 +1,9 @@
 package org.camphub.be_camphub.dto.response.auth;
 
+import java.util.UUID;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
-import java.util.UUID;
 
 @Data
 @Builder

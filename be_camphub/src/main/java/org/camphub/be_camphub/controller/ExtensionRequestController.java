@@ -1,5 +1,6 @@
 package org.camphub.be_camphub.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.camphub.be_camphub.dto.request.extension_req.ExtensionReqCreationRequest;
@@ -59,6 +60,29 @@ public class ExtensionRequestController {
         return ApiResponse.<ExtensionReqResponse>builder()
                 .message("Cancel extension request successfully")
                 .result(service.cancelExtensionRequest(lesseeId, requestId))
+                .build();
+    }
+
+    @GetMapping
+    public ApiResponse<List<ExtensionReqResponse>> getAllExtensionRequests(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) UUID bookingId,
+            @RequestParam(required = false) UUID lesseeId,
+            @RequestParam(required = false) UUID lessorId) {
+        List<ExtensionReqResponse> requests =
+                service.getAllExtensionRequestsFiltered(status, bookingId, lesseeId, lessorId);
+        return ApiResponse.<List<ExtensionReqResponse>>builder()
+                .message("Lấy danh sách yêu cầu gia hạn thành công")
+                .result(requests)
+                .build();
+    }
+
+    // 2. Xem chi tiết
+    @GetMapping("/{requestId}")
+    public ApiResponse<ExtensionReqResponse> getExtensionRequestById(@PathVariable UUID requestId) {
+        return ApiResponse.<ExtensionReqResponse>builder()
+                .message("Lấy chi tiết yêu cầu gia hạn thành công")
+                .result(service.getExtensionRequestById(requestId))
                 .build();
     }
 }

@@ -1,9 +1,9 @@
 package org.camphub.be_camphub.interceptor;
 
+import java.util.Map;
+
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
-import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -19,7 +21,12 @@ import java.util.Map;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class JwtHandshakeInterceptor implements HandshakeInterceptor {
     @Override
-    public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
+    public boolean beforeHandshake(
+            ServerHttpRequest request,
+            ServerHttpResponse response,
+            WebSocketHandler wsHandler,
+            Map<String, Object> attributes)
+            throws Exception {
 
         if (request instanceof ServletServerHttpRequest servletRequest) {
             HttpServletRequest servlet = servletRequest.getServletRequest();
@@ -47,7 +54,8 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
     }
 
     @Override
-    public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Exception exception) {
+    public void afterHandshake(
+            ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Exception exception) {
         if (exception != null) {
             log.error("[WebSocket] Handshake failed: {}", exception.getMessage());
         }

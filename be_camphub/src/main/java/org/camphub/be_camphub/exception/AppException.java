@@ -1,7 +1,6 @@
 package org.camphub.be_camphub.exception;
 
 import lombok.AccessLevel;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;

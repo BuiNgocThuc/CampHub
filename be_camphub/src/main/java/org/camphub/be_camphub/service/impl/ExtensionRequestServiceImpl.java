@@ -2,16 +2,18 @@ package org.camphub.be_camphub.service.impl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
 import org.camphub.be_camphub.dto.request.extension_req.ExtensionReqCreationRequest;
 import org.camphub.be_camphub.dto.request.extension_req.ExtensionResponseRequest;
+import org.camphub.be_camphub.dto.request.notification.NotificationCreationRequest;
 import org.camphub.be_camphub.dto.response.extension_req.ExtensionReqResponse;
 import org.camphub.be_camphub.entity.*;
 import org.camphub.be_camphub.enums.BookingStatus;
 import org.camphub.be_camphub.enums.ExtensionStatus;
+import org.camphub.be_camphub.enums.NotificationType;
+import org.camphub.be_camphub.enums.ReferenceType;
 import org.camphub.be_camphub.enums.TransactionStatus;
 import org.camphub.be_camphub.enums.TransactionType;
 import org.camphub.be_camphub.exception.AppException;
@@ -19,6 +21,7 @@ import org.camphub.be_camphub.exception.ErrorCode;
 import org.camphub.be_camphub.mapper.ExtensionRequestMapper;
 import org.camphub.be_camphub.repository.*;
 import org.camphub.be_camphub.service.ExtensionRequestService;
+import org.camphub.be_camphub.service.NotificationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,84 +34,96 @@ import lombok.experimental.FieldDefaults;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ExtensionRequestServiceImpl implements ExtensionRequestService {
+
     ExtensionRequestRepository extensionRequestRepository;
     BookingRepository bookingRepository;
     AccountRepository accountRepository;
     ItemRepository itemRepository;
     TransactionRepository transactionRepository;
     TransactionBookingRepository transactionBookingRepository;
+    ExtensionRequestMapper mapper;
+    NotificationService notificationService;
 
-    ExtensionRequestMapper extensionRequestMapper;
-
+    // ========================================================================
+    // CREATE EXTENSION REQUEST
+    // ========================================================================
     @Override
     @Transactional
     public ExtensionReqResponse createExtensionRequest(UUID lesseeId, ExtensionReqCreationRequest request) {
-        Booking booking = bookingRepository
-                .findById(request.getBookingId())
-                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+        Booking booking = getBookingOrThrow(request.getBookingId());
 
-        if (!booking.getLesseeId().equals(lesseeId)) throw new AppException(ErrorCode.UNAUTHORIZED);
-        if (booking.getStatus() != BookingStatus.IN_USE) throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
+        // Validate permission & status
+        if (!booking.getLesseeId().equals(lesseeId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        if (booking.getStatus() != BookingStatus.IN_USE) {
+            throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
+        }
+        if (extensionRequestRepository.existsByBookingIdAndStatus(booking.getId(), ExtensionStatus.PENDING)) {
+            throw new AppException(ErrorCode.EXTENSION_ALREADY_PENDING);
+        }
 
-        // prevent multiple pending requests for the same booking
-        boolean anyPending = extensionRequestRepository.findAll().stream()
-                .anyMatch(er -> er.getBookingId().equals(booking.getId()) && er.getStatus() == ExtensionStatus.PENDING);
-        if (anyPending) throw new AppException(ErrorCode.EXTENSION_ALREADY_PENDING);
+        LocalDate newEndDate = booking.getEndDate().plusDays(request.getAdditionalDays());
+        if (!newEndDate.isAfter(booking.getEndDate())) {
+            throw new AppException(ErrorCode.INVALID_EXTENSION_DATE);
+        }
 
-        // compute requested new end date
-        LocalDate oldEnd = booking.getEndDate();
-        LocalDate requestedNewEnd = oldEnd.plusDays(request.getAdditionalDays());
+        double additionalFee = booking.getPricePerDay() * booking.getQuantity() * request.getAdditionalDays();
 
-        long additionalDays = ChronoUnit.DAYS.between(oldEnd, requestedNewEnd);
-        if (additionalDays <= 0) throw new AppException(ErrorCode.INVALID_EXTENSION_DATE);
-
-        double additionalFee = booking.getPricePerDay() * booking.getQuantity() * additionalDays;
-
-        ExtensionRequest req = ExtensionRequest.builder()
+        ExtensionRequest entity = ExtensionRequest.builder()
                 .bookingId(booking.getId())
                 .lesseeId(lesseeId)
                 .lessorId(booking.getLessorId())
-                .oldEndDate(oldEnd)
-                .requestedNewEndDate(requestedNewEnd)
+                .oldEndDate(booking.getEndDate())
+                .requestedNewEndDate(newEndDate)
                 .additionalFee(additionalFee)
                 .status(ExtensionStatus.PENDING)
                 .note(request.getNote())
                 .build();
 
-        ExtensionRequest saved = extensionRequestRepository.save(req);
+        ExtensionRequest saved = extensionRequestRepository.save(entity);
 
-        return enrichExtensionRequestResponse(saved);
+        // thông báo cho Lessor về yêu cầu gia hạn
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(booking.getLessorId())
+                .senderId(lesseeId)
+                .type(NotificationType.BOOKING_CREATED)
+                .title("Yêu cầu gia hạn đơn thuê")
+                .content("Khách thuê yêu cầu gia hạn đơn " + booking.getId())
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
+
+        return toEnrichedResponse(saved);
     }
 
+    // ========================================================================
+    // APPROVE (LESSOR)
+    // ========================================================================
     @Override
     @Transactional
     public ExtensionReqResponse approveExtensionRequest(UUID lessorId, ExtensionResponseRequest request) {
-        ExtensionRequest ext = extensionRequestRepository
-                .findById(request.getRequestId())
-                .orElseThrow(() -> new AppException(ErrorCode.EXTENSION_NOT_FOUND));
+        ExtensionRequest ext = getPendingExtensionOrThrow(request.getRequestId());
+        if (!ext.getLessorId().equals(lessorId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
 
-        if (!ext.getLessorId().equals(lessorId)) throw new AppException(ErrorCode.UNAUTHORIZED);
-        if (ext.getStatus() != ExtensionStatus.PENDING) throw new AppException(ErrorCode.INVALID_EXTENSION_STATUS);
-
-        Booking booking = bookingRepository
-                .findById(ext.getBookingId())
-                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
-
-        Account lessee = accountRepository
-                .findById(ext.getLesseeId())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Booking booking = getBookingOrThrow(ext.getBookingId());
+        Account lessee = getAccountOrThrow(ext.getLesseeId());
         Account systemWallet = accountRepository
                 .findSystemWallet()
                 .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
 
-        if (lessee.getCoinBalance() < ext.getAdditionalFee()) throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+        if (lessee.getCoinBalance() < ext.getAdditionalFee()) {
+            throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+        }
 
-        // transfer coins from lessee -> system
+        // Deduct & transfer
         lessee.setCoinBalance(lessee.getCoinBalance() - ext.getAdditionalFee());
         systemWallet.setCoinBalance(systemWallet.getCoinBalance() + ext.getAdditionalFee());
         accountRepository.saveAll(List.of(lessee, systemWallet));
 
-        // record transaction
+        // Create transaction
         Transaction tx = Transaction.builder()
                 .fromAccountId(lessee.getId())
                 .toAccountId(systemWallet.getId())
@@ -118,13 +133,12 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
                 .build();
         Transaction savedTx = transactionRepository.save(tx);
 
-        // link transaction -> booking
         transactionBookingRepository.save(TransactionBooking.builder()
                 .transactionId(savedTx.getId())
                 .bookingId(booking.getId())
                 .build());
 
-        // update booking end date
+        // Update booking & request
         booking.setEndDate(ext.getRequestedNewEndDate());
         bookingRepository.save(booking);
 
@@ -132,77 +146,141 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         ext.setNote(request.getNote());
         extensionRequestRepository.save(ext);
 
-        return enrichExtensionRequestResponse(ext);
+        // thông báo cho Lessee về việc yêu cầu gia hạn đã được chấp nhận
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(lessee.getId())
+                .senderId(lessorId)
+                .type(NotificationType.BOOKING_CREATED)
+                .title("Yêu cầu gia hạn đã được chấp nhận")
+                .content("Chủ đồ đã chấp nhận gia hạn đơn " + booking.getId())
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
+
+        return toEnrichedResponse(ext);
     }
 
+    // ========================================================================
+    // REJECT (LESSOR)
+    // ========================================================================
     @Override
     @Transactional
     public ExtensionReqResponse rejectExtensionRequest(UUID lessorId, ExtensionResponseRequest request) {
-        ExtensionRequest ext = extensionRequestRepository
-                .findById(request.getRequestId())
-                .orElseThrow(() -> new AppException(ErrorCode.EXTENSION_NOT_FOUND));
-
-        if (!ext.getLessorId().equals(lessorId)) throw new AppException(ErrorCode.UNAUTHORIZED);
-        if (ext.getStatus() != ExtensionStatus.PENDING) throw new AppException(ErrorCode.INVALID_EXTENSION_STATUS);
+        ExtensionRequest ext = getPendingExtensionOrThrow(request.getRequestId());
+        if (!ext.getLessorId().equals(lessorId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
 
         ext.setStatus(ExtensionStatus.REJECTED);
         ext.setNote(request.getNote());
         extensionRequestRepository.save(ext);
 
-        return enrichExtensionRequestResponse(ext);
+        // thông báo cho Lessee về việc yêu cầu gia hạn đã bị từ chối
+        Booking booking = getBookingOrThrow(ext.getBookingId());
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(ext.getLesseeId())
+                .senderId(lessorId)
+                .type(NotificationType.BOOKING_CANCELLED)
+                .title("Yêu cầu gia hạn đã bị từ chối")
+                .content("Chủ đồ đã từ chối gia hạn đơn " + booking.getId())
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
+
+        return toEnrichedResponse(ext);
     }
 
+    // ========================================================================
+    // CANCEL (LESSEE)
+    // ========================================================================
     @Override
+    @Transactional
     public ExtensionReqResponse cancelExtensionRequest(UUID lesseeId, UUID requestId) {
-        ExtensionRequest ext = extensionRequestRepository
-                .findById(requestId)
-                .orElseThrow(() -> new AppException(ErrorCode.EXTENSION_NOT_FOUND));
-
-        if (!ext.getLesseeId().equals(lesseeId)) throw new AppException(ErrorCode.UNAUTHORIZED);
-        if (ext.getStatus() != ExtensionStatus.PENDING) throw new AppException(ErrorCode.INVALID_EXTENSION_STATUS);
+        ExtensionRequest ext = getPendingExtensionOrThrow(requestId);
+        if (!ext.getLesseeId().equals(lesseeId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
 
         ext.setStatus(ExtensionStatus.CANCELLED);
         extensionRequestRepository.save(ext);
 
-        return enrichExtensionRequestResponse(ext);
+        return toEnrichedResponse(ext);
     }
 
+    // ========================================================================
+    // AUTO EXPIRE (CRON)
+    // ========================================================================
     @Override
-    @Scheduled(cron = "0 0 * * * *") // every hour
+    @Scheduled(cron = "0 0 * * * *") // Mỗi giờ
     @Transactional
     public void autoExpirePendingRequests() {
         LocalDateTime threshold = LocalDateTime.now().minusHours(48);
-        List<ExtensionRequest> pending =
+        List<ExtensionRequest> expired =
                 extensionRequestRepository.findByStatusAndCreatedAtBefore(ExtensionStatus.PENDING, threshold);
-        if (pending == null || pending.isEmpty()) return;
-        pending.forEach(r -> r.setStatus(ExtensionStatus.EXPIRED));
-        extensionRequestRepository.saveAll(pending);
+
+        if (expired.isEmpty()) return;
+
+        expired.forEach(req -> req.setStatus(ExtensionStatus.EXPIRED));
+        extensionRequestRepository.saveAllAndFlush(expired);
     }
 
-    private ExtensionReqResponse enrichExtensionRequestResponse(ExtensionRequest req) {
+    // ========================================================================
+    // ADMIN QUERIES (dùng trong Admin Controller)
+    // ========================================================================
+    @Override
+    public List<ExtensionReqResponse> getAllExtensionRequestsFiltered(
+            String status, UUID bookingId, UUID lesseeId, UUID lessorId) {
 
-        ExtensionReqResponse res = extensionRequestMapper.entityToResponse(req);
+        return extensionRequestRepository.findAllFiltered(status, bookingId, lesseeId, lessorId).stream()
+                .map(this::toEnrichedResponse)
+                .toList();
+    }
 
-        // 1. Load booking
-        Booking booking = bookingRepository.findById(req.getBookingId())
-                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+    @Override
+    public ExtensionReqResponse getExtensionRequestById(UUID requestId) {
+        ExtensionRequest ext = extensionRequestRepository
+                .findById(requestId)
+                .orElseThrow(() -> new AppException(ErrorCode.EXTENSION_NOT_FOUND));
+        return toEnrichedResponse(ext);
+    }
 
-        // 2. Load item
-        Item item = itemRepository.findById(booking.getItemId())
-                .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+    // ========================================================================
+    // PRIVATE HELPERS
+    // ========================================================================
+    private ExtensionReqResponse toEnrichedResponse(ExtensionRequest ext) {
+        ExtensionReqResponse res = mapper.entityToResponse(ext);
+
+        Booking booking = getBookingOrThrow(ext.getBookingId());
+        Item item = getItemOrThrow(booking.getItemId());
+        Account lessee = getAccountOrThrow(ext.getLesseeId());
+        Account lessor = getAccountOrThrow(booking.getLessorId());
+
         res.setItemName(item.getName());
-
-        // 3. Load lessor
-        Account lessor = accountRepository.findById(booking.getLessorId())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        res.setLessorName(lessor.getLastname() + " " + lessor.getFirstname());
-
-        // 4. Load lessee
-        Account lessee = accountRepository.findById(booking.getLesseeId())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        res.setLesseeName(lessee.getLastname() + " " + lessee.getFirstname());
+        res.setLesseeName(lessee.getFirstname() + " " + lessee.getLastname());
+        res.setLessorName(lessor.getFirstname() + " " + lessor.getLastname());
 
         return res;
     }
 
+    private ExtensionRequest getPendingExtensionOrThrow(UUID id) {
+        ExtensionRequest ext = extensionRequestRepository
+                .findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.EXTENSION_NOT_FOUND));
+        if (ext.getStatus() != ExtensionStatus.PENDING) {
+            throw new AppException(ErrorCode.INVALID_EXTENSION_STATUS);
+        }
+        return ext;
+    }
+
+    private Booking getBookingOrThrow(UUID id) {
+        return bookingRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+    }
+
+    private Account getAccountOrThrow(UUID id) {
+        return accountRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private Item getItemOrThrow(UUID id) {
+        return itemRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+    }
 }

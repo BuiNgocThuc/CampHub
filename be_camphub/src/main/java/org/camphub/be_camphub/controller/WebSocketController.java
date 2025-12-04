@@ -1,8 +1,8 @@
 package org.camphub.be_camphub.controller;
 
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import java.security.Principal;
+import java.util.UUID;
+
 import org.camphub.be_camphub.dto.request.chat.ChatMessageRequest;
 import org.camphub.be_camphub.dto.response.chat.ChatMessageResponse;
 import org.camphub.be_camphub.service.ChatService;
@@ -11,8 +11,9 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
-import java.security.Principal;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Controller
 @RequiredArgsConstructor
@@ -39,17 +40,10 @@ public class WebSocketController {
         log.info("Message saved: {}", response.getContent());
 
         // Gửi tin nhắn đến người nhận qua WebSocket
-        simpMessagingTemplate.convertAndSend(
-                "/topic/chat." + response.getChatCode(),
-                response
-        );
+        simpMessagingTemplate.convertAndSend("/topic/chat." + response.getChatCode(), response);
 
-        simpMessagingTemplate.convertAndSend(
-                "/topic/chat.global",
-                response
-        );
+        simpMessagingTemplate.convertAndSend("/topic/chat.global", response);
 
         log.info("Message sent to: {}", response.getId());
     }
-
 }

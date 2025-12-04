@@ -8,11 +8,10 @@ import jakarta.persistence.*;
 
 import org.camphub.be_camphub.enums.ItemStatus;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Table(name = "items")

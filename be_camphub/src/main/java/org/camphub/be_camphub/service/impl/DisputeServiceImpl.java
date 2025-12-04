@@ -9,6 +9,7 @@ import jakarta.transaction.Transactional;
 
 import org.camphub.be_camphub.dto.request.dispute.AdminReviewDisputeRequest;
 import org.camphub.be_camphub.dto.request.dispute.DisputeCreationRequest;
+import org.camphub.be_camphub.dto.request.notification.NotificationCreationRequest;
 import org.camphub.be_camphub.dto.response.dispute.DisputeResponse;
 import org.camphub.be_camphub.entity.*;
 import org.camphub.be_camphub.enums.*;
@@ -17,6 +18,7 @@ import org.camphub.be_camphub.exception.ErrorCode;
 import org.camphub.be_camphub.mapper.DisputeMapper;
 import org.camphub.be_camphub.repository.*;
 import org.camphub.be_camphub.service.DisputeService;
+import org.camphub.be_camphub.service.NotificationService;
 import org.springframework.stereotype.Service;
 
 import lombok.AccessLevel;
@@ -37,18 +39,18 @@ public class DisputeServiceImpl implements DisputeService {
     AccountRepository accountRepository;
     TransactionRepository transactionRepository;
     TransactionBookingRepository transactionBookingRepository;
+    NotificationService notificationService;
 
     @Override
     @Transactional
     public DisputeResponse createDispute(UUID lessorId, DisputeCreationRequest request) {
 
         // 1. Load booking
-        Booking booking = bookingRepository.findById(request.getBookingId())
+        Booking booking = bookingRepository
+                .findById(request.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
-        if (!booking.getLessorId().equals(lessorId))
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-
+        if (!booking.getLessorId().equals(lessorId)) throw new AppException(ErrorCode.UNAUTHORIZED);
 
         // 3. Đóng các ReturnRequest đang mở (PENDING / WAITING ...)
         closeOpenReturnRequest(booking);
@@ -72,10 +74,22 @@ public class DisputeServiceImpl implements DisputeService {
             itemRepository.save(item);
         });
 
+        // thông báo đến admin (ở đây tạm thời gửi tới hệ thống hoặc có thể chọn 1 admin chung)
+        accountRepository
+                .findSystemWallet()
+                .ifPresent(system -> notificationService.create(NotificationCreationRequest.builder()
+                        .receiverId(system.getId())
+                        .senderId(lessorId)
+                        .type(NotificationType.DAMAGE_REPORTED)
+                        .title("Khiếu nại mới cần xử lý")
+                        .content("Có khiếu nại mới cho đơn " + booking.getId())
+                        .referenceType(ReferenceType.BOOKING)
+                        .referenceId(booking.getId())
+                        .build()));
+
         // 7. Build response
         return enrichDisputeResponse(dispute);
     }
-
 
     @Override
     @Transactional
@@ -148,7 +162,6 @@ public class DisputeServiceImpl implements DisputeService {
 
             // Link transaction -> booking
             transactionBookingRepository.save(TransactionBooking.builder()
-                    
                     .transactionId(compTx.getId())
                     .bookingId(booking.getId())
                     .build());
@@ -177,6 +190,27 @@ public class DisputeServiceImpl implements DisputeService {
                 itemRepository.save(item);
             }
 
+            // Thông báo kết quả tranh chấp cho lessor và lessee
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(lessor.getId())
+                    .senderId(adminId)
+                    .type(NotificationType.DAMAGE_REPORTED)
+                    .title("Kết quả xử lý khiếu nại")
+                    .content("Admin đã chấp nhận khiếu nại và bồi thường " + compAmount + " coin.")
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(lessee.getId())
+                    .senderId(adminId)
+                    .type(NotificationType.DAMAGE_REPORTED)
+                    .title("Kết quả xử lý khiếu nại")
+                    .content("Admin đã chấp nhận khiếu nại liên quan đến đơn " + booking.getId() + ".")
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+
         } else {
             // Admin TỪ CHỐI khiếu nại -> không chuyển tiền bồi thường
             dispute.setAdminDecision(DisputeDecision.REJECTED);
@@ -184,7 +218,20 @@ public class DisputeServiceImpl implements DisputeService {
 
             booking.setStatus(BookingStatus.RETURN_REFUND_PROCESSING);
             bookingRepository.save(booking);
+
+            // Thông báo kết quả tranh chấp bị từ chối
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(lessor.getId())
+                    .senderId(adminId)
+                    .type(NotificationType.DAMAGE_REPORTED)
+                    .title("Kết quả xử lý khiếu nại")
+                    .content("Admin đã từ chối khiếu nại liên quan đến đơn " + booking.getId() + ".")
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
         }
+
+        // thông báo kết quả đến chủ thuê khiếu nại
 
         disputeRepository.save(dispute);
         return enrichDisputeResponse(dispute);
@@ -198,12 +245,10 @@ public class DisputeServiceImpl implements DisputeService {
     }
 
     private void closeOpenReturnRequest(Booking booking) {
-        List<ReturnRequestStatus> activeStatuses = List.of(
-                ReturnRequestStatus.PENDING,
-                ReturnRequestStatus.PROCESSING
-        );
+        List<ReturnRequestStatus> activeStatuses = List.of(ReturnRequestStatus.PENDING, ReturnRequestStatus.PROCESSING);
 
-        returnRequestRepository.findFirstByBookingIdAndStatusIn(booking.getId(), activeStatuses)
+        returnRequestRepository
+                .findFirstByBookingIdAndStatusIn(booking.getId(), activeStatuses)
                 .ifPresent(rr -> {
                     rr.setStatus(ReturnRequestStatus.CLOSED_BY_DISPUTE);
                     rr.setResolvedAt(LocalDateTime.now());
@@ -213,26 +258,27 @@ public class DisputeServiceImpl implements DisputeService {
 
     private DisputeResponse enrichDisputeResponse(Dispute dispute) {
         DisputeResponse response = disputeMapper.entityToResponse(dispute);
-        accountRepository.findById(dispute.getReporterId())
+        accountRepository
+                .findById(dispute.getReporterId())
                 .ifPresent(acc -> response.setReporterName(acc.getLastname() + " " + acc.getFirstname()));
 
-        accountRepository.findById(dispute.getDefenderId())
+        accountRepository
+                .findById(dispute.getDefenderId())
                 .ifPresent(acc -> response.setDefenderName(acc.getLastname() + " " + acc.getFirstname()));
 
         if (dispute.getAdminId() != null) {
-            accountRepository.findById(dispute.getAdminId())
+            accountRepository
+                    .findById(dispute.getAdminId())
                     .ifPresent(acc -> response.setAdminName(acc.getLastname() + " " + acc.getFirstname()));
         }
 
         if (dispute.getDamageTypeId() != null) {
-            damageTypeRepository.findById(dispute.getDamageTypeId())
-                    .ifPresent(dt -> {
-                        response.setDamageTypeName(dt.getName());
-                        response.setCompensationRate(dt.getCompensationRate());
-                    });
+            damageTypeRepository.findById(dispute.getDamageTypeId()).ifPresent(dt -> {
+                response.setDamageTypeName(dt.getName());
+                response.setCompensationRate(dt.getCompensationRate());
+            });
         }
 
         return response;
     }
-
 }

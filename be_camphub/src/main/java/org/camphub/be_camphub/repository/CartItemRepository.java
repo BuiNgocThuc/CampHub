@@ -20,4 +20,6 @@ public interface CartItemRepository extends JpaRepository<CartItem, UUID> {
     List<CartItem> findAllByCartIdInAndCartOwner(@Param("ids") List<UUID> ids, @Param("ownerId") UUID ownerId);
 
     Integer countByCartId(UUID cartId);
+
+    CartItem findByCartIdAndItemId(UUID cartId, UUID itemId);
 }

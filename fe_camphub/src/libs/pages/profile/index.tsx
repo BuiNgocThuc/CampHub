@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import ProfileSidebar from "./ProfileSidebar";
 import ProfileInfo from "./ProfileInfo";
-import OwnedItems from "./OwnedItems";
+import OwnedItems from "./item-management";
 import RentalHistory from "./RentalHistory";
 import CampHubCoin from "./CampHubCoin";
 import { useAuthStore } from "@/libs/stores";
@@ -11,6 +11,7 @@ import { Account } from "@/libs/core/types";
 import { getAccountById } from "@/libs/api";
 import { PrimaryAlert } from "@/libs/components";
 import { useMyItems } from "@/libs/hooks";
+import RentalOrders from "./RentalOrders";
 
 
 export default function ProfilePage() {
@@ -20,7 +21,7 @@ export default function ProfilePage() {
 
   const [account, setAccount] = useState<Account | null>(null);
   const [loadingAccount, setLoadingAccount] = useState(true);
-  
+
   const [alert, setAlert] = useState<{
     content: string;
     type: "success" | "error" | "warning" | "info";
@@ -96,13 +97,23 @@ export default function ProfilePage() {
       <div className="flex-grow bg-white shadow-sm rounded-lg p-6">
         {activeTab === "info" && <ProfileInfo account={account} />}
         {activeTab === "items" && (
-          <OwnedItems 
-            items={isItemsTab ? myItems : []} 
-            loading={isItemsTab ? loadingItems : false} 
+          <OwnedItems
+            items={isItemsTab ? myItems : []}
+            loading={isItemsTab ? loadingItems : false}
           />
         )}
+        {activeTab === "rental-orders" && <RentalOrders />}
         {activeTab === "history" && <RentalHistory />}
-        {activeTab === "coin" && <CampHubCoin balance={account.coinBalance} isLoading={loadingAccount} />}
+        {activeTab === "coin" && (
+          <CampHubCoin
+            balance={account.coinBalance}
+            isLoading={loadingAccount}
+            onTopUpSuccess={(newBalance) => {
+              setAccount((prev) => (prev ? { ...prev, coinBalance: newBalance } : prev));
+              showAlert("Nạp xu thành công", "success");
+            }}
+          />
+        )}
       </div>
 
       {alert && (

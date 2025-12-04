@@ -21,12 +21,61 @@ export const cartItemMapper = createMapper({
 // ========================================================
 // Metadata (simple, all optional)
 // ========================================================
-PojosMetadataMap.create<CartItem>('CartItem', {});
-PojosMetadataMap.create<CartItemResponse>('CartItemResponse', {});
-PojosMetadataMap.create<CartItemCreationRequest>('CartItemCreationRequest', {});
-PojosMetadataMap.create<CartItemPatchRequest>('CartItemPatchRequest', {});
-PojosMetadataMap.create<CartItemUpdateRequest>('CartItemUpdateRequest', {});
-PojosMetadataMap.create<CartItemDeleteRequest>('CartItemDeleteRequest', {});
+PojosMetadataMap.create<CartItem>('CartItem', {
+    id: String,
+    cartId: String,
+    itemId: String,
+
+    itemName: String,
+    itemImage: String,
+
+    depositAmount: Number,
+    isAvailable: Boolean,
+
+    quantity: Number,
+    rentalDays: Number,
+    price: Number,
+    subtotal: Number,
+});
+
+PojosMetadataMap.create<CartItemResponse>('CartItemResponse', {
+    id: String,
+    cartId: String,
+    itemId: String,
+
+    itemName: String,
+    itemImage: String,
+
+    depositAmount: Number,
+
+    quantity: Number,
+    rentalDays: Number,
+    price: Number,
+    subtotal: Number,
+
+    isAvailable: Boolean,
+});
+
+PojosMetadataMap.create<CartItemCreationRequest>('CartItemCreationRequest', {
+    itemId: String,
+    quantity: Number,
+    rentalDays: Number,
+    price: Number,
+});
+
+PojosMetadataMap.create<CartItemPatchRequest>('CartItemPatchRequest', {
+    quantity: Number,
+    rentalDays: Number,
+});
+
+PojosMetadataMap.create<CartItemUpdateRequest>('CartItemUpdateRequest', {
+    quantity: Number,
+    rentalDays: Number,
+});
+
+PojosMetadataMap.create<CartItemDeleteRequest>('CartItemDeleteRequest', {
+    cartItemIds: Array,
+});
 
 
 // ========================================================
@@ -80,22 +129,22 @@ createMap<CartItem, CartItemUpdateRequest>(
 export const cartItemMap = {
     /** ResponseDTO → Model */
     fromResponse(dto: CartItemResponse): CartItem {
-        return cartItemMapper.map(dto, 'CartItem', 'CartItemResponse');
+        return cartItemMapper.map(dto, 'CartItemResponse', 'CartItem');
     },
 
     /** Model → CreationRequest */
     toCreationRequest(model: CartItem): CartItemCreationRequest {
-        return cartItemMapper.map(model, 'CartItemCreationRequest', 'CartItem');
+        return cartItemMapper.map(model, 'CartItem', 'CartItemCreationRequest');
     },
 
     /** Model → UpdateRequest */
     toUpdateRequest(model: CartItem): CartItemUpdateRequest {
-        return cartItemMapper.map(model, 'CartItemUpdateRequest', 'CartItem');
+        return cartItemMapper.map(model, 'CartItem', 'CartItemUpdateRequest');
     },
 
     /** Model → PatchRequest */
     toPatchRequest(model: Partial<CartItem>): CartItemPatchRequest {
-        return cartItemMapper.map(model, 'CartItemPatchRequest', 'CartItem');
+        return cartItemMapper.map(model as CartItem, 'CartItem', 'CartItemPatchRequest');
     },
 
     /** List IDs → DeleteRequest */

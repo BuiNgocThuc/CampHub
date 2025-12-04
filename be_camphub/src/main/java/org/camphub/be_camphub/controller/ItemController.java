@@ -34,8 +34,7 @@ public class ItemController {
     }
 
     @PostMapping
-    ApiResponse<ItemResponse> createItem(
-            @RequestBody ItemCreationRequest request, @AuthenticationPrincipal Jwt jwt) {
+    ApiResponse<ItemResponse> createItem(@RequestBody ItemCreationRequest request, @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message("Create item successfully")
@@ -54,6 +53,7 @@ public class ItemController {
     @GetMapping
     ApiResponse<List<ItemResponse>> getAllItems(
             @RequestParam(required = false) String status, @RequestParam(required = false) UUID categoryId) {
+
         return ApiResponse.<List<ItemResponse>>builder()
                 .message("Get all items successfully")
                 .result(itemService.getAllItems(status, categoryId))
@@ -63,9 +63,7 @@ public class ItemController {
     // Update item (owner)
     @PutMapping("/{id}")
     public ApiResponse<ItemResponse> updateItem(
-            @PathVariable UUID id,
-            @RequestBody ItemUpdateRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable UUID id, @RequestBody ItemUpdateRequest request, @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message("Update item successfully")
@@ -76,9 +74,7 @@ public class ItemController {
     // Patch item (owner)
     @PatchMapping("/{id}")
     public ApiResponse<ItemResponse> patchItem(
-            @PathVariable UUID id,
-            @RequestBody ItemPatchRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable UUID id, @RequestBody ItemPatchRequest request, @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message("Patch item successfully")
@@ -88,22 +84,16 @@ public class ItemController {
 
     // Delete item (owner)
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> deleteItem(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal Jwt jwt) {
+    public ApiResponse<Void> deleteItem(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
         itemService.deleteItem(ownerId, id);
-        return ApiResponse.<Void>builder()
-                .message("Delete item successfully")
-                .build();
+        return ApiResponse.<Void>builder().message("Delete item successfully").build();
     }
 
     // Admin approve/reject item
     @PutMapping("/approve/{id}")
     public ApiResponse<ItemResponse> approveItem(
-            @PathVariable UUID id,
-            @RequestParam boolean isApproved,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable UUID id, @RequestParam boolean isApproved, @AuthenticationPrincipal Jwt jwt) {
         UUID adminId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message(isApproved ? "Item approved successfully" : "Item rejected successfully")
@@ -114,9 +104,7 @@ public class ItemController {
     // Admin lock/unlock item
     @PutMapping("/lock/{id}")
     public ApiResponse<ItemResponse> lockItem(
-            @PathVariable UUID id,
-            @RequestParam boolean isLocked,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable UUID id, @RequestParam boolean isLocked, @AuthenticationPrincipal Jwt jwt) {
         UUID adminId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
                 .message(isLocked ? "Item locked successfully" : "Item unlocked successfully")

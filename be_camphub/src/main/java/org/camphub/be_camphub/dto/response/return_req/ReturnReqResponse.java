@@ -1,12 +1,9 @@
 package org.camphub.be_camphub.dto.response.return_req;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 import org.camphub.be_camphub.dto.response.MediaResourceResponse;
-import org.camphub.be_camphub.enums.ReasonReturnType;
-import org.camphub.be_camphub.enums.ReturnRequestStatus;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

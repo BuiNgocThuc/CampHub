@@ -1,8 +1,9 @@
 package org.camphub.be_camphub.dto.response.transaction;
 
+import java.util.UUID;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import java.util.UUID;
 
 @Data
 @Builder
@@ -20,5 +21,4 @@ public class TransactionResponse {
 
     String senderName;
     String receiverName;
-
 }

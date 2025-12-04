@@ -1,17 +1,17 @@
 package org.camphub.be_camphub.entity;
 
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import java.time.Instant;
+import java.util.UUID;
+
 import jakarta.persistence.Id;
+
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.Instant;
-import java.util.UUID;
 
 @Document(collection = "chat_messages")
 @Data
@@ -22,6 +22,7 @@ import java.util.UUID;
 public class ChatMessage {
     @Id
     String id;
+
     String chatCode;
     UUID senderId;
     UUID receiverId;

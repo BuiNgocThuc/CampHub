@@ -1,11 +1,12 @@
 package org.camphub.be_camphub.Utils;
 
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jose.crypto.MACVerifier;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import lombok.experimental.NonFinal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.camphub.be_camphub.entity.Account;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -13,14 +14,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
-import lombok.extern.slf4j.Slf4j;
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import lombok.experimental.NonFinal;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -95,7 +96,8 @@ public class SecurityUtils {
             Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
             if (expiryTime.before(new Date())) return null;
 
-            Map<String, Object> claims = new HashMap<>(signedJWT.getJWTClaimsSet().getClaims());
+            Map<String, Object> claims =
+                    new HashMap<>(signedJWT.getJWTClaimsSet().getClaims());
 
             claims.replaceAll((k, v) -> v instanceof Date d ? d.toInstant() : v);
 

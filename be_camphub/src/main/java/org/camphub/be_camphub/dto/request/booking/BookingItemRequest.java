@@ -13,9 +13,9 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class BookingItemRequest {
     UUID cartItemId;
-    UUID lessorId;
     LocalDate startDate;
     LocalDate endDate;
+    Integer rentalDays;
     Integer quantity;
     Double pricePerDay;
     Double depositAmount;

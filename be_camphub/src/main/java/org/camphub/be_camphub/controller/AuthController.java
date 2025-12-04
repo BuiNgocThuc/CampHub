@@ -1,6 +1,7 @@
 package org.camphub.be_camphub.controller;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.UUID;
+
 import org.camphub.be_camphub.dto.request.auth.AuthRequest;
 import org.camphub.be_camphub.dto.request.auth.RefreshTokenRequest;
 import org.camphub.be_camphub.dto.request.auth.RegisterRequest;
@@ -13,10 +14,11 @@ import org.camphub.be_camphub.service.AuthService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
@@ -55,9 +57,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ApiResponse<Void> logout() {
         // Stateless JWT -> backend không cần làm gì
-        return ApiResponse.<Void>builder()
-                .message("Logged out successfully")
-                .build();
+        return ApiResponse.<Void>builder().message("Logged out successfully").build();
     }
 
     @GetMapping("/me")
@@ -69,5 +69,4 @@ public class AuthController {
                 .message("User info retrieved successfully")
                 .build();
     }
-
 }

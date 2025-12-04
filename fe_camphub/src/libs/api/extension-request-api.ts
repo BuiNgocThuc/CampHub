@@ -66,3 +66,28 @@ export const cancelExtensionRequest = async (
         throw error;
     }
 };
+
+
+// Get all extension requests (admin)
+export const getAllExtensionRequests = async (params?: {
+    status?: string;
+    bookingId?: string;
+    lesseeId?: string;
+    lessorId?: string;
+}): Promise<ExtensionRequest[]> => {
+    const response = await api.get<ApiResponse<ExtensionReqResponse[]>>(
+        "/extension-requests",
+        { params }
+    );
+    return response.data.result.map(extensionRequestMap.fromResponse);
+};
+
+// Get extension request by id
+export const getExtensionRequestById = async (
+    requestId: string
+): Promise<ExtensionRequest> => {
+    const response = await api.get<ApiResponse<ExtensionReqResponse>>(
+        `/extension-requests/${requestId}`
+    );
+    return extensionRequestMap.fromResponse(response.data.result);
+};

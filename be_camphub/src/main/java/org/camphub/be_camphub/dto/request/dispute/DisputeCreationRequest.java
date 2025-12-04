@@ -5,9 +5,10 @@ import java.util.UUID;
 
 import jakarta.validation.constraints.NotNull;
 
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 
 @Data
 @Builder

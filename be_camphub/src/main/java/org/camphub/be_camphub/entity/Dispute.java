@@ -12,7 +12,6 @@ import org.springframework.data.annotation.CreatedDate;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Table(name = "disputes")

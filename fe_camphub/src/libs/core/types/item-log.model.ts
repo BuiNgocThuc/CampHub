@@ -2,7 +2,7 @@ import { ItemActionType, ItemStatus } from "../constants";
 import { MediaResource } from "./media-resource.model";
 
 export interface ItemLog {
-    d: string;
+    id: string;
     itemId: string;
     itemName: string;
     account: string; // username của người thực hiện hành động

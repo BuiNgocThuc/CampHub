@@ -46,4 +46,3 @@ public interface ItemMapper {
     @Mapping(target = "mediaUrls", qualifiedByName = "fromRequest")
     void patchRequestToEntity(@MappingTarget Item item, ItemPatchRequest request);
 }
-

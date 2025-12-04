@@ -15,13 +15,13 @@ public interface ReturnRequestMapper {
     ReturnReqResponse entityToResponse(ReturnRequest returnRequest);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "lesseeId", ignore = true)   // set trong service
-    @Mapping(target = "lessorId", ignore = true)   // set trong service
+    @Mapping(target = "lesseeId", ignore = true) // set trong service
+    @Mapping(target = "lessorId", ignore = true) // set trong service
     @Mapping(target = "status", constant = "PENDING")
     @Mapping(target = "adminNote", ignore = true)
     @Mapping(target = "resolvedAt", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)   // Auto @CreatedDate
-    @Mapping(target = "updatedAt", ignore = true)   // Auto @LastModifiedDate
+    @Mapping(target = "createdAt", ignore = true) // Auto @CreatedDate
+    @Mapping(target = "updatedAt", ignore = true) // Auto @LastModifiedDate
     @Mapping(target = "lessorConfirmedAt", ignore = true)
     @Mapping(target = "adminReviewedAt", ignore = true)
     @Mapping(target = "refundedAt", ignore = true)

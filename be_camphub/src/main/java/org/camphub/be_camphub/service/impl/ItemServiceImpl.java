@@ -8,15 +8,19 @@ import java.util.stream.Stream;
 import org.camphub.be_camphub.dto.request.Item.ItemCreationRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemPatchRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemUpdateRequest;
+import org.camphub.be_camphub.dto.request.notification.NotificationCreationRequest;
 import org.camphub.be_camphub.dto.response.item.ItemResponse;
 import org.camphub.be_camphub.entity.*;
 import org.camphub.be_camphub.enums.ItemActionType;
 import org.camphub.be_camphub.enums.ItemStatus;
+import org.camphub.be_camphub.enums.NotificationType;
+import org.camphub.be_camphub.enums.ReferenceType;
 import org.camphub.be_camphub.exception.AppException;
 import org.camphub.be_camphub.exception.ErrorCode;
 import org.camphub.be_camphub.mapper.ItemMapper;
 import org.camphub.be_camphub.repository.*;
 import org.camphub.be_camphub.service.ItemService;
+import org.camphub.be_camphub.service.NotificationService;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +36,7 @@ public class ItemServiceImpl implements ItemService {
     CategoryRepository categoryRepository;
 
     ItemMapper itemMapper;
+    NotificationService notificationService;
 
     @Override
     public ItemResponse createItem(UUID ownerId, ItemCreationRequest request) {
@@ -46,14 +51,28 @@ public class ItemServiceImpl implements ItemService {
         item = itemRepository.save(item);
 
         logAction(
-            item.getId(),
-            ownerId,
-            ItemActionType.CREATE,
-            null,
-            item.getStatus(),
-            "Owner created a new item awaiting approval",
-            item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of()
-        );
+                item.getId(),
+                ownerId,
+                ItemActionType.CREATE,
+                null,
+                item.getStatus(),
+                "Owner created a new item awaiting approval",
+                item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
+
+        // thông báo cho admin có item mới chờ duyệt
+        String itemName = item.getName();
+        UUID referenceId = item.getId();
+        accountRepository
+                .findSystemWallet()
+                .ifPresent(system -> notificationService.create(NotificationCreationRequest.builder()
+                        .receiverId(system.getId())
+                        .senderId(ownerId)
+                        .type(NotificationType.BOOKING_CREATED)
+                        .title("Sản phẩm mới chờ duyệt")
+                        .content("Có sản phẩm \"" + itemName + "\" chờ duyệt.")
+                        .referenceType(ReferenceType.ITEM)
+                        .referenceId(referenceId)
+                        .build()));
 
         return itemMapper.entityToResponse(item);
     }
@@ -93,8 +112,14 @@ public class ItemServiceImpl implements ItemService {
         item.setUpdatedAt(LocalDateTime.now());
         item = itemRepository.save(item);
 
-        logAction(itemId, ownerId, ItemActionType.UPDATE, prevStatus, item.getStatus(),
-                "Owner updated item details", item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
+        logAction(
+                itemId,
+                ownerId,
+                ItemActionType.UPDATE,
+                prevStatus,
+                item.getStatus(),
+                "Owner updated item details",
+                item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
         return itemMapper.entityToResponse(item);
     }
@@ -111,8 +136,14 @@ public class ItemServiceImpl implements ItemService {
         item.setUpdatedAt(LocalDateTime.now());
         item = itemRepository.save(item);
 
-        logAction(itemId, ownerId, ItemActionType.UPDATE, prevStatus, item.getStatus(),
-                "Owner patched item details", item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
+        logAction(
+                itemId,
+                ownerId,
+                ItemActionType.UPDATE,
+                prevStatus,
+                item.getStatus(),
+                "Owner patched item details",
+                item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
         return itemMapper.entityToResponse(item);
     }
@@ -130,8 +161,14 @@ public class ItemServiceImpl implements ItemService {
         item.setUpdatedAt(LocalDateTime.now());
         itemRepository.save(item);
 
-        logAction(itemId, ownerId, ItemActionType.DELETE, prevStatus, ItemStatus.DELETED,
-                "Owner marked item as deleted", List.of());
+        logAction(
+                itemId,
+                ownerId,
+                ItemActionType.DELETE,
+                prevStatus,
+                ItemStatus.DELETED,
+                "Owner marked item as deleted",
+                List.of());
     }
 
     // ----------------- ADMIN APPROVE -----------------
@@ -144,9 +181,12 @@ public class ItemServiceImpl implements ItemService {
         item.setUpdatedAt(LocalDateTime.now());
         itemRepository.save(item);
 
-        logAction(itemId, adminId,
+        logAction(
+                itemId,
+                adminId,
                 approved ? ItemActionType.APPROVE : ItemActionType.REJECT,
-                prevStatus, item.getStatus(),
+                prevStatus,
+                item.getStatus(),
                 approved ? "Admin approved item" : "Admin rejected item",
                 item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
@@ -163,9 +203,12 @@ public class ItemServiceImpl implements ItemService {
         item.setUpdatedAt(LocalDateTime.now());
         itemRepository.save(item);
 
-        logAction(itemId, adminId,
+        logAction(
+                itemId,
+                adminId,
                 locked ? ItemActionType.LOCK : ItemActionType.UNLOCK,
-                prevStatus, item.getStatus(),
+                prevStatus,
+                item.getStatus(),
                 locked ? "Admin locked item" : "Admin unlocked item",
                 item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
@@ -178,18 +221,16 @@ public class ItemServiceImpl implements ItemService {
         if (items.isEmpty()) return List.of();
 
         // 1. Lấy tên owner 1 lần (vì tất cả item cùng owner)
-        String ownerName = accountRepository.findById(ownerId)
+        String ownerName = accountRepository
+                .findById(ownerId)
                 .map(acc -> acc.getFirstname() + " " + acc.getLastname())
                 .orElse("Người dùng đã xóa");
 
         // 2. Batch lấy tên tất cả category (chỉ 1 query)
-        Set<UUID> categoryIds = items.stream()
-                .map(Item::getCategoryId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        Set<UUID> categoryIds =
+                items.stream().map(Item::getCategoryId).filter(Objects::nonNull).collect(Collectors.toSet());
 
-        Map<UUID, String> categoryNameMap = categoryRepository.findAllById(categoryIds)
-                .stream()
+        Map<UUID, String> categoryNameMap = categoryRepository.findAllById(categoryIds).stream()
                 .collect(Collectors.toMap(Category::getId, Category::getName));
 
         // 3. Enrich nhanh như chớp
@@ -197,27 +238,29 @@ public class ItemServiceImpl implements ItemService {
                 .map(item -> {
                     ItemResponse resp = itemMapper.entityToResponse(item);
                     resp.setOwnerName(ownerName); // 1 lần duy nhất
-                    resp.setCategoryName(
-                            categoryNameMap.getOrDefault(item.getCategoryId(), "Danh mục đã xóa")
-                    );
+                    resp.setCategoryName(categoryNameMap.getOrDefault(item.getCategoryId(), "Danh mục đã xóa"));
                     return resp;
                 })
                 .toList();
     }
 
-    //        ====== Private method ======
+    // ====== Private method ======
     private ItemResponse enrichItemResponse(Item item) {
         ItemResponse response = itemMapper.entityToResponse(item);
 
-        response.setOwnerName(accountRepository
+        Account owner = accountRepository
                 .findById(item.getOwnerId())
-                .map(acc -> acc.getFirstname() + " " + acc.getLastname())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND)));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        response.setCategoryName(categoryRepository
+        String categoryName = categoryRepository
                 .findById(item.getCategoryId())
                 .map(Category::getName)
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND)));
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+
+        response.setOwnerName(owner.getFirstname() + " " + owner.getLastname());
+        response.setOwnerAvatar(owner.getAvatar());
+        response.setOwnerTrustScore(String.valueOf(owner.getTrustScore()));
+        response.setCategoryName(categoryName);
 
         return response;
     }
@@ -230,8 +273,7 @@ public class ItemServiceImpl implements ItemService {
             ItemStatus prevStatus,
             ItemStatus newStatus,
             String note,
-            List<MediaResource> mediaResources
-    ) {
+            List<MediaResource> mediaResources) {
         ItemLog logEntry = ItemLog.builder()
                 .itemId(itemId)
                 .accountId(actorId)
@@ -247,8 +289,7 @@ public class ItemServiceImpl implements ItemService {
 
     // ----------------- UTILS -----------------
     private Item getItemOrThrow(UUID itemId) {
-        return itemRepository.findById(itemId)
-                .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+        return itemRepository.findById(itemId).orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
     }
 
     private Item getOwnedItem(UUID itemId, UUID ownerId) {
@@ -258,6 +299,4 @@ public class ItemServiceImpl implements ItemService {
         }
         return item;
     }
-
-
 }

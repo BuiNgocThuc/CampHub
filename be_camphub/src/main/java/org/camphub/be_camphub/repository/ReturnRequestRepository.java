@@ -18,6 +18,5 @@ public interface ReturnRequestRepository extends JpaRepository<ReturnRequest, UU
 
     Optional<ReturnRequest> findByBookingId(UUID bookingId);
 
-
     Optional<ReturnRequest> findFirstByBookingIdAndStatusIn(UUID bookingId, List<ReturnRequestStatus> statuses);
 }

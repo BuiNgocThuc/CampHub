@@ -1,9 +1,7 @@
 package org.camphub.be_camphub.configuration;
 
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.experimental.NonFinal;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.camphub.be_camphub.handler.JwtAuthConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -21,7 +19,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import javax.crypto.spec.SecretKeySpec;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
 
 @Configuration
 @EnableWebSecurity
@@ -31,17 +32,17 @@ public class SecurityConfig {
     JwtAuthConverter jwtAuthConverter;
 
     String[] PUBLIC_ENDPOINTS = {
-            "/auth/register",
-            "/auth/login",
-            "/auth/introspect",
-            "/auth/refresh",
-            "/auth/logout",
-            "/accounts/**",
+        "/auth/register",
+        "/auth/login",
+        "/auth/introspect",
+        "/auth/refresh",
+        "/auth/logout",
+        "/accounts/**",
 
-            // Cho phép WebSocket SockJS handshake
-            "/ws/**",
-            "/ws-chat/**",
-            "/websocket-demo/api/v1/ws/**" // Nếu có context-path
+        // Cho phép WebSocket SockJS handshake
+        "/ws/**",
+        "/ws-chat/**",
+        "/websocket-demo/api/v1/ws/**" // Nếu có context-path
     };
 
     @Value("${jwt.signerKey}")
@@ -50,22 +51,22 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(Customizer.withDefaults())
+        http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-//                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll()); // 👈 Cho phép tất cả request
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers("/admin/**").hasRole("ADMIN") // chỉ admin được truy cập
-                        .requestMatchers("/CampHub/**").hasAnyRole("USER", "ADMIN") // user + admin đều được
-                        .anyRequest().authenticated()
-                )
-                .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwtConfigurer -> jwtConfigurer
-                                .decoder(jwtDecoder())
-                                .jwtAuthenticationConverter(jwtAuthConverter))
-                );
+                //                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll()); // 👈 Cho phép tất cả
+                // request
+                .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.OPTIONS, "/**")
+                        .permitAll()
+                        .requestMatchers(PUBLIC_ENDPOINTS)
+                        .permitAll()
+                        .requestMatchers("/admin/**")
+                        .hasRole("ADMIN") // chỉ admin được truy cập
+                        .requestMatchers("/CampHub/**")
+                        .hasAnyRole("USER", "ADMIN") // user + admin đều được
+                        .anyRequest()
+                        .authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer ->
+                        jwtConfigurer.decoder(jwtDecoder()).jwtAuthenticationConverter(jwtAuthConverter)));
 
         return http.build();
     }
@@ -73,8 +74,7 @@ public class SecurityConfig {
     @Bean
     JwtDecoder jwtDecoder() {
         SecretKeySpec secretKeySpec = new SecretKeySpec(SIGNER_KEY.getBytes(), "HS512");
-        return NimbusJwtDecoder
-                .withSecretKey(secretKeySpec)
+        return NimbusJwtDecoder.withSecretKey(secretKeySpec)
                 .macAlgorithm(MacAlgorithm.HS512)
                 .build();
     }

@@ -21,22 +21,6 @@ const TransactionDetail: NextPage = () => {
     const [bookings, setBookings] = useState<Booking[]>([]);
 
     useEffect(() => {
-        if (!transactionId) return;
-
-        // Lấy transaction tương ứng
-        const found = mockTransactions.find((t) => t.id === transactionId);
-        setTransaction(found ?? null);
-
-        // Lấy danh sách booking liên quan từ bảng trung gian TransactionBooking
-        const relatedBookingIds = mockTransactionBookings
-            .filter((tb) => tb.transactionId === transactionId)
-            .map((tb) => tb.bookingId);
-
-        const relatedBookings = mockBookings.filter((b) =>
-            relatedBookingIds.includes(b.id)
-        );
-
-        setBookings(relatedBookings);
     }, [transactionId]);
 
     if (!transaction)
@@ -130,4 +114,4 @@ const TransactionDetail: NextPage = () => {
     );
 };
 
-export default TransactionDetail;
+// export default TransactionDetail;

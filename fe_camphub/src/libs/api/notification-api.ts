@@ -4,29 +4,12 @@ import { Notification } from "../core/types";
 import { ApiResponse, NotificationResponse } from "../core/dto/response";
 import { notificationMap } from "../core/mapping/notification.mapper";
 
-export const createNotification = async (
-    model: Notification
-): Promise<Notification> => {
-    const request: NotificationCreationRequest = notificationMap.toCreationRequest(model);
-    try {
-        const response = await api.post<ApiResponse<NotificationResponse>>(
-            "/notifications",
-            request
-        );
-        return notificationMap.fromResponse(response.data.result);
-
-    } catch (error) {
-        throw error;
-    }
-}
-
 // Lấy tất cả notification theo receiverId
 export const getNotificationsByReceiver = async (
-    receiverId: string
 ): Promise<Notification[]> => {
     try {
-        const response = await api.get<ApiResponse<NotificationResponse[]>>(`/notifications/receiver/${receiverId}`);
-        return response.data.result.map(notificationMap.fromResponse);
+        const response = await api.get<ApiResponse<NotificationResponse[]>>(`/notifications`);
+        return response.data.result.map(notificationMap.fromResponse)
     } catch (error) {
         throw error;
     }

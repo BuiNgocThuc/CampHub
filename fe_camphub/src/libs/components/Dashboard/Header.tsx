@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuthStore } from "@/libs/stores";
+import { useAuthStore, useCartStore } from "@/libs/stores";
 import NotificationDropdown from "./NotificationDropdown";
 import { Bell, ShoppingCart, UserCircle, Search, CircleUserRound } from "lucide-react";
 import Image from "next/image";
@@ -17,12 +17,24 @@ export default function Header() {
   const user = useAuthStore((s) => s.user);
   const fetchMyInfo = useAuthStore((s) => s.fetchMyInfo);
   const logout = useAuthStore((s) => s.logout);
+  const cartCount = useCartStore((s) => s.count);
+  const fetchCartCount = useCartStore((s) => s.fetchCartCount);
 
+  // Fetch user info khi chưa có user
   useEffect(() => {
     if (!user) {
-      fetchMyInfo(); // gọi async, chỉ chạy 1 lần nếu user chưa có
+      fetchMyInfo();
     }
-  }, [user, fetchMyInfo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Chỉ phụ thuộc vào user.id - khi id thay đổi (undefined -> có giá trị hoặc ngược lại)
+
+  // Fetch cart count khi user đã login (chỉ chạy khi user.id thay đổi từ undefined -> có giá trị)
+  useEffect(() => {
+    if (user?.id) {
+      fetchCartCount();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Chỉ phụ thuộc vào user.id
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,15 +112,15 @@ export default function Header() {
           {/* Cart */}
           <div
             className="relative cursor-pointer p-2 rounded-full hover:bg-gray-100"
-            onClick={() => router.push("/cart")}
+            onClick={() => router.push("/CampHub/cart")}
             aria-label="Giỏ hàng"
             title="Giỏ hàng"
           >
             <ShoppingCart size={20} className="text-gray-700" />
 
-            {(user?.cartItemCount ?? 0) > 0 && (
+            {cartCount > 0 && (
               <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-semibold leading-none text-white bg-red-500 rounded-full">
-                {user?.cartItemCount}
+                {cartCount > 9 ? "9+" : cartCount}
               </span>
             )}
           </div>
@@ -161,7 +173,7 @@ export default function Header() {
     transition-all duration-200 z-50
   ">
               <button
-                onClick={() => router.push("/profile")}
+                onClick={() => router.push("/CampHub/profile")}
                 className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
               >
                 Tài khoản của tôi

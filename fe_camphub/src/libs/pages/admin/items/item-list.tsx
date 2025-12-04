@@ -1,216 +1,139 @@
+// app/admin/items/ItemList.tsx
 "use client";
 
 import { useState } from "react";
-import { PrimaryTable, PrimaryModal } from "@/libs/components";
-import { Button, IconButton, Chip } from "@mui/material";
+import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
+import { Chip, IconButton, Box, Typography, CircularProgress } from "@mui/material";
 import { Eye } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getAllItems, approveItem, lockItem } from "@/libs/api/item-api";
+import { Item } from "@/libs/core/types";
+import ItemDetail from "./item-detail";
+import { toast } from "sonner";
+import { ItemStatus } from "@/libs/core/constants";
 
-// 👉 mock data tạm thời
-const mockItems = [
-    {
-        id: "1",
-        name: "Lều cắm trại NatureHike 2 người",
-        ownerName: "Nguyễn Văn A",
-        pricePerDay: 120000,
-        depositAmount: 500000,
-        status: "PENDING_APPROVAL",
-        mediaUrls: [
-            "https://images.unsplash.com/photo-1504280390368-3971a158a76b",
-            "https://images.unsplash.com/photo-1470246973918-29a93221c455",
-        ],
-    },
-    {
-        id: "2",
-        name: "Bếp gas mini du lịch",
-        ownerName: "Trần Thị B",
-        pricePerDay: 50000,
-        depositAmount: 100000,
-        status: "AVAILABLE",
-        mediaUrls: [
-            "https://images.unsplash.com/photo-1568605114967-8130f3a36994",
-        ],
-    },
-];
+const itemStatusConfig: Record<ItemStatus, { label: string; color: any }> = {
+    PENDING_APPROVAL: { label: "Chờ duyệt", color: "warning" },
+    AVAILABLE: { label: "Đang hiển thị", color: "success" },
+    REJECTED: { label: "Bị từ chối", color: "error" },
+    RENTED_PENDING_CONFIRM: { label: "Chờ xác nhận thuê", color: "warning" },
+    RENTED: { label: "Đang thuê", color: "info" },
+    RETURN_PENDING_CHECK: { label: "Chờ kiểm tra trả", color: "info" },
+    BANNED: { label: "Bị cấm", color: "error" },
+    DELETED: { label: "Đã xóa", color: "default" },
+    MISSING: { label: "Mất tích", color: "error" },
+};
 
 export default function ItemList() {
-    const [openModal, setOpenModal] = useState(false);
-    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+    const [openDetail, setOpenDetail] = useState(false);
+    const queryClient = useQueryClient();
+
+    const { data: items = [], isLoading } = useQuery({
+        queryKey: ["adminItems"] as const,
+        queryFn: async () => await getAllItems(),
+    });
+
+    const mutation = useMutation({
+        mutationFn: async ({ id, action }: { id: string; action: "approve" | "reject" | "lock" | "unlock" }) => {
+            if (action === "approve") return approveItem(id, true);
+            if (action === "reject") return approveItem(id, false);
+            if (action === "lock") return lockItem(id, true);
+            if (action === "unlock") return lockItem(id, false);
+            throw new Error("Hành động không hợp lệ");
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["adminItems"] });
+            toast.success("Cập nhật trạng thái thành công!");
+            setOpenDetail(false);
+        },
+        onError: () => toast.error("Cập nhật thất bại!"),
+    });
 
     const columns = [
-        { field: "name", headerName: "Tên sản phẩm" },
-        { field: "ownerName", headerName: "Chủ thuê" },
+        { field: "name", headerName: "Tên sản phẩm", width: 340 },
+        { field: "ownerName", headerName: "Chủ sở hữu", width: 180 },
         {
             field: "pricePerDay",
-            headerName: "Giá/ngày",
-            render: (row: any) => `${row.pricePerDay.toLocaleString()}đ`,
+            headerName: "Giá thuê/ngày",
+            width: 140,
+            renderCell: (params: any) => `${Number(params.row.pricePerDay).toLocaleString()}₫`,
         },
         {
             field: "depositAmount",
             headerName: "Tiền cọc",
-            render: (row: any) => `${row.depositAmount.toLocaleString()}đ`,
+            width: 140,
+            renderCell: (params: any) => `${Number(params.row.depositAmount).toLocaleString()}₫`,
         },
         {
             field: "status",
             headerName: "Trạng thái",
-            render: (row: any) => (
-                <Chip
-                    label={statusLabel(row.status)}
-                    color={statusColor(row.status)}
-                    size="small"
-                />
-            ),
+            width: 180,
+            renderCell: (params: any) => {
+                const status = params.row.status as ItemStatus;
+                const config = itemStatusConfig[status] || { label: status, color: "default" };
+                return <Chip label={config.label} color={config.color} size="small" variant="outlined" />;
+            },
         },
         {
             field: "actions",
-            headerName: "Thao tác",
-            render: (row: any) => (
+            headerName: "",
+            width: 100,
+            renderCell: (params: any) => (
                 <IconButton
-                    color="primary"
                     onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedItem(row);
-                        setOpenModal(true);
+                        setSelectedItem(params.row);
+                        setOpenDetail(true);
                     }}
                 >
-                    <Eye size={18} />
+                    <Eye size={20} />
                 </IconButton>
             ),
         },
     ];
 
+    if (isLoading) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" my={12} gap={2}>
+                <CircularProgress size={24} />
+                <Typography variant="body1">Đang tải danh sách sản phẩm...</Typography>
+            </Box>
+        );
+    }
+
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Danh sách sản phẩm</h2>
-            </div>
-            <PrimaryTable columns={columns} rows={mockItems} />
+        <>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+                <Typography variant="h6" fontWeight="bold">
+                    Danh sách sản phẩm ({items.length})
+                </Typography>
+            </Box>
+
+            <PrimaryDataGrid<Item>
+                rows={items}
+                columns={columns}
+                loading={isLoading}
+                getRowId={(row) => row.id}
+                onRowClick={(item: Item) => {
+                    setSelectedItem(item);
+                    setOpenDetail(true);
+                }}
+            />
 
             <PrimaryModal
-                open={openModal}
-                onClose={() => setOpenModal(false)}
-                title="Chi tiết sản phẩm"
-                onSave={() => console.log("saved")}
+                open={openDetail}
+                onClose={() => setOpenDetail(false)}
+                title={selectedItem ? `Chi tiết: ${selectedItem.name}` : "Chi tiết sản phẩm"}
             >
-                {selectedItem ? (
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">{selectedItem.name}</h3>
-                        <div className="flex gap-2 overflow-x-auto">
-                            {selectedItem.mediaUrls?.map((url: string, idx: number) => (
-                                <img
-                                    key={idx}
-                                    src={url}
-                                    alt={selectedItem.name}
-                                    className="w-32 h-32 object-cover rounded-md border"
-                                />
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                            <p>
-                                <strong>Chủ thuê:</strong> {selectedItem.ownerName}
-                            </p>
-                            <p>
-                                <strong>Giá thuê/ngày:</strong>{" "}
-                                {selectedItem.pricePerDay.toLocaleString()}đ
-                            </p>
-                            <p>
-                                <strong>Tiền cọc:</strong>{" "}
-                                {selectedItem.depositAmount.toLocaleString()}đ
-                            </p>
-                            <p>
-                                <strong>Trạng thái:</strong>{" "}
-                                {statusLabel(selectedItem.status)}
-                            </p>
-                        </div>
-
-                        {/* ✅ Nút thao tác */}
-                        <div className="flex justify-end gap-2 mt-4">
-                            {selectedItem.status === "PENDING_APPROVAL" && (
-                                <>
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        onClick={() =>
-                                            handleAction("approve", selectedItem.id)
-                                        }
-                                    >
-                                        Duyệt
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        color="error"
-                                        onClick={() =>
-                                            handleAction("reject", selectedItem.id)
-                                        }
-                                    >
-                                        Từ chối
-                                    </Button>
-                                </>
-                            )}
-
-                            {selectedItem.status === "AVAILABLE" && (
-                                <Button
-                                    variant="outlined"
-                                    color="warning"
-                                    onClick={() => handleAction("lock", selectedItem.id)}
-                                >
-                                    Khóa sản phẩm
-                                </Button>
-                            )}
-
-                            {selectedItem.status === "INACTIVE" && (
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    onClick={() => handleAction("unlock", selectedItem.id)}
-                                >
-                                    Mở khóa
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <p>Không có sản phẩm nào được chọn</p>
+                {selectedItem && (
+                    <ItemDetail
+                        item={selectedItem}
+                        onAction={(action) => mutation.mutate({ id: selectedItem.id, action })}
+                        loading={mutation.isPending}
+                    />
                 )}
             </PrimaryModal>
-        </div>
+        </>
     );
-}
-
-// 🔹 Helper: hiển thị màu và label
-function statusLabel(status: string) {
-    switch (status) {
-        case "PENDING_APPROVAL":
-            return "Chờ duyệt";
-        case "AVAILABLE":
-            return "Đang hiển thị";
-        case "RENTED":
-            return "Đang được thuê";
-        case "INACTIVE":
-            return "Bị khóa";
-        case "BANNED":
-            return "Bị cấm";
-        default:
-            return status;
-    }
-}
-
-function statusColor(status: string): any {
-    switch (status) {
-        case "PENDING_APPROVAL":
-            return "warning";
-        case "AVAILABLE":
-            return "success";
-        case "INACTIVE":
-            return "default";
-        case "BANNED":
-            return "error";
-        default:
-            return "info";
-    }
-}
-
-// 🔹 Mock action handler
-function handleAction(type: string, id: string) {
-    console.log(`Action: ${type} on item ${id}`);
 }

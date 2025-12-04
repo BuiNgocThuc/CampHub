@@ -29,6 +29,7 @@ public interface BookingService {
     List<BookingResponse> getBookingsByLessee(UUID lesseeId);
 
     List<BookingResponse> getBookingsByLessor(UUID lessorId);
+
     List<BookingResponse> getAllBookings();
 
     /*

@@ -14,12 +14,16 @@ public interface CartItemMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "cartId", source = "cartId")
-    @Mapping(target = "subtotal",
-            expression = "java(request.getPrice().multiply(new java.math.BigDecimal(request.getQuantity() * request.getRentalDays())))")
+    @Mapping(
+            target = "subtotal",
+            expression =
+                    "java(request.getPrice().multiply(new java.math.BigDecimal(request.getQuantity() * request.getRentalDays())))")
     CartItem creationRequestToEntity(CartItemCreationRequest request, UUID cartId);
 
     @Mapping(target = "itemName", ignore = true)
     @Mapping(target = "itemImage", ignore = true)
+    @Mapping(target = "depositAmount", ignore = true)
+    @Mapping(target = "isAvailable", ignore = true)
     CartItemResponse entityToResponse(CartItem cartItem);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

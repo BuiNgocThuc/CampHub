@@ -1,311 +1,270 @@
+// app/admin/accounts/AccountDetail.tsx
 "use client";
 
-import React, { useEffect } from "react";
-import { Box, Button, Grid } from "@mui/material";
+import { useEffect } from "react";
+import { Box, Grid, Button, Typography } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
-import {
-    PrimaryNumberField,
-    PrimarySelectField,
-    PrimaryTextField,
-} from "@/libs/components";
-import { renderLabelWithAsterisk, userTypeOptions } from "@/libs/utils";
+import { MediaPreview, PrimaryButton, PrimaryNumberField, PrimaryPasswordField, PrimarySelectField, PrimaryTextField } from "@/libs/components";
+import { renderLabelWithAsterisk } from "@/libs/utils";
+import { Account } from "@/libs/core/types";
 
 interface AccountDetailProps {
-    // openModal: boolean;
-    // onClose?: () => void;
-    // onSave: (data: any) => void;
-    // selectedId?: string; // nếu có id → mode xem
-    // initialData?: any;
-    account?: AccountFormValues;       // dữ liệu khi xem (nếu có)
-    isCreateMode: boolean;             // chế độ: tạo mới hay xem
-    onClose?: () => void;
-    onSave: (data: AccountFormValues) => void;
+    account?: Account;
+    isCreateMode: boolean;
+    onSave: (data: any) => void;
+    onClose: () => void;
 }
 
-export interface AccountFormValues {
-    id: string;
-    username: string;
-    password: string;
-    firstname: string;
-    lastname: string;
-    phone_number: string;
-    email: string;
-    ID_number: string;
-    avatar: string;
-    trust_score: number;
-    coin_balance: number;
-    user_type: string;
-    status: string;
-}
+const userTypeOptions = [
+    { label: "Người dùng", value: "USER" },
+    { label: "Quản trị viên", value: "ADMIN" },
+];
+
+const statusOptions = [
+    { label: "Đang hoạt động", value: "ACTIVE" },
+    { label: "Không hoạt động", value: "INACTIVE" },
+    { label: "Bị cấm", value: "BANNED" },
+];
 
 export default function AccountDetail({
     account,
     isCreateMode,
-    onClose,
     onSave,
+    onClose,
 }: AccountDetailProps) {
-    const {
-        control,
-        handleSubmit,
-        reset,
-        formState: { errors },
-    } = useForm<AccountFormValues>({
-        defaultValues: {
-            username: "",
-            password: "",
-            firstname: "",
-            lastname: "",
-            phone_number: "",
-            email: "",
-            ID_number: "",
-            avatar: "",
-            trust_score: 0,
-            coin_balance: 0,
-            user_type: "USER",
-            status: "ACTIVE",
-        },
-    });
+    {
+        const { control, handleSubmit, reset, formState: { errors } } = useForm({
+            defaultValues: {
+                username: "",
+                password: "",
+                firstname: "",
+                lastname: "",
+                email: "",
+                phoneNumber: "",
+                idNumber: "",
+                avatar: "",
+                trustScore: account?.trustScore || 100,
+                coinBalance: account?.coinBalance || 0,
+                userType: "USER",
+                status: "ACTIVE",
+            },
+        });
 
-    // Load dữ liệu khi xem chi tiết
-    useEffect(() => {
-        if (account) {
-            reset(account);
-        } else {
-            reset();
-        }
-    }, [account, reset]);
+        useEffect(() => {
+            if (account) {
+                reset({
+                    username: account.username,
+                    firstname: account.firstname,
+                    lastname: account.lastname,
+                    email: account.email,
+                    phoneNumber: account.phoneNumber,
+                    idNumber: account.idNumber,
+                    avatar: account.avatar,
+                    trustScore: account.trustScore,
+                    coinBalance: account.coinBalance,
+                    userType: account.userType,
+                    status: account.status,
+                    password: "",
+                });
+            } else {
+                reset();
+            }
+        }, [account, reset]);
 
-    const onSubmit = (data: AccountFormValues) => {
-        onSave(data);
-    };
+        const onSubmit = (data: any) => {
+            const payload = isCreateMode
+                ? {
+                    username: data.username,
+                    password: data.password,
+                    firstname: data.firstname,
+                    lastname: data.lastname,
+                    email: data.email,
+                    phoneNumber: data.phoneNumber,
+                    idNumber: data.idNumber,
+                    avatar: data.avatar || null,
+                    userType: data.userType,
+                }
+                : {
+                    firstname: data.firstname,
+                    lastname: data.lastname,
+                    phoneNumber: data.phoneNumber,
+                    idNumber: data.idNumber,
+                    avatar: data.avatar || null,
+                    trustScore: Number(data.trustScore),
+                    coinBalance: Number(data.coinBalance),
+                    status: data.status,
+                };
 
-    return (
-        <Box component="form" onSubmit={handleSubmit(onSubmit)} p={2}>
-            <Grid container spacing={2}>
-                {/* Username */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="username"
-                        control={control}
-                        rules={{ required: "Tên đăng nhập là bắt buộc" }}
-                        render={({ field }) => (
-                            <PrimaryTextField
-                                label={renderLabelWithAsterisk("Tên đăng nhập", true)}
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                                error={!!errors.username}
-                                helperText={errors.username?.message}
-                                disabled={!isCreateMode}
-                            />
-                        )}
-                    />
-                </Grid>
+            onSave(payload);
+        };
 
-                {/* Password (chỉ khi tạo mới) */}
-                {/* {!selectedId && (
-                    <Grid size={{ xs: 6 }}>
+        return (
+            <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ p: 2 }}>
+                <Grid container spacing={3}>
+                    {/* Chỉ hiện password khi tạo mới */}
+                    {isCreateMode && (
+                        <>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Controller
+                                    name="username"
+                                    control={control}
+                                    rules={{ required: "Bắt buộc" }}
+                                    render={({ field }) => (
+                                        <PrimaryTextField
+                                            label={renderLabelWithAsterisk("Tên đăng nhập", true)}
+                                            size="small"
+                                            {...field}
+                                            error={!!errors.username}
+                                            helperText={errors.username?.message}
+                                        />
+                                    )}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Controller
+                                    name="password"
+                                    control={control}
+                                    rules={{ required: "Bắt buộc", minLength: { value: 6, message: "Tối thiểu 6 ký tự" } }}
+                                    render={({ field }) => (
+                                        <PrimaryPasswordField
+                                            label={renderLabelWithAsterisk("Mật khẩu", true)}
+                                            size="small"
+                                            {...field}
+                                            error={!!errors.password}
+                                            helperText={errors.password?.message}
+                                        />
+                                    )}
+                                />
+                            </Grid>
+                        </>
+                    )}
+
+                    {/* Các trường chung */}
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <Controller name="firstname" control={control} render={({ field }) => <PrimaryTextField label="Họ" size="small" {...field} />} />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <Controller name="lastname" control={control} render={({ field }) => <PrimaryTextField label="Tên" size="small" {...field} />} />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                         <Controller
-                            name="password"
+                            name="email"
                             control={control}
-                            rules={{ required: "Mật khẩu là bắt buộc" }}
+                            rules={{ required: "Bắt buộc" }}
                             render={({ field }) => (
                                 <PrimaryTextField
-                                    label={renderLabelWithAsterisk("Mật khẩu", true)}
+                                    label={renderLabelWithAsterisk("Email", true)}
                                     size="small"
-                                    type="password"
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    error={!!errors.password}
-                                    helperText={errors.password?.message}
+                                    {...field}
+                                    error={!!errors.email}
+                                    helperText={errors.email?.message}
                                 />
                             )}
                         />
                     </Grid>
-                )} */}
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <Controller name="phoneNumber" control={control} render={({ field }) => <PrimaryTextField label="Số điện thoại" size="small" {...field} />} />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <Controller name="idNumber" control={control} render={({ field }) => <PrimaryTextField label="CMND/CCCD" size="small" {...field} />} />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <Controller
+                            name="avatar"
+                            control={control}
+                            render={({ field }) => (
+                                <Box>
+                                    <PrimaryTextField
+                                        label="URL ảnh đại diện"
+                                        size="small"
+                                        {...field}
+                                        placeholder="https://example.com/avatar.jpg"
+                                    />
+                                    {field.value && (
+                                        <Box sx={{ mt: 2 }}>
+                                            <MediaPreview url={field.value} size="large" onRemove={() => field.onChange("")} />
+                                        </Box>
+                                    )}
+                                </Box>
+                            )}
+                        />
+                    </Grid>
 
-                {/* Firstname */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="firstname"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimaryTextField
-                                label="Họ"
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                            />
-                        )}
-                    />
+                    {/* Chỉ admin mới sửa được */}
+                    {!isCreateMode && (
+                        <>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Controller
+                                    name="trustScore"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <PrimaryNumberField
+                                            label="Điểm uy tín"
+                                            size="small"
+                                            {...field}
+                                            inputProps={{ min: 0, max: 100 }}
+                                        />
+                                    )}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Controller
+                                    name="coinBalance"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <PrimaryNumberField
+                                            label="Số dư xu"
+                                            size="small"
+                                            {...field}
+                                            inputProps={{ min: 0 }}
+                                        />
+                                    )}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Controller
+                                    name="status"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <PrimarySelectField
+                                            label="Trạng thái"
+                                            size="small"
+                                            options={statusOptions}
+                                            {...field}
+                                        />
+                                    )}
+                                />
+                            </Grid>
+                        </>
+                    )}
+
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <Controller
+                            name="userType"
+                            control={control}
+                            render={({ field }) => (
+                                <PrimarySelectField
+                                    label={renderLabelWithAsterisk("Loại tài khoản", false)}
+                                    size="small"
+                                    options={userTypeOptions}
+                                    disabled={!isCreateMode}
+                                    {...field}
+                                />
+                            )}
+                        />
+                    </Grid>
                 </Grid>
 
-                {/* Lastname */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="lastname"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimaryTextField
-                                label="Tên"
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                            />
-                        )}
-                    />
-                </Grid>
-
-                {/* Phone number */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="phone_number"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimaryTextField
-                                label="Số điện thoại"
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                            />
-                        )}
-                    />
-                </Grid>
-
-                {/* Email */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="email"
-                        control={control}
-                        rules={{ required: "Email là bắt buộc" }}
-                        render={({ field }) => (
-                            <PrimaryTextField
-                                label={renderLabelWithAsterisk("Email", true)}
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                                error={!!errors.email}
-                                helperText={errors.email?.message}
-                            />
-                        )}
-                    />
-                </Grid>
-
-                {/* ID number */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="ID_number"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimaryTextField
-                                label="CMND / CCCD"
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                            />
-                        )}
-                    />
-                </Grid>
-
-                {/* Avatar */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="avatar"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimaryTextField
-                                label="Ảnh đại diện (URL)"
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                            />
-                        )}
-                    />
-                </Grid>
-
-                {/* Trust Score */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="trust_score"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimaryNumberField
-                                label="Điểm uy tín"
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                            />
-                        )}
-                    />
-                </Grid>
-
-                {/* Coin Balance */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="coin_balance"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimaryNumberField
-                                label="Số dư xu"
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                            />
-                        )}
-                    />
-                </Grid>
-
-                {/* User Type */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="user_type"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimarySelectField
-                                label={renderLabelWithAsterisk("Loại người dùng", true)}
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                                options={userTypeOptions}
-                                disabled={!isCreateMode}
-                            />
-                        )}
-                    />
-                </Grid>
-
-                {/* Status */}
-                <Grid size={{ xs: 6 }}>
-                    <Controller
-                        name="status"
-                        control={control}
-                        render={({ field }) => (
-                            <PrimarySelectField
-                                label={renderLabelWithAsterisk("Trạng thái", true)}
-                                size="small"
-                                value={field.value}
-                                onChange={field.onChange}
-                                options={[
-                                    { label: "ACTIVE", value: "ACTIVE" },
-                                    { label: "BANNED", value: "BANNED" },
-                                    { label: "SUSPENDED", value: "SUSPENDED" },
-                                ]}
-                            />
-                        )}
-                    />
-                </Grid>
-            </Grid>
-
-            {/* Buttons */}
-            <Box display="flex" justifyContent="flex-end" mt={3} gap={2}>
-                <Button variant="outlined" onClick={onClose}>
-                    Hủy
-                </Button>
-                {isCreateMode && (
-                    <Button variant="contained" color="primary" type="submit">
-                        Tạo tài khoản
+                <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 4 }}>
+                    <Button variant="outlined" onClick={onClose}>
+                        Hủy
                     </Button>
-                )}
+                    <PrimaryButton
+                        content={isCreateMode ? "Tạo tài khoản" : "Lưu thay đổi"}
+                        type="submit"
+                    />
+                </Box>
             </Box>
-        </Box>
-    );
+        );
+    }
 }

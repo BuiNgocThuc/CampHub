@@ -47,7 +47,7 @@ export const lessorConfirmReturnForReturnRequest = async (
 };
 
 // Admin phê duyệt hoặc từ chối hoàn tiền
-export const adminDecision = async (
+export const adminDecisionOnReturnRequest = async (
     request: AdminDecisionRequest
 ): Promise<ReturnRequest> => {
     try {
@@ -67,3 +67,8 @@ export const getPendingReturnRequests = async (): Promise<ReturnRequest[]> => {
         throw error;
     }
 };
+
+export const getReturnRequestById = async (requestId: string): Promise<ReturnRequest> => {
+    const response = await api.get<ApiResponse<ReturnReqResponse>>(`/return-requests/${requestId}`);
+    return returnRequestMap.fromResponse(response.data.result);
+}

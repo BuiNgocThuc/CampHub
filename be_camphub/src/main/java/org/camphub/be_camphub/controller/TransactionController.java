@@ -1,15 +1,16 @@
 package org.camphub.be_camphub.controller;
 
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+import java.util.List;
+import java.util.UUID;
+
 import org.camphub.be_camphub.dto.response.ApiResponse;
 import org.camphub.be_camphub.dto.response.transaction.TransactionDetailResponse;
 import org.camphub.be_camphub.dto.response.transaction.TransactionResponse;
 import org.camphub.be_camphub.service.TransactionService;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 @RestController
 @RequestMapping("/transactions")
@@ -27,7 +28,7 @@ public class TransactionController {
                 .build();
     }
 
-//    Get transaction by id
+    //    Get transaction by id
     @GetMapping("/{transactionId}")
     public ApiResponse<TransactionResponse> getTransactionById(@PathVariable("transactionId") UUID transactionId) {
         return ApiResponse.<TransactionResponse>builder()
@@ -38,9 +39,7 @@ public class TransactionController {
 
     // View details
     @GetMapping("/{transactionId}/details")
-    public ApiResponse<List<TransactionDetailResponse>> getTransactionDetailByTxId(
-            @PathVariable UUID transactionId
-    ) {
+    public ApiResponse<List<TransactionDetailResponse>> getTransactionDetailByTxId(@PathVariable UUID transactionId) {
         List<TransactionDetailResponse> result =
                 transactionService.getTransactionBookingsByTransactionId(transactionId);
 
@@ -52,13 +51,10 @@ public class TransactionController {
 
     // find transactions by booking id
     @GetMapping("/booking/{bookingId}")
-    public ApiResponse<List<TransactionResponse>> getTransactionsByBookingId(
-            @PathVariable UUID bookingId
-    ) {
+    public ApiResponse<List<TransactionResponse>> getTransactionsByBookingId(@PathVariable UUID bookingId) {
         return ApiResponse.<List<TransactionResponse>>builder()
                 .message("Get transactions by booking id successfully")
                 .result(transactionService.getTransactionsByBookingId(bookingId))
                 .build();
     }
-
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CustomizedButton, PrimaryButton, PrimaryModal, PrimaryTable } from "@/libs/components";
+import { CustomizedButton, PrimaryButton, PrimaryTable } from "@/libs/components";
 import { Package, PencilIcon, PlusCircle, Trash2 } from "lucide-react";
-import type { Item } from "@/libs/core/types"; // điều chỉnh path
+import type { Item } from "@/libs/core/types";
 import { ItemStatus } from "@/libs/core/constants";
-import ItemDetail from "./OwnedItemDetai";
 import { Column } from "@/libs/components/Table/PrimaryTable";
+import { useCreateItem, useDeleteItem, useUpdateItem } from "@/libs/hooks";
+import ItemModal from "./ItemModal";
 
 interface OwnedItemsProps {
   items: Item[];
@@ -26,84 +27,65 @@ const statusText: Record<ItemStatus, { text: string; color: string }> = {
 };
 
 export default function OwnedItems({ items = [], loading = false }: OwnedItemsProps) {
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [currentItem, setCurrentItem] = useState<Item | null>(null);
+  const [modalMode, setModalMode] = useState<"view" | "edit" | "create">("view");
 
-  const handleRowClick = (item: Item) => {
-    setSelectedItem(item);
+  const createMut = useCreateItem();
+  const updateMut = useUpdateItem();
+  const deleteMut = useDeleteItem();
+
+  const openCreate = () => {
+    setCurrentItem(null);
+    setModalMode("create");
     setModalOpen(true);
   };
 
+  const openView = (item: Item) => {
+    setCurrentItem(item);
+    setModalMode("view");
+    setModalOpen(true);
+  };
+
+  const openEdit = (item: Item) => {
+    setCurrentItem(item);
+    setModalMode("edit");
+    setModalOpen(true);
+  };
+
+  const handleDelete = (item: Item) => {
+    if (![ItemStatus.AVAILABLE, ItemStatus.REJECTED].includes(item.status)) {
+      alert("Chỉ được xóa sản phẩm ở trạng thái 'Đang hiển thị' hoặc 'Bị từ chối'");
+      return;
+    }
+    if (confirm(`Xóa sản phẩm "${item.name}"? Hành động này không thể hoàn tác!`)) {
+      deleteMut.mutate(item.id);
+    }
+  };
+
   const columns: Column<Item>[] = [
-  {
-    field: "stt",
-    headerName: "STT",
-    width: 70,
-    render: (_, index) => (
-      <span className="font-medium text-gray-700">{index + 1}</span>
-    ),
-  },
-  {
-    field: "name",
-    headerName: "Tên sản phẩm",
-    render: (item) => (
-      <div className="font-medium text-gray-900">{item.name}</div>
-    ),
-  },
-  {
-    field: "price",
-    headerName: "Giá thuê / ngày",
-    render: (item) => (
-      <span className="font-semibold text-blue-600">
-        {item.price.toLocaleString("vi-VN")} ₫
-      </span>
-    ),
-  },
-  {
-    field: "status",
-    headerName: "Trạng thái",
-    render: (item) => {
-      const config = statusText[item.status];
-      return (
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium ${config.color}`}
-        >
-          {config.text}
-        </span>
-      );
+    { field: "stt", headerName: "STT", width: 70, render: (_, i) => i + 1 },
+    { field: "name", headerName: "Tên sản phẩm", render: (i) => <div className="font-medium">{i.name}</div> },
+    { field: "price", headerName: "Giá thuê / ngày", render: (i) => <span className="font-semibold text-blue-600">{i.price.toLocaleString("vi-VN")} ₫</span> },
+    {
+      field: "status", headerName: "Trạng thái", render: (i) => {
+        const s = statusText[i.status];
+        return <span className={`px-3 py-1 rounded-full text-xs font-medium ${s.color}`}>{s.text}</span>;
+      }
     },
-  },
-  {
-    field: "actions",
-    headerName: "Thao tác",
-    render: (item) => (
-      <div className="flex gap-2 justify-center">
-        <PrimaryButton
-          content="Sửa"
-          size="small"
-          icon={<PencilIcon size={14} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            alert(`Sửa: ${item.name}`);
-          }}
-        />
-        <CustomizedButton
-          content="Xóa"
-          size="small"
-          color="#EF4444"
-          icon={<Trash2 size={14} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (confirm(`Xóa "${item.name}"?`)) {
-              // TODO: xóa
-            }
-          }}
-        />
-      </div>
-    ),
-  },
+    {
+      field: "actions", headerName: "Thao tác", render: (item) => (
+        <div className="flex gap-2">
+          <PrimaryButton content="Sửa" size="small" icon={<PencilIcon size={14} />}
+            onClick={(e) => { e.stopPropagation(); openEdit(item); }} />
+          <CustomizedButton content="Xóa" size="small" color="#EF4444" icon={<Trash2 size={14} />}
+            onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
+            disabled={deleteMut.isPending} />
+        </div>
+      ),
+    },
   ];
-  
+
   if (loading) {
     return (
       <div className="py-12 text-center">
@@ -128,7 +110,7 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
         <PrimaryButton
           content="Đăng đồ cho thuê"
           icon={<PlusCircle size={18} />}
-          onClick={() => alert("Mở form đăng sản phẩm")}
+          onClick={openCreate}
         />
       </div>
     );
@@ -141,7 +123,7 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
         <PrimaryButton
           content="Đăng đồ cho thuê"
           icon={<PlusCircle size={18} />}
-          onClick={() => alert("Mở form đăng sản phẩm mới")}
+          onClick={openCreate}
         />
       </div>
 
@@ -149,17 +131,16 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
       <PrimaryTable
         columns={columns}
         rows={items}
-        onRowClick={handleRowClick}
+        onRowClick={openView}
       />
 
-      {/* Modal chi tiết */}
-      <PrimaryModal
+      <ItemModal
         open={modalOpen}
-        title="Chi tiết sản phẩm"
         onClose={() => setModalOpen(false)}
-      >
-        {selectedItem && <ItemDetail item={selectedItem} />}
-      </PrimaryModal>
+        item={currentItem}
+        mode={modalMode}
+        onSuccess={() => setModalOpen(false)}
+      />
     </div>
   );
 }

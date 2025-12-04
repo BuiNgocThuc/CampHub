@@ -1,10 +1,10 @@
 package org.camphub.be_camphub.service;
 
-import org.camphub.be_camphub.dto.response.transaction.TransactionDetailResponse;
-import org.camphub.be_camphub.dto.response.transaction.TransactionResponse;
-
 import java.util.List;
 import java.util.UUID;
+
+import org.camphub.be_camphub.dto.response.transaction.TransactionDetailResponse;
+import org.camphub.be_camphub.dto.response.transaction.TransactionResponse;
 
 public interface TransactionService {
     TransactionResponse getTransactionById(UUID transactionId);
@@ -14,5 +14,6 @@ public interface TransactionService {
     List<TransactionDetailResponse> getTransactionBookingsByTransactionId(UUID transactionId);
 
     List<TransactionResponse> getAllTransactions();
+
     List<TransactionResponse> getTransactionsByBookingId(UUID bookingId);
 }

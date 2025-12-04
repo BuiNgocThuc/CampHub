@@ -5,9 +5,13 @@ export interface CartItemResponse {
 
     itemName: string;
     itemImage: string;
+
+    depositAmount: number;
     
     quantity: number;
     rentalDays: number;
     price: number;      // BigDecimal -> number
     subtotal: number;   // BigDecimal -> number
+
+    isAvailable: boolean;
 }

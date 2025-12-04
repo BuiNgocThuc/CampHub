@@ -1,10 +1,6 @@
 package org.camphub.be_camphub.dto.response.booking;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
-
-import org.camphub.be_camphub.enums.BookingStatus;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

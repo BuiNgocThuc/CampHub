@@ -1,8 +1,7 @@
 package org.camphub.be_camphub.service.impl;
 
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import java.util.*;
+
 import org.camphub.be_camphub.dto.request.chat.ChatMessageRequest;
 import org.camphub.be_camphub.dto.response.chat.ChatMessageResponse;
 import org.camphub.be_camphub.dto.response.chat.ChatRoomResponse;
@@ -19,7 +18,9 @@ import org.camphub.be_camphub.repository.ChatRoomRepository;
 import org.camphub.be_camphub.service.ChatService;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -43,13 +44,14 @@ public class ChatServiceImpl implements ChatService {
 
         chatMessageRepository.save(message);
 
-        ChatRoom room = chatRoomRepository.findByChatCode(chatCode)
+        ChatRoom room = chatRoomRepository
+                .findByChatCode(chatCode)
                 .orElseThrow(() -> new AppException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
         room.setLastMessage(request.getContent());
         room.setLastTimestamp(message.getTimestamp());
 
-        if(room.getUnreadMessageCounts() == null) {
+        if (room.getUnreadMessageCounts() == null) {
             room.setUnreadMessageCounts(new HashMap<>());
         }
         String receiverKey = request.getReceiverId().toString();
@@ -63,15 +65,12 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public List<ChatMessageResponse> getMessages(String chatCode) {
         List<ChatMessage> messages = chatMessageRepository.findByChatCodeOrderByTimestampAsc(chatCode);
-        return messages.stream()
-                .map(chatMessageMapper::toResponse)
-                .toList();
+        return messages.stream().map(chatMessageMapper::toResponse).toList();
     }
 
     @Override
     public List<ChatRoomResponse> getRoomsByUserId(UUID userId) {
-        List<ChatRoom>  rooms = chatRoomRepository.findByParticipantIdsContaining(userId)
-                .stream()
+        List<ChatRoom> rooms = chatRoomRepository.findByParticipantIdsContaining(userId).stream()
                 .sorted(Comparator.comparing(ChatRoom::getLastTimestamp).reversed())
                 .toList();
 
@@ -87,8 +86,9 @@ public class ChatServiceImpl implements ChatService {
                     String avatarUrl = null;
 
                     if (receiverId != null) {
-                        Account accountOpt = accountRepository.findById(receiverId).
-                                orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+                        Account accountOpt = accountRepository
+                                .findById(receiverId)
+                                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
                         receiverUsername = accountOpt.getUsername();
                         avatarUrl = accountOpt.getAvatar();
                     }

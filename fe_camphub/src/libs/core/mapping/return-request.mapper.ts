@@ -20,12 +20,67 @@ export const returnRequestMapper = createMapper({
 // ------------------------
 // 2. Metadata
 // ------------------------
-PojosMetadataMap.create<ReturnRequest>("ReturnRequest", {});
-PojosMetadataMap.create<ReturnReqResponse>("ReturnReqResponse", {});
-PojosMetadataMap.create<ReturnReqCreationRequest>("ReturnReqCreationRequest", {});
-PojosMetadataMap.create<AdminDecisionRequest>("AdminDecisionRequest", {});
-PojosMetadataMap.create<LesseeSubmitReturnRequest>("LesseeSubmitReturnRequest", {});
-PojosMetadataMap.create<LessorConfirmReturnRequest>("LessorConfirmReturnRequest", {});
+PojosMetadataMap.create<ReturnRequest>("ReturnRequest", {
+    id: String,
+    bookingId: String,
+    lesseeId: String,
+    lessorId: String,
+
+    itemName: String,
+    lesseeName: String,
+    lessorName: String,
+
+    reason: String,
+    evidenceUrls: Array,
+    status: String,
+    note: String,
+    adminNote: String,
+    createdAt: String,
+    resolvedAt: String,
+    lessorConfirmAt: String,
+    adminReviewedAt: String,
+    refundedAt: String,
+});
+PojosMetadataMap.create<ReturnReqResponse>("ReturnReqResponse", {
+    id: String,
+    bookingId: String,
+    lesseeId: String,
+    lessorId: String,
+
+    itemName: String,
+    lesseeName: String,
+    lessorName: String,
+
+    reason: String,
+    evidenceUrls: Array,
+    status: String,
+    note: String,
+    adminNote: String,
+    createdAt: String,
+    resolvedAt: String,
+    lessorConfirmAt: String,
+    adminReviewedAt: String,
+    refundedAt: String,
+});
+PojosMetadataMap.create<ReturnReqCreationRequest>("ReturnReqCreationRequest", {
+    bookingId: String,
+    reason: String,
+    note: String,
+    evidenceUrls: Array,
+});
+PojosMetadataMap.create<AdminDecisionRequest>("AdminDecisionRequest", {
+    returnRequestId: String,
+    isApproved: Boolean,
+    adminNote: String,
+});
+PojosMetadataMap.create<LesseeSubmitReturnRequest>("LesseeSubmitReturnRequest", {
+    returnRequestId: String,
+    note: String,
+    packingMediaUrls: Array,
+});
+PojosMetadataMap.create<LessorConfirmReturnRequest>("LessorConfirmReturnRequest", {
+    bookingId: String,
+});
 
 // ------------------------
 // 3. Mapping DTO response → Model

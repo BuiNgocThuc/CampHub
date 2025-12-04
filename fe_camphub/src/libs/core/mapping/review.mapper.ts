@@ -14,9 +14,40 @@ export const reviewMapper = createMapper({
 // ------------------------
 // Metadata
 // ------------------------
-PojosMetadataMap.create<Review>("Review", {});
-PojosMetadataMap.create<ReviewResponse>("ReviewResponse", {});
-PojosMetadataMap.create<ReviewCreationRequest>("ReviewCreationRequest", {});
+PojosMetadataMap.create<Review>("Review", {
+    id: String,
+    bookingId: String,
+    reviewerId: String,
+    reviewedId: String,
+    itemName: String,
+    reviewerName: String,
+    reviewerAvatar: String,
+    rating: Number,
+    comment: String,
+    mediaUrls: Array,
+    createdAt: String,
+});
+PojosMetadataMap.create<ReviewResponse>("ReviewResponse", {
+    id: String,
+    bookingId: String,
+    reviewerId: String,
+    reviewedId: String,
+    itemName: String,
+    reviewerName: String,
+    reviewerAvatar: String,
+    rating: Number,
+    comment: String,
+    mediaUrls: Array,
+    createdAt: String,
+});
+PojosMetadataMap.create<ReviewCreationRequest>("ReviewCreationRequest", {
+    bookingId: String,
+    reviewerId: String,
+    reviewedId: String,
+    rating: Number,
+    content: String,
+    mediaUrls: Array,
+});
 
 // ------------------------
 // Mapping: DTO response → Model

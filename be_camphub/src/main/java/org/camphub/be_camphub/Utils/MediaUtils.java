@@ -1,12 +1,12 @@
 package org.camphub.be_camphub.Utils;
 
-import org.camphub.be_camphub.dto.request.MediaResourceRequest;
-import org.camphub.be_camphub.entity.MediaResource;
-import org.springframework.stereotype.Component;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.camphub.be_camphub.dto.request.MediaResourceRequest;
+import org.camphub.be_camphub.entity.MediaResource;
+import org.springframework.stereotype.Component;
 
 @Component
 public class MediaUtils {

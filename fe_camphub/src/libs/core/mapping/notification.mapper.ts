@@ -8,9 +8,39 @@ const notificationMapper = createMapper({
     strategyInitializer: pojos(),
 })
 
-PojosMetadataMap.create<Notification>("Notification", {});
-PojosMetadataMap.create<NotificationCreationRequest>("NotificationCreationRequest", {});
-PojosMetadataMap.create<NotificationResponse>("NotificationResponse", {});
+PojosMetadataMap.create<Notification>("Notification", {
+    id: String,
+    receiverId: String,
+    senderId: String,
+    type: String,
+    title: String,
+    content: String,
+    referenceType: String,
+    referenceId: String,
+    isRead: Boolean,
+    createdAt: String,
+});
+PojosMetadataMap.create<NotificationCreationRequest>("NotificationCreationRequest", {
+    receiverId: String,
+    senderId: String,
+    type: String,
+    title: String,
+    content: String,
+    referenceType: String,
+    referenceId: String,
+});
+PojosMetadataMap.create<NotificationResponse>("NotificationResponse", {
+    id: String,
+    receiverId: String,
+    senderId: String,
+    type: String,
+    title: String,
+    content: String,
+    referenceType: String,
+    referenceId: String,
+    isRead: Boolean,
+    createdAt: String,
+});
 
 createMap<NotificationResponse, Notification>(
     notificationMapper,

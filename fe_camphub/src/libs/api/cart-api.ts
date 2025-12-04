@@ -12,9 +12,7 @@ import {
 } from "../core/dto/request";
 import { cartItemMap } from "../core/mapping";
 
-// ==========================
 // Add item to cart
-// ==========================
 export const addItemToCart = async (request: CartItemCreationRequest): Promise<CartItem> => {
     try {
         const response = await api.post<ApiResponse<CartItemResponse>>("/cart/items", request);
@@ -24,9 +22,7 @@ export const addItemToCart = async (request: CartItemCreationRequest): Promise<C
     }
 };
 
-// ==========================
 // Update cart item (PUT)
-// ==========================
 export const updateCartItem = async (request: CartItemUpdateRequest, cartItemId: string): Promise<CartItem> => {
     try {
         const response = await api.put<ApiResponse<CartItemResponse>>(
@@ -39,9 +35,8 @@ export const updateCartItem = async (request: CartItemUpdateRequest, cartItemId:
     }
 };
 
-// ==========================
+
 // Patch cart item (PATCH)
-// ==========================
 export const patchCartItem = async (request: CartItemPatchRequest, cartItemId: string): Promise<CartItem> => {
     try {
         const response = await api.patch<ApiResponse<CartItemResponse>>(
@@ -54,9 +49,8 @@ export const patchCartItem = async (request: CartItemPatchRequest, cartItemId: s
     }
 };
 
-// ==========================
+
 // Remove multiple cart items
-// ==========================
 export const removeMultipleCartItems = async (request: CartItemDeleteRequest): Promise<ApiResponse<void>> => {
     try {
         const response = await api.delete<ApiResponse<void>>("/cart/items", { data: request });
@@ -66,9 +60,8 @@ export const removeMultipleCartItems = async (request: CartItemDeleteRequest): P
     }
 };
 
-// ==========================
+
 // Remove single cart item
-// ==========================
 export const removeCartItem = async (cartItemId: string): Promise<ApiResponse<void>> => {
     try {
         const response = await api.delete<ApiResponse<void>>(`/cart/items/${cartItemId}`);
@@ -78,9 +71,8 @@ export const removeCartItem = async (cartItemId: string): Promise<ApiResponse<vo
     }
 };
 
-// ==========================
+
 // Clear cart
-// ==========================
 export const clearCart = async (): Promise<ApiResponse<void>> => {
     try {
         const response = await api.delete<ApiResponse<void>>("/cart/clear");
@@ -90,13 +82,36 @@ export const clearCart = async (): Promise<ApiResponse<void>> => {
     }
 };
 
-// ==========================
+
 // Get all cart items
-// ==========================
 export const getCartItems = async (): Promise<CartItem[]> => {
     try {
         const response = await api.get<ApiResponse<CartItemResponse[]>>("/cart/items");
         return response.data.result.map(cartItemMap.fromResponse);
+    } catch (error) {
+        throw error;
+    }
+};
+
+
+// get count of cart items
+export const getCountOfCartItems = async (): Promise<number> => {
+    try {
+        const response = await api.get<ApiResponse<number>>("/cart/items/count");
+        return response.data.result;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Validate quantity for a cart item
+export const validateQuantity = async (cartItemId: string, quantity: number): Promise<boolean> => {
+    try {
+        const response = await api.get<ApiResponse<boolean>>(
+            `/cart/items/${cartItemId}/validate-quantity`,
+            { params: { quantity } }
+        );
+        return response.data.result;
     } catch (error) {
         throw error;
     }

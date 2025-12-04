@@ -1,7 +1,7 @@
 import { RegisterResponse } from '../core/dto/response/auth/RegisterResponse';
 import { api } from "@/libs/configuration";
 import { AuthRequest, RegisterRequest } from "../core/dto/request";
-import { AccountResponse, ApiResponse, AuthResponse, MyInfoResponse } from "../core/dto/response";
+import { ApiResponse, AuthResponse, MyInfoResponse } from "../core/dto/response";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from '../utils';
 import Cookies from 'js-cookie';
 

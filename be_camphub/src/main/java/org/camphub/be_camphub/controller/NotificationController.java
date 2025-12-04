@@ -7,6 +7,8 @@ import org.camphub.be_camphub.dto.request.notification.NotificationCreationReque
 import org.camphub.be_camphub.dto.response.ApiResponse;
 import org.camphub.be_camphub.dto.response.notification.NotificationResponse;
 import org.camphub.be_camphub.service.NotificationService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.AccessLevel;
@@ -28,8 +30,9 @@ public class NotificationController {
                 .build();
     }
 
-    @GetMapping("/receiver/{receiverId}")
-    ApiResponse<List<NotificationResponse>> getAllByReceiver(@PathVariable UUID receiverId) {
+    @GetMapping
+    ApiResponse<List<NotificationResponse>> getAllByReceiver(@AuthenticationPrincipal Jwt jwt) {
+        UUID receiverId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<List<NotificationResponse>>builder()
                 .message("Get all notifications successfully")
                 .result(notificationService.getAllByReceiver(receiverId))

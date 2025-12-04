@@ -71,9 +71,7 @@ public class AccountController {
     }
 
     @PostMapping("/top-up")
-    ApiResponse<TopUpResponse> topUpAccount(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody TopUpRequest request) {
+    ApiResponse<TopUpResponse> topUpAccount(@AuthenticationPrincipal Jwt jwt, @RequestBody TopUpRequest request) {
         UUID accountId = UUID.fromString(jwt.getClaimAsString("userId"));
         return ApiResponse.<TopUpResponse>builder()
                 .message("Top up account Successfully")

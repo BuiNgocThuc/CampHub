@@ -1,5 +1,6 @@
 package org.camphub.be_camphub.service.impl;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,7 +41,35 @@ public class CartServiceImpl implements CartService {
             return cartRepository.save(newCart);
         });
 
-        CartItem cartItem = cartItemMapper.creationRequestToEntity(request, cart.getId());
+        // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
+        CartItem existingCartItem = cartItemRepository.findByCartIdAndItemId(cart.getId(), request.getItemId());
+
+        CartItem cartItem;
+        if (existingCartItem != null) {
+            // Nếu đã có, tăng số lượng lên 1
+            existingCartItem.setQuantity(existingCartItem.getQuantity() + 1);
+            cartItem = existingCartItem;
+        } else {
+            // Nếu chưa có, tạo mới với quantity từ request (mặc định 1 nếu null)
+            Integer quantity = request.getQuantity() != null ? request.getQuantity() : 1;
+            CartItemCreationRequest requestWithQuantity = CartItemCreationRequest.builder()
+                    .itemId(request.getItemId())
+                    .quantity(quantity)
+                    .rentalDays(request.getRentalDays())
+                    .price(request.getPrice())
+                    .build();
+            cartItem = cartItemMapper.creationRequestToEntity(requestWithQuantity, cart.getId());
+        }
+
+        // Kiểm tra số lượng có vượt quá số lượng sản phẩm không
+        validateQuantityInternal(cartItem.getItemId(), cartItem.getQuantity());
+
+        // Tính lại subtotal sau khi cập nhật quantity
+        if (existingCartItem != null) {
+            cartItem.setSubtotal(cartItem.getPrice()
+                    .multiply(BigDecimal.valueOf(cartItem.getQuantity()))
+                    .multiply(BigDecimal.valueOf(cartItem.getRentalDays())));
+        }
 
         return enrichCartItemResponse(cartItemRepository.save(cartItem));
     }
@@ -53,6 +82,9 @@ public class CartServiceImpl implements CartService {
 
         cartItemMapper.updateRequestToEntity(cartItem, request);
 
+        // Kiểm tra số lượng có vượt quá số lượng sản phẩm không
+        validateQuantityInternal(cartItem.getItemId(), cartItem.getQuantity());
+
         CartItem updated = cartItemRepository.save(cartItem);
         return enrichCartItemResponse(updated);
     }
@@ -64,6 +96,9 @@ public class CartServiceImpl implements CartService {
                 .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_FOUND));
 
         cartItemMapper.patchRequestToEntity(cartItem, request);
+
+        // Kiểm tra số lượng có vượt quá số lượng sản phẩm không
+        validateQuantityInternal(cartItem.getItemId(), cartItem.getQuantity());
 
         CartItem updated = cartItemRepository.save(cartItem);
         return enrichCartItemResponse(updated);
@@ -97,35 +132,75 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public List<CartItemResponse> getValidCartItems(UUID accountId) {
-        Cart cart = cartRepository.findByAccountId(accountId)
-                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
+        Cart cart =
+                cartRepository.findByAccountId(accountId).orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
 
         List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
-        return cartItems.stream()
-                .map(this::enrichCartItemResponse)
-                .toList();
+        return cartItems.stream().map(this::enrichCartItemResponse).toList();
     }
 
     @Override
     public Integer getCartItemCount(UUID accountId) {
-        Cart cart = cartRepository.findByAccountId(accountId)
-                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
+        Cart cart =
+                cartRepository.findByAccountId(accountId).orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
 
         return cartItemRepository.countByCartId(cart.getId());
+    }
+
+    @Override
+    public boolean validateQuantity(UUID cartItemId, Integer quantity) {
+        CartItem cartItem = cartItemRepository
+                .findById(cartItemId)
+                .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_FOUND));
+
+        try {
+            validateQuantityInternal(cartItem.getItemId(), quantity);
+            return true;
+        } catch (AppException e) {
+            if (e.getErrorCode() == ErrorCode.INSUFFICIENT_ITEM_QUANTITY) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Kiểm tra số lượng sản phẩm có đủ không
+     *
+     * @param itemId       ID của sản phẩm
+     * @param cartQuantity Số lượng muốn thêm vào giỏ hàng
+     * @throws AppException nếu số lượng không đủ
+     */
+    private void validateQuantityInternal(UUID itemId, Integer cartQuantity) {
+        Item item = itemRepository.findById(itemId).orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
+
+        Integer itemQuantity = item.getQuantity();
+
+        if (itemQuantity == null || itemQuantity < cartQuantity) {
+            throw new AppException(ErrorCode.INSUFFICIENT_ITEM_QUANTITY);
+        }
     }
 
     private CartItemResponse enrichCartItemResponse(CartItem cartItem) {
         CartItemResponse response = cartItemMapper.entityToResponse(cartItem);
         // Load Item
-        Item item = itemRepository.findById(cartItem.getItemId())
+        Item item = itemRepository
+                .findById(cartItem.getItemId())
                 .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
-        boolean isAvailable = item.getQuantity() >= cartItem.getQuantity();
+        Integer itemQuantity = item.getQuantity();
+        int cartQuantity = cartItem.getQuantity();
+
+        boolean isAvailable = itemQuantity != null && itemQuantity >= cartQuantity;
         String itemName = item.getName();
-        String itemImage = item.getMediaUrls().isEmpty() ? null : item.getMediaUrls().get(0).getUrl();
+        String itemImage = item.getMediaUrls().isEmpty()
+                ? null
+                : item.getMediaUrls().get(0).getUrl();
+        Double depositAmount = item.getDepositAmount();
 
         response.setIsAvailable(isAvailable);
         response.setItemName(itemName);
         response.setItemImage(itemImage);
+        response.setDepositAmount(depositAmount != null ? BigDecimal.valueOf(depositAmount) : BigDecimal.ZERO);
         return response;
     }
 }

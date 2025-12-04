@@ -8,11 +8,34 @@ export const damageTypeMapper = createMapper({
     strategyInitializer: pojos(),
 });
 
-PojosMetadataMap.create<DamageType>("DamageType", {});
-PojosMetadataMap.create<DamageTypeCreationRequest>("DamageTypeCreationRequest", {});
-PojosMetadataMap.create<DamageTypeUpdateRequest>("DamageTypeUpdateRequest", {});
-PojosMetadataMap.create<DamageTypePatchRequest>("DamageTypePatchRequest", {});
-PojosMetadataMap.create<DamageTypeResponse>("DamageTypeResponse", {});
+// declare metadata
+PojosMetadataMap.create<DamageType>("DamageType", {
+    id: String,
+    name: String,
+    description: String,
+    compensationRate: Number,
+});
+PojosMetadataMap.create<DamageTypeCreationRequest>("DamageTypeCreationRequest", {
+    name: String,
+    description: String,
+    compensationRate: Number,
+});
+PojosMetadataMap.create<DamageTypeUpdateRequest>("DamageTypeUpdateRequest", {
+    name: String,
+    description: String,
+    compensationRate: Number,
+});
+PojosMetadataMap.create<DamageTypePatchRequest>("DamageTypePatchRequest", {
+    name: String,
+    description: String,
+    compensationRate: Number,
+});
+PojosMetadataMap.create<DamageTypeResponse>("DamageTypeResponse", {
+    id: String,
+    name: String,
+    description: String,
+    compensationRate: Number,
+});
 
 // Mapping DTO response to Model
 createMap<DamageTypeResponse, DamageType>(

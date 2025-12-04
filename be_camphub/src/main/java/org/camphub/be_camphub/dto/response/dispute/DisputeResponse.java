@@ -1,12 +1,9 @@
 package org.camphub.be_camphub.dto.response.dispute;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 import org.camphub.be_camphub.dto.response.MediaResourceResponse;
-import org.camphub.be_camphub.enums.DisputeDecision;
-import org.camphub.be_camphub.enums.DisputeStatus;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -25,7 +22,7 @@ public class DisputeResponse {
 
     String reporterName; // tên người báo cáo
     String defenderName; // tên người bị báo cáo
-    String adminName;    // tên quản trị viên xử lý
+    String adminName; // tên quản trị viên xử lý
 
     String description;
     List<MediaResourceResponse> evidenceUrls;

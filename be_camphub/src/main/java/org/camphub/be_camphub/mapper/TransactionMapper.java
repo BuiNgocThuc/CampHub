@@ -27,5 +27,6 @@ public interface TransactionMapper {
     @Mapping(target = "lessorId", source = "booking.lessorId")
     @Mapping(target = "lesseeName", ignore = true) // sẽ set trong service
     @Mapping(target = "lessorName", ignore = true) // sẽ set trong service
-    TransactionDetailResponse toTransactionDetailResponse(Transaction transaction, TransactionBooking transactionBooking, Booking booking, Item item);
+    TransactionDetailResponse toTransactionDetailResponse(
+            Transaction transaction, TransactionBooking transactionBooking, Booking booking, Item item);
 }

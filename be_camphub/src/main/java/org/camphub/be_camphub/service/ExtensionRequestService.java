@@ -1,5 +1,6 @@
 package org.camphub.be_camphub.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.camphub.be_camphub.dto.request.extension_req.ExtensionReqCreationRequest;
@@ -16,4 +17,9 @@ public interface ExtensionRequestService {
     ExtensionReqResponse cancelExtensionRequest(UUID lesseeId, UUID requestId);
 
     void autoExpirePendingRequests(); // cron job
+
+    List<ExtensionReqResponse> getAllExtensionRequestsFiltered(
+            String status, UUID bookingId, UUID lesseeId, UUID lessorId);
+
+    ExtensionReqResponse getExtensionRequestById(UUID requestId);
 }

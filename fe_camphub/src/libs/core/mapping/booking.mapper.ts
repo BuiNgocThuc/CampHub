@@ -1,104 +1,122 @@
-// booking.mapper.ts
-import { createMapper, createMap, forMember, mapFrom } from '@automapper/core';
-import { pojos, PojosMetadataMap } from '@automapper/pojos';
+// libs/mappers/booking.mapper.ts
+import { createMapper, createMap, forMember, mapFrom } from "@automapper/core";
+import { pojos, PojosMetadataMap } from "@automapper/pojos";
 
-import { Booking } from '../types';
-import { BookingResponse } from '../dto/response';
+import { Booking } from "../types";
+import { BookingResponse } from "../dto/response";
 import {
     BookingCreationRequest,
     BookingItemRequest,
-    LesseeReturnRequest
-} from '../dto/request';
+    LesseeReturnRequest,
+} from "../dto/request";
 
 export const bookingMapper = createMapper({
     strategyInitializer: pojos(),
 });
 
-// -----------------------------------------
-// Metadata (simple, không cần khai field)
-// -----------------------------------------
-PojosMetadataMap.create<Booking>('Booking', {});
-PojosMetadataMap.create<BookingResponse>('BookingResponse', {});
-PojosMetadataMap.create<BookingCreationRequest>('BookingCreationRequest', {});
-PojosMetadataMap.create<BookingItemRequest>('BookingItemRequest', {});
-PojosMetadataMap.create<LesseeReturnRequest>('LesseeReturnRequest', {});
+PojosMetadataMap.create<Booking>("Booking", {
+    id: String,
+    lesseeId: String,
+    lessorId: String,
+    itemId: String,
+    itemName: String,
+    lessorName: String,
+    lesseeName: String,
+    quantity: Number,
+    pricePerDay: Number,
+    depositAmount: Number,
+    totalAmount: Number,
+    startDate: String,
+    endDate: String,
+    note: String,
+    status: String,
+    createdAt: String,
+});
 
-// =====================================================
-// 1) Mapping: ResponseDTO → Model
-// =====================================================
-createMap<BookingResponse, Booking>(
-    bookingMapper,
-    'BookingResponse',
-    'Booking'
-);
+PojosMetadataMap.create<BookingResponse>("BookingResponse", {
+    id: String,
+    lesseeId: String,
+    lessorId: String,
+    itemId: String,
+    itemName: String,
+    lessorName: String,
+    lesseeName: String,
+    quantity: Number,
+    pricePerDay: Number,
+    depositAmount: Number,
+    totalAmount: Number,
+    startDate: String,
+    endDate: String,
+    note: String,
+    status: String,
+    createdAt: String,
+});
 
-// =====================================================
-// 2) Mapping: Model → BookingCreationRequest
-// FE không quyết định logic nhiều item — BE đã quyết định
-// =====================================================
+PojosMetadataMap.create<BookingCreationRequest>("BookingCreationRequest", {
+    items: Array,
+});
+
+PojosMetadataMap.create<BookingItemRequest>("BookingItemRequest", {
+    cartItemId: String,
+    startDate: String,
+    endDate: String,
+    quantity: Number,
+    pricePerDay: Number,
+    depositAmount: Number,
+    note: String,
+});
+
+PojosMetadataMap.create<LesseeReturnRequest>("LesseeReturnRequest", {
+    bookingId: String,
+    note: String,
+    mediaUrls: Array,
+});
+
+// Mapping chính
+createMap<BookingResponse, Booking>(bookingMapper, "BookingResponse", "Booking");
+
 createMap<Booking, BookingCreationRequest>(
     bookingMapper,
-    'Booking',
-    'BookingCreationRequest',
-
+    "Booking",
+    "BookingCreationRequest",
     forMember(
         (d) => d.items,
         mapFrom((s) => [
             {
                 cartItemId: s.itemId,
-                lessorId: s.lessorId,
                 startDate: s.startDate,
                 endDate: s.endDate,
                 quantity: s.quantity,
                 pricePerDay: s.pricePerDay,
                 depositAmount: s.depositAmount,
-                note: s.note ?? ''
-            } as BookingItemRequest
+                note: s.note ?? "",
+            } as BookingItemRequest,
         ])
     )
 );
 
-// =====================================================
-// 3) Mapping: Model → LesseeReturnRequest (Trả đồ)
-// =====================================================
 createMap<Booking, LesseeReturnRequest>(
     bookingMapper,
-    'Booking',
-    'LesseeReturnRequest',
-
+    "Booking",
+    "LesseeReturnRequest",
     forMember((d) => d.bookingId, mapFrom((s) => s.id)),
-    forMember((d) => d.note, mapFrom((s) => s.note ?? '')),
-    forMember((d) => d.mediaUrls, mapFrom(() => [])) // FE sẽ override nếu có file upload
+    forMember((d) => d.note, mapFrom((s) => s.note ?? "")),
+    forMember((d) => d.mediaUrls, mapFrom(() => []))
 );
 
-// (Optional) Model → ResponseDTO nếu UI muốn đồng bộ data
-createMap<Booking, BookingResponse>(
-    bookingMapper,
-    'Booking',
-    'BookingResponse'
-);
+createMap<Booking, BookingResponse>(bookingMapper, "Booking", "BookingResponse");
 
-// =====================================================
-// =============== bookingMap API đơn giản ===============
-// =====================================================
+// Export mapper helper
 export const bookingMap = {
-    /** ResponseDTO -> Model */
-    fromResponse(dto: BookingResponse): Booking {
-        return bookingMapper.map(dto, 'Booking', 'BookingResponse');
-    },
+    fromResponse: (dto: BookingResponse): Booking =>
+        bookingMapper.map<BookingResponse, Booking>(dto, "BookingResponse", "Booking"),
 
-    /** Model -> BookingCreationRequest */
-    toCreationRequest(model: Booking): BookingCreationRequest {
-        return bookingMapper.map(model, 'BookingCreationRequest', 'Booking');
-    },
+    toCreationRequest: (model: Booking): BookingCreationRequest =>
+        bookingMapper.map<Booking, BookingCreationRequest>(model, "Booking", "BookingCreationRequest"),
 
-    /** Model -> LesseeReturnRequest */
-    toLesseeReturn(model: Booking): LesseeReturnRequest {
-        return bookingMapper.map(model, 'LesseeReturnRequest', 'Booking');
-    },
+    toLesseeReturn: (model: Booking): LesseeReturnRequest =>
+        bookingMapper.map<Booking, LesseeReturnRequest>(model, "Booking", "LesseeReturnRequest"),
 
-    /** Model -> ResponseDTO (optional) */
-    toResponse(model: Booking): BookingResponse {
-        return bookingMapper.map(model, 'BookingResponse', 'Booking');
-    }
+    toResponse: (model: Booking): BookingResponse =>
+        bookingMapper.map<Booking, BookingResponse>(model, "Booking", "BookingResponse"),
 };

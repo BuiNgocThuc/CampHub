@@ -1,8 +1,9 @@
 package org.camphub.be_camphub.interceptor;
 
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 import org.camphub.be_camphub.Utils.SecurityUtils;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -16,9 +17,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -36,7 +37,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             String token = accessor.getFirstNativeHeader("Authorization");
 
             if (token == null) {
-                Map<String,Object> sessionAttrs = accessor.getSessionAttributes();
+                Map<String, Object> sessionAttrs = accessor.getSessionAttributes();
                 if (sessionAttrs != null) token = (String) sessionAttrs.get("jwt");
             }
 
@@ -49,18 +50,17 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                     throw new IllegalArgumentException("Invalid or expired token");
                 }
 
-                Authentication auth =
-                        new JwtAuthenticationToken(jwt, List.of(
-                                new SimpleGrantedAuthority("ROLE_" + jwt.getClaim("userType"))
-                        ),
-                                jwt.getClaim("userId").toString());
+                Authentication auth = new JwtAuthenticationToken(
+                        jwt,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + jwt.getClaim("userType"))),
+                        jwt.getClaim("userId").toString());
                 accessor.setUser(auth);
-                log.info("[STOMP] Authenticated STOMP connection as userId={}", Optional.ofNullable(jwt.getClaim("userId")));
+                log.info(
+                        "[STOMP] Authenticated STOMP connection as userId={}",
+                        Optional.ofNullable(jwt.getClaim("userId")));
             } else {
                 log.warn("[STOMP] No token found in CONNECT frame");
-
             }
-
         }
 
         return message;

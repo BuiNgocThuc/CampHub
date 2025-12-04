@@ -13,6 +13,7 @@ import org.camphub.be_camphub.dto.request.booking.BookingCreationRequest;
 import org.camphub.be_camphub.dto.request.booking.BookingItemRequest;
 import org.camphub.be_camphub.dto.request.booking.LesseeReturnRequest;
 import org.camphub.be_camphub.dto.request.booking.OwnerConfirmationRequest;
+import org.camphub.be_camphub.dto.request.notification.NotificationCreationRequest;
 import org.camphub.be_camphub.dto.response.booking.BookingResponse;
 import org.camphub.be_camphub.entity.*;
 import org.camphub.be_camphub.enums.*;
@@ -21,6 +22,7 @@ import org.camphub.be_camphub.exception.ErrorCode;
 import org.camphub.be_camphub.mapper.BookingMapper;
 import org.camphub.be_camphub.repository.*;
 import org.camphub.be_camphub.service.BookingService;
+import org.camphub.be_camphub.service.NotificationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,7 @@ public class BookingServiceImpl implements BookingService {
 
     BookingMapper bookingMapper;
     MediaUtils mediaUtils;
+    NotificationService notificationService;
 
     @Override
     @Transactional
@@ -136,7 +139,6 @@ public class BookingServiceImpl implements BookingService {
 
         // record transaction
         Transaction tx = Transaction.builder()
-                
                 .fromAccountId(lessee.getId())
                 .toAccountId(systemWallet.getId())
                 .amount(required.doubleValue())
@@ -167,7 +169,7 @@ public class BookingServiceImpl implements BookingService {
             // Subtract the quantity if the product is still available
 
             // update status for item
-            if(item.getQuantity() - booking.getQuantity() > 0) {
+            if (item.getQuantity() - booking.getQuantity() > 0) {
                 item.setQuantity(item.getQuantity() - booking.getQuantity());
             } else {
                 item.setStatus(ItemStatus.RENTED_PENDING_CONFIRM);
@@ -184,13 +186,24 @@ public class BookingServiceImpl implements BookingService {
             itemLogRepository.save(log);
 
             bookingRepository.save(booking);
-            responses.add(enrichBookingResponse(booking));
+            BookingResponse bookingResponse = enrichBookingResponse(booking);
+            responses.add(bookingResponse);
+
+            // thông báo cho chủ đồ (lessor) có đơn thuê mới
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(item.getOwnerId())
+                    .senderId(lesseeId)
+                    .type(NotificationType.BOOKING_CREATED)
+                    .title("Bạn có đơn thuê mới")
+                    .content("Khách thuê vừa đặt \"" + item.getName() + "\".")
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
         }
 
         // link transaction to all bookings
         List<TransactionBooking> txBookings = responses.stream()
                 .map(resp -> TransactionBooking.builder()
-                        
                         .transactionId(tx.getId())
                         .bookingId(resp.getId())
                         .build())
@@ -206,15 +219,19 @@ public class BookingServiceImpl implements BookingService {
 
     /**
      * Owner accept/reject:
-     * - if reject: refund full required amount for that booking (rental+deposit) from system -> lessee,
-     * set booking.status = PAID_REJECTED, item.status = BANNED, decrease lessor trustScore
-     * - if accept: booking.status = WAITING_DELIVERY, record delivery log; update item.status = RENTED
+     * - if reject: refund full required amount for that booking (rental+deposit)
+     * from system -> lessee,
+     * set booking.status = PAID_REJECTED, item.status = BANNED, decrease lessor
+     * trustScore
+     * - if accept: booking.status = WAITING_DELIVERY, record delivery log; update
+     * item.status = RENTED
      */
     @Override
     @Transactional
     public BookingResponse ownerRespondBooking(UUID lessorId, OwnerConfirmationRequest request) {
-        Booking booking =
-                bookingRepository.findById(request.getBookingId()).orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+        Booking booking = bookingRepository
+                .findById(request.getBookingId())
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
         if (!booking.getLessorId().equals(lessorId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -247,7 +264,6 @@ public class BookingServiceImpl implements BookingService {
 
             // transaction
             Transaction tx = Transaction.builder()
-                    
                     .fromAccountId(systemWallet.getId())
                     .toAccountId(lessee.getId())
                     .amount(refundTotal.doubleValue())
@@ -257,7 +273,6 @@ public class BookingServiceImpl implements BookingService {
             transactionRepository.save(tx);
 
             transactionBookingRepository.save(TransactionBooking.builder()
-                    
                     .transactionId(tx.getId())
                     .bookingId(booking.getId())
                     .build());
@@ -283,6 +298,17 @@ public class BookingServiceImpl implements BookingService {
                     .note("Owner rejected booking: " + request.getBookingId())
                     .build());
 
+            // thông báo cho khách thuê khi đơn bị từ chối
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(booking.getLesseeId())
+                    .senderId(lessorId)
+                    .type(NotificationType.BOOKING_CANCELLED)
+                    .title("Đơn thuê đã bị từ chối")
+                    .content("Chủ đồ đã từ chối đơn thuê cho sản phẩm \"" + item.getName() + "\".")
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+
             return enrichBookingResponse(booking);
         } else {
             // accept booking
@@ -299,18 +325,33 @@ public class BookingServiceImpl implements BookingService {
                     .itemId(item.getId())
                     .accountId(lessorId)
                     .action(ItemActionType.APPROVE_RENTAL)
-                            .previousStatus(ItemStatus.AVAILABLE)
-                            .currentStatus(ItemStatus.RENTED)
-                    .note(Optional.ofNullable(request.getDeliveryNote()).orElse("Owner accepted booking and will deliver"))
+                    .previousStatus(ItemStatus.AVAILABLE)
+                    .currentStatus(ItemStatus.RENTED)
+                    .note(Optional.ofNullable(request.getDeliveryNote())
+                            .orElse("Owner accepted booking and will deliver"))
                     .evidenceUrls(mediaUtils.fromRequest(request.getPackagingMediaUrls()))
                     .createdAt(LocalDateTime.now())
                     .build());
+
+            // thông báo cho khách thuê khi đơn được chấp nhận
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(booking.getLesseeId())
+                    .senderId(lessorId)
+                    .type(NotificationType.BOOKING_CREATED)
+                    .title("Đơn thuê đã được chấp nhận")
+                    .content("Chủ đồ đã chấp nhận đơn thuê cho sản phẩm \"" + item.getName() + "\".")
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
         }
+
+        // gửi thông báo cho người thuê về việc chủ thuê đã chấp nhận hoặc từ chối đơn
+        // thuê (TODO)
 
         return enrichBookingResponse(booking);
     }
 
-    //         Lessee confirm received -> set IN_USE, add rent log.
+    // Lessee confirm received -> set IN_USE, add rent log.
     @Override
     public BookingResponse lesseeConfirmReceived(UUID lesseeId, UUID bookingId) {
         Booking booking =
@@ -356,7 +397,8 @@ public class BookingServiceImpl implements BookingService {
                 .toList();
     }
 
-    // lessee return item --> set RETURNED_PENDING_CHECK, add return log, update item status
+    // lessee return item --> set RETURNED_PENDING_CHECK, add return log, update
+    // item status
     @Override
     @Transactional
     public BookingResponse lesseeReturnItem(UUID lesseeId, LesseeReturnRequest request) {
@@ -377,7 +419,6 @@ public class BookingServiceImpl implements BookingService {
         // update booking status to RETURNED_PENDING_CHECK
         booking.setStatus(BookingStatus.RETURNED_PENDING_CHECK);
 
-
         List<MediaResource> evidenceUrls = mediaUtils.fromRequest(request.getMediaUrls());
         // save ItemLog
         ItemLog itemLog = ItemLog.builder()
@@ -397,10 +438,11 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
         item.setStatus(ItemStatus.RETURN_PENDING_CHECK);
 
-
         bookingRepository.save(booking);
         itemLogRepository.save(itemLog);
         itemRepository.save(item);
+
+        // gửi thông báo cho chủ thuê về việc người thuê đã trả đồ (TODO)
 
         return enrichBookingResponse(booking);
     }
@@ -470,7 +512,7 @@ public class BookingServiceImpl implements BookingService {
         double deposit = booking.getDepositAmount();
         double refundDeposit = deposit;
 
-        //  Xử lý trễ hạn
+        // Xử lý trễ hạn
         if (daysLate > 0 && daysLate < 4) {
             double penaltyRate =
                     switch ((int) daysLate) {
@@ -486,7 +528,7 @@ public class BookingServiceImpl implements BookingService {
                     " Booking {} trả trễ {} ngày → trừ {} coin ({}%)",
                     bookingId, daysLate, penalty, (int) (penaltyRate * 100));
         } else if (daysLate >= 4) {
-              handleUnreturnedBooking(booking);
+            handleUnreturnedBooking(booking);
             log.warn("Booking {} trả sau hơn 3 ngày — sẽ không hoàn cọc (đã xử lý ở forfeited flow)", bookingId);
             return;
         }
@@ -553,6 +595,8 @@ public class BookingServiceImpl implements BookingService {
                 log.info("Booking {} chuyển sang DUE_FOR_RETURN", booking.getId());
                 toUpdate.add(booking);
             }
+
+            // thông báo cho người thuê về việc sắp đến hạn trả đồ (TODO)
         }
 
         // Sau 24h kể từ DUE_FOR_RETURN -> LATE_RETURN
@@ -565,9 +609,11 @@ public class BookingServiceImpl implements BookingService {
                 log.info("Booking {} chuyển sang LATE_RETURN", booking.getId());
                 toUpdate.add(booking);
             }
+
+            // thông báo cho người thuê về việc đã trễ hạn trả đồ (TODO)
         }
 
-        //  Sau 72h kể từ LATE_RETURN -> OVERDUE
+        // Sau 72h kể từ LATE_RETURN -> OVERDUE
         List<Booking> lateBookings = bookingRepository.findByStatus(BookingStatus.LATE_RETURN);
         for (Booking booking : lateBookings) {
             Duration sinceLate = Duration.between(booking.getUpdatedAt(), now);
@@ -585,7 +631,7 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    //        =====Private Methods=====
+    // =====Private Methods=====
 
     private Account getSystemWallet() {
         return accountRepository
@@ -624,12 +670,11 @@ public class BookingServiceImpl implements BookingService {
             throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
         }
 
-        //  Thực hiện chuyển tiền
+        // Thực hiện chuyển tiền
         system.setCoinBalance(system.getCoinBalance() - totalAmount);
         lessor.setCoinBalance(lessor.getCoinBalance() + totalAmount);
 
         Transaction compTx = Transaction.builder()
-                
                 .fromAccountId(system.getId())
                 .toAccountId(lessor.getId())
                 .amount(totalAmount)
@@ -640,7 +685,6 @@ public class BookingServiceImpl implements BookingService {
         transactionRepository.save(compTx);
 
         transactionBookingRepository.save(TransactionBooking.builder()
-                
                 .transactionId(compTx.getId())
                 .bookingId(booking.getId())
                 .build());

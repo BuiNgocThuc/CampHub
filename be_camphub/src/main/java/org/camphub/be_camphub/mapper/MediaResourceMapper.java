@@ -1,14 +1,14 @@
 package org.camphub.be_camphub.mapper;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 import org.camphub.be_camphub.dto.response.MediaResourceResponse;
 import org.camphub.be_camphub.entity.MediaResource;
 import org.mapstruct.Named;
 import org.springframework.stereotype.Component;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class MediaResourceMapper {
@@ -35,5 +35,4 @@ public class MediaResourceMapper {
                         .build())
                 .collect(Collectors.toList());
     }
-
 }

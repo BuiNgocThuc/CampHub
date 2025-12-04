@@ -1,86 +1,122 @@
+// app/admin/items/ItemLogDetail.tsx
 "use client";
 
-import Image from "next/image";
-import { Divider } from "@mui/material";
+import { Box, Divider, Typography, Chip } from "@mui/material";
+import { format } from "date-fns";
 import { ItemLog } from "@/libs/core/types";
+import { ItemActionType } from "@/libs/core/constants";
+import { MediaPreview } from "@/libs/components";
 
 interface ItemLogDetailProps {
-    log?: ItemLog;
+    log: ItemLog;
 }
 
+const actionLabels: Record<ItemActionType, string> = {
+    CREATE: "Tạo sản phẩm",
+    UPDATE: "Cập nhật thông tin",
+    DELETE: "Xóa sản phẩm",
+    APPROVE: "Duyệt sản phẩm",
+    REJECT: "Từ chối sản phẩm",
+    LOCK: "Khóa sản phẩm",
+    UNLOCK: "Mở khóa sản phẩm",
+    RENT: "Thuê sản phẩm",
+    APPROVE_RENTAL: "Duyệt đơn thuê",
+    REJECT_RENTAL: "Từ chối đơn thuê",
+    DELIVER: "Giao hàng",
+    RETURN: "Trả hàng",
+    CHECK_RETURN: "Kiểm tra trả hàng",
+    REFUND: "Hoàn tiền",
+    DAMAGE_REPORTED: "Báo hỏng",
+    RETURN_REQUESTED: "Yêu cầu trả hàng",
+    UNRETURNED: "Không trả đúng hạn",
+};
+
 export default function ItemLogDetail({ log }: ItemLogDetailProps) {
-    if (!log) {
-        return <div className="text-gray-500 italic">Không có dữ liệu log.</div>;
-    }
-
     return (
-        <div className="space-y-4">
-            {/* 🧾 Thông tin cơ bản */}
-            <div className="space-y-1">
-                <p>
-                    <strong>Mã sản phẩm:</strong> {log.itemId}
-                </p>
-                <p>
-                    <strong>Người thực hiện:</strong> {log.accountId}
-                </p>
-                <p>
-                    <strong>Thời gian:</strong>{" "}
-                    {new Date(log.createdAt).toLocaleString("vi-VN")}
-                </p>
-                <p>
-                    <strong>Hành động:</strong>{" "}
-                    <span className="font-semibold text-blue-600">{log.action}</span>
-                </p>
-            </div>
+        <Box sx={{ minWidth: 600 }}>
+            <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    {actionLabels[log.action] || log.action}
+                </Typography>
+                <Typography color="text.secondary">
+                    Thực hiện bởi: <strong>{log.account}</strong> •{" "}
+                    {format(new Date(log.createdAt), "dd/MM/yyyy HH:mm:ss")}
+                </Typography>
+            </Box>
 
-            <Divider />
+            <Divider sx={{ my: 3 }} />
 
-            {/* 🔄 Thay đổi trạng thái */}
-            {(log.previousStatus || log.currentStatus) && (
-                <div>
-                    <p className="font-semibold mb-1">Trạng thái thay đổi:</p>
-                    <p>
-                        {log.previousStatus ?? "—"} →{" "}
-                        <span className="text-blue-600 font-semibold">
-                            {log.currentStatus ?? "—"}
-                        </span>
-                    </p>
-                </div>
-            )}
+            <Box sx={{ spaceY: 3 }}>
+                <Box>
+                    <Typography fontWeight="medium" color="text.secondary" gutterBottom>
+                        Sản phẩm
+                    </Typography>
+                    <Typography>
+                        <strong>{log.itemName}</strong>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        ID: {log.itemId}
+                    </Typography>
+                </Box>
 
-            {/* 📝 Ghi chú */}
-            {log.note && (
-                <div>
-                    <p className="font-semibold mb-1">Ghi chú:</p>
-                    <p className="text-gray-700 whitespace-pre-line">{log.note}</p>
-                </div>
-            )}
+                {(log.previousStatus || log.currentStatus) && (
+                    <Box>
+                        <Typography fontWeight="medium" color="text.secondary" gutterBottom>
+                            Thay đổi trạng thái
+                        </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                            <Chip
+                                label={log.previousStatus || "—"}
+                                size="small"
+                                color="default"
+                            />
+                            <Typography>→</Typography>
+                            <Chip
+                                label={log.currentStatus}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                            />
+                        </Box>
+                    </Box>
+                )}
 
-            {/* 📸 Minh chứng */}
-            {Array.isArray(log.evidenceUrls) && log.evidenceUrls.length > 0 && (
-                <div>
-                    <p className="font-semibold mb-2">Minh chứng:</p>
-                    <div className="grid grid-cols-3 gap-3">
-                        {log.evidenceUrls.map((media, idx) => (
-                            <div key={idx} className="space-y-1">
-                                <div className="relative w-full h-28">
-                                    <Image
-                                        src={media.url}
-                                        alt={media.description || `evidence-${idx}`}
-                                        fill
-                                        className="object-cover rounded-md shadow-sm"
-                                    />
-                                </div>
-                                {media.description && (
-                                    <p className="text-xs text-gray-600 text-center">
-                                        {media.description}
-                                    </p>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
+                {log.note && (
+                    <Box>
+                        <Typography fontWeight="medium" color="text.secondary" gutterBottom>
+                            Ghi chú
+                        </Typography>
+                        <Typography
+                            sx={{
+                                bgcolor: "grey.50",
+                                p: 2,
+                                borderRadius: 2,
+                                whiteSpace: "pre-wrap",
+                            }}
+                        >
+                            {log.note}
+                        </Typography>
+                    </Box>
+                )}
+
+                {log.media && log.media.length > 0 && (
+                    <Box>
+                        <Typography fontWeight="medium" color="text.secondary" gutterBottom>
+                            Minh chứng ({log.media.length})
+                        </Typography>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3">
+                            {log.media.map((m, i) => (
+                                <MediaPreview
+                                    key={i}
+                                    url={m.url}
+                                    size="large"
+                                    showRemove={false}
+                                />
+                            ))}
+                        </div>
+                    </Box>
+                )}
+            </Box>
+        </Box>
     );
 }

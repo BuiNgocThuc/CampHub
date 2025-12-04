@@ -13,10 +13,60 @@ export const transactionMapper = createMapper({
 // ------------------------
 // Metadata
 // ------------------------
-PojosMetadataMap.create<Transaction>("Transaction", {});
-PojosMetadataMap.create<TransactionResponse>("TransactionResponse", {});
-PojosMetadataMap.create<TransactionBooking>("TransactionBooking", {});
-PojosMetadataMap.create<TransactionDetailResponse>("TransactionDetailResponse", {});
+PojosMetadataMap.create<Transaction>("Transaction", {
+    id: String,
+    fromAccountId: String,
+    toAccountId: String,
+    amount: Number,
+    type: String,
+    status: String,
+    createdAt: String,
+    senderName: String,
+    receiverName: String,
+});
+PojosMetadataMap.create<TransactionResponse>("TransactionResponse", {
+    id: String,
+    fromAccountId: String,
+    toAccountId: String,
+    amount: Number,
+    type: String,
+    status: String,
+    createdAt: String,
+    senderName: String,
+    receiverName: String,
+});
+PojosMetadataMap.create<TransactionBooking>("TransactionBooking", {
+    transactionId: String,
+    amount: Number,
+    type: String,
+    status: String,
+    createdAt: String,
+
+    bookingId: String,
+    itemId: String,
+    itemName: String,
+    lesseeId: String,
+    lessorId: String,
+
+    lesseeName: String,
+    lessorName: String,
+});
+PojosMetadataMap.create<TransactionDetailResponse>("TransactionDetailResponse", {
+    transactionId: String,
+    amount: Number,
+    type: String,
+    status: String,
+    createdAt: String,
+
+    bookingId: String,
+    itemId: String,
+    itemName: String,
+    lesseeId: String,
+    lessorId: String,
+
+    lesseeName: String,
+    lessorName: String,
+});
 
 // ------------------------
 // Mapping: DTO response → Model

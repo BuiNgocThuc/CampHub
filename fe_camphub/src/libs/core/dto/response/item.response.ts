@@ -7,6 +7,8 @@ export interface ItemResponse {
     categoryId: string;
     ownerName: string; // fullname của chủ sở hữu
     categoryName: string;
+    ownerAvatar: string;
+    ownerTrustScore: number;
 
     name: string;
     description: string;

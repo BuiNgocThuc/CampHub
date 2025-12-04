@@ -7,8 +7,8 @@ import java.util.stream.Collectors;
 
 import jakarta.transaction.Transactional;
 
-import lombok.extern.slf4j.Slf4j;
 import org.camphub.be_camphub.Utils.MediaUtils;
+import org.camphub.be_camphub.dto.request.notification.NotificationCreationRequest;
 import org.camphub.be_camphub.dto.request.return_req.AdminDecisionRequest;
 import org.camphub.be_camphub.dto.request.return_req.LesseeSubmitReturnRequest;
 import org.camphub.be_camphub.dto.request.return_req.LessorConfirmReturnRequest;
@@ -20,12 +20,14 @@ import org.camphub.be_camphub.exception.AppException;
 import org.camphub.be_camphub.exception.ErrorCode;
 import org.camphub.be_camphub.mapper.ReturnRequestMapper;
 import org.camphub.be_camphub.repository.*;
+import org.camphub.be_camphub.service.NotificationService;
 import org.camphub.be_camphub.service.ReturnRequestService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -42,17 +44,18 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
     ReturnRequestMapper returnRequestMapper;
     MediaUtils mediaUtils;
+    NotificationService notificationService;
 
     // 1. Lessee tạo yêu cầu trả hàng / hoàn tiền
     @Override
     @Transactional
     public ReturnReqResponse createReturnRequest(UUID lesseeId, ReturnReqCreationRequest request) {
 
-        Booking booking = bookingRepository.findById(request.getBookingId())
+        Booking booking = bookingRepository
+                .findById(request.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
-        if (!booking.getLesseeId().equals(lesseeId))
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+        if (!booking.getLesseeId().equals(lesseeId)) throw new AppException(ErrorCode.UNAUTHORIZED);
 
         if (booking.getStatus() != BookingStatus.WAITING_DELIVERY)
             throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
@@ -67,6 +70,17 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         booking.setStatus(BookingStatus.RETURN_REFUND_REQUESTED);
         bookingRepository.save(booking);
 
+        // thông báo chủ thuê có yêu cầu hoàn trả
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(booking.getLessorId())
+                .senderId(lesseeId)
+                .type(NotificationType.BOOKING_RETURNED)
+                .title("Yêu cầu hoàn trả/hoàn tiền mới")
+                .content("Khách thuê đã tạo yêu cầu hoàn trả cho đơn " + booking.getId())
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
+
         return enrichReturnRequestResponse(rr);
     }
 
@@ -75,14 +89,15 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Transactional
     public ReturnReqResponse lesseeSubmitReturn(UUID lesseeId, LesseeSubmitReturnRequest request) {
 
-        Booking booking = bookingRepository.findById(request.getBookingId())
+        Booking booking = bookingRepository
+                .findById(request.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
-        ReturnRequest rr = returnRequestRepository.findByBookingId(booking.getId())
+        ReturnRequest rr = returnRequestRepository
+                .findByBookingId(booking.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
 
-        if (!rr.getLesseeId().equals(lesseeId))
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+        if (!rr.getLesseeId().equals(lesseeId)) throw new AppException(ErrorCode.UNAUTHORIZED);
 
         if (rr.getStatus() != ReturnRequestStatus.PENDING)
             throw new AppException(ErrorCode.INVALID_RETURN_REQUEST_STATUS);
@@ -91,23 +106,32 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
             throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
 
         // Chỉ log vào ItemLog
-        itemLogRepository.save(
-                ItemLog.builder()
-                        .itemId(booking.getItemId())
-                        .accountId(lesseeId)
-                        .action(ItemActionType.RETURN)
-                        .previousStatus(ItemStatus.RENTED)
-                        .currentStatus(ItemStatus.RETURN_PENDING_CHECK)
-                        .note(request.getNote())
-                        .evidenceUrls(mediaUtils.fromRequest(request.getPackingMediaUrls()))
-                        .build()
-        );
+        itemLogRepository.save(ItemLog.builder()
+                .itemId(booking.getItemId())
+                .accountId(lesseeId)
+                .action(ItemActionType.RETURN)
+                .previousStatus(ItemStatus.RENTED)
+                .currentStatus(ItemStatus.RETURN_PENDING_CHECK)
+                .note(request.getNote())
+                .evidenceUrls(mediaUtils.fromRequest(request.getPackingMediaUrls()))
+                .build());
 
         // set item trạng thái đang chờ kiểm tra
         itemRepository.findById(booking.getItemId()).ifPresent(item -> {
             item.setStatus(ItemStatus.RETURN_PENDING_CHECK);
             itemRepository.save(item);
         });
+
+        // thông báo chủ thuê có đơn hàng đang hoàn trả (đã gửi minh chứng)
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(booking.getLessorId())
+                .senderId(lesseeId)
+                .type(NotificationType.BOOKING_RETURNED)
+                .title("Khách thuê đã gửi minh chứng trả hàng")
+                .content("Khách thuê đã gửi minh chứng trả hàng cho đơn " + booking.getId())
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
 
         return enrichReturnRequestResponse(rr);
     }
@@ -117,14 +141,15 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Transactional
     public ReturnReqResponse lessorConfirmReturn(UUID lessorId, LessorConfirmReturnRequest request) {
 
-        ReturnRequest rr = returnRequestRepository.findById(request.getReturnRequestId())
+        ReturnRequest rr = returnRequestRepository
+                .findById(request.getReturnRequestId())
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
 
-        Booking booking = bookingRepository.findById(rr.getBookingId())
+        Booking booking = bookingRepository
+                .findById(rr.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
-        if (!booking.getLessorId().equals(lessorId))
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+        if (!booking.getLessorId().equals(lessorId)) throw new AppException(ErrorCode.UNAUTHORIZED);
 
         if (booking.getStatus() != BookingStatus.RETURN_REFUND_REQUESTED)
             throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
@@ -133,7 +158,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         booking.setStatus(BookingStatus.RETURN_REFUND_PROCESSING);
         bookingRepository.save(booking);
 
-        rr.setStatus(ReturnRequestStatus.PROCESSING);
+        rr.setStatus(ReturnRequestStatus.PROCESSING); // chờ admin xử lý
         rr.setLessorConfirmedAt(LocalDateTime.now());
         returnRequestRepository.save(rr);
 
@@ -143,16 +168,16 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
             itemRepository.save(item);
         });
 
-        itemLogRepository.save(
-                ItemLog.builder()
-                        .itemId(booking.getItemId())
-                        .accountId(lessorId)
-                        .action(ItemActionType.CHECK_RETURN)
-                        .previousStatus(ItemStatus.RETURN_PENDING_CHECK)
-                        .currentStatus(ItemStatus.AVAILABLE)
-                        .note("Lessor confirmed returned item")
-                        .build()
-        );
+        itemLogRepository.save(ItemLog.builder()
+                .itemId(booking.getItemId())
+                .accountId(lessorId)
+                .action(ItemActionType.CHECK_RETURN)
+                .previousStatus(ItemStatus.RETURN_PENDING_CHECK)
+                .currentStatus(ItemStatus.AVAILABLE)
+                .note("Lessor confirmed returned item")
+                .build());
+
+        // thông báo đến admin về yêu cầu hoàn tiền cần xử lý
 
         return enrichReturnRequestResponse(rr);
     }
@@ -162,14 +187,16 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Transactional
     public ReturnReqResponse adminDecision(UUID adminId, AdminDecisionRequest request) {
 
-        ReturnRequest rr = returnRequestRepository.findById(request.getReturnRequestId())
+        ReturnRequest rr = returnRequestRepository
+                .findById(request.getReturnRequestId())
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
 
-        Booking booking = bookingRepository.findById(rr.getBookingId())
+        Booking booking = bookingRepository
+                .findById(rr.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
-        if (rr.getStatus() != ReturnRequestStatus.PROCESSING ||
-                booking.getStatus() != BookingStatus.RETURN_REFUND_PROCESSING) {
+        if (rr.getStatus() != ReturnRequestStatus.PROCESSING
+                || booking.getStatus() != BookingStatus.RETURN_REFUND_PROCESSING) {
             throw new AppException(ErrorCode.INVALID_RETURN_REQUEST_STATUS);
         }
 
@@ -180,13 +207,14 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         double refundAmount = rentalFee + deposit;
 
-        Account system = accountRepository.findSystemWallet()
+        Account system = accountRepository
+                .findSystemWallet()
                 .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
-        Account lessee = accountRepository.findById(rr.getLesseeId())
+        Account lessee = accountRepository
+                .findById(rr.getLesseeId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (system.getCoinBalance() < refundAmount)
-            throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+        if (system.getCoinBalance() < refundAmount) throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
 
         // chuyển tiền
         system.setCoinBalance(system.getCoinBalance() - refundAmount);
@@ -204,12 +232,10 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .build();
         transactionRepository.save(tx);
 
-        transactionBookingRepository.save(
-                TransactionBooking.builder()
-                        .bookingId(booking.getId())
-                        .transactionId(tx.getId())
-                        .build()
-        );
+        transactionBookingRepository.save(TransactionBooking.builder()
+                .bookingId(booking.getId())
+                .transactionId(tx.getId())
+                .build());
 
         // update return request
         rr.setAdminNote(request.getAdminNote());
@@ -221,8 +247,8 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         if (request.getIsApproved()) {
             rr.setStatus(ReturnRequestStatus.APPROVED);
 
-            if (rr.getReason() == ReasonReturnType.WRONG_DESCRIPTION ||
-                    rr.getReason() == ReasonReturnType.MISSING_PARTS) {
+            if (rr.getReason() == ReasonReturnType.WRONG_DESCRIPTION
+                    || rr.getReason() == ReasonReturnType.MISSING_PARTS) {
 
                 // ban item
                 itemRepository.findById(booking.getItemId()).ifPresent(item -> {
@@ -245,6 +271,33 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         bookingRepository.save(booking);
         returnRequestRepository.save(rr);
+
+        // thông báo cho hai bên về kết quả xử lý hoàn tiền
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(rr.getLesseeId())
+                .senderId(adminId)
+                .type(NotificationType.DEPOSIT_REFUNDED)
+                .title("Kết quả xử lý hoàn tiền")
+                .content(
+                        request.getIsApproved()
+                                ? "Yêu cầu hoàn tiền của bạn đã được chấp nhận."
+                                : "Yêu cầu hoàn tiền của bạn đã bị từ chối.")
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
+
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(rr.getLessorId())
+                .senderId(adminId)
+                .type(NotificationType.DEPOSIT_REFUNDED)
+                .title("Kết quả xử lý hoàn tiền")
+                .content(
+                        request.getIsApproved()
+                                ? "Yêu cầu hoàn tiền của đơn " + booking.getId() + " đã được chấp nhận."
+                                : "Yêu cầu hoàn tiền của đơn " + booking.getId() + " đã bị từ chối.")
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
 
         return enrichReturnRequestResponse(rr);
     }
@@ -294,22 +347,26 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         ReturnReqResponse res = returnRequestMapper.entityToResponse(req);
 
         // Load booking
-        Booking booking = bookingRepository.findById(req.getBookingId())
+        Booking booking = bookingRepository
+                .findById(req.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
         res.setBookingId(booking.getId());
 
         // Load item
-        Item item = itemRepository.findById(booking.getItemId())
+        Item item = itemRepository
+                .findById(booking.getItemId())
                 .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
         res.setItemName(item.getName());
 
         // Load lessee name
-        Account lessee = accountRepository.findById(req.getLesseeId())
+        Account lessee = accountRepository
+                .findById(req.getLesseeId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         res.setLesseeName(lessee.getLastname() + " " + lessee.getFirstname());
 
         // Load lessor name
-        Account lessor = accountRepository.findById(req.getLessorId())
+        Account lessor = accountRepository
+                .findById(req.getLessorId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         res.setLessorName(lessor.getLastname() + " " + lessor.getFirstname());
         return res;

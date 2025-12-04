@@ -1,3 +1,4 @@
+"use client";
 interface ItemDescriptionProps {
   description: string;
   depositAmount: number;

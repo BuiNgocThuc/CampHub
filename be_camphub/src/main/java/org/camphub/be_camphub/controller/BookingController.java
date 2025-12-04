@@ -26,8 +26,7 @@ public class BookingController {
 
     @PostMapping("/checkout")
     ApiResponse<List<BookingResponse>> checkout(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody BookingCreationRequest request) {
+            @AuthenticationPrincipal Jwt jwt, @RequestBody BookingCreationRequest request) {
         UUID lesseeId = UUID.fromString(jwt.getClaim("userId"));
         List<BookingResponse> list = bookingService.rentSelectedCartItems(lesseeId, request);
         return ApiResponse.<List<BookingResponse>>builder()
@@ -38,8 +37,7 @@ public class BookingController {
 
     @PutMapping("/{bookingId}/owner-response")
     ApiResponse<BookingResponse> ownerResponse(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody OwnerConfirmationRequest request) {
+            @AuthenticationPrincipal Jwt jwt, @RequestBody OwnerConfirmationRequest request) {
         UUID lessorId = UUID.fromString(jwt.getClaim("userId"));
         BookingResponse resp = bookingService.ownerRespondBooking(lessorId, request);
         return ApiResponse.<BookingResponse>builder()
@@ -49,9 +47,7 @@ public class BookingController {
     }
 
     @PutMapping("/{bookingId}/confirm-received")
-    ApiResponse<BookingResponse> confirmReceived(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID bookingId) {
+    ApiResponse<BookingResponse> confirmReceived(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID bookingId) {
         UUID lesseeId = UUID.fromString(jwt.getClaim("userId"));
         BookingResponse resp = bookingService.lesseeConfirmReceived(lesseeId, bookingId);
         return ApiResponse.<BookingResponse>builder()
@@ -62,8 +58,7 @@ public class BookingController {
 
     @PutMapping("/return")
     ApiResponse<BookingResponse> returnItem(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody LesseeReturnRequest request) {
+            @AuthenticationPrincipal Jwt jwt, @RequestBody LesseeReturnRequest request) {
         UUID lesseeId = UUID.fromString(jwt.getClaim("userId"));
         BookingResponse resp = bookingService.lesseeReturnItem(lesseeId, request);
         return ApiResponse.<BookingResponse>builder()
@@ -73,9 +68,7 @@ public class BookingController {
     }
 
     @PutMapping("/{bookingId}/lessor-confirm-return")
-    ApiResponse<BookingResponse> lessorConfirmReturn(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID bookingId) {
+    ApiResponse<BookingResponse> lessorConfirmReturn(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID bookingId) {
         UUID lessorId = UUID.fromString(jwt.getClaim("userId"));
         BookingResponse resp = bookingService.lessorConfirmReturn(lessorId, bookingId);
         return ApiResponse.<BookingResponse>builder()
@@ -92,11 +85,9 @@ public class BookingController {
                 .build();
     }
 
-//     lấy các đơn thuê mình đi thuê
+    //     lấy các đơn thuê mình đi thuê
     @GetMapping("/lessee")
-    ApiResponse<List<BookingResponse>> getBookingsByLessee(
-            @AuthenticationPrincipal Jwt jwt
-    ) {
+    ApiResponse<List<BookingResponse>> getBookingsByLessee(@AuthenticationPrincipal Jwt jwt) {
         UUID lesseeId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<List<BookingResponse>>builder()
                 .message("Get bookings by lessee")
@@ -121,5 +112,23 @@ public class BookingController {
                 .result(bookingService.getAllBookings())
                 .build();
     }
-}
 
+    @GetMapping("/{bookingId}")
+    ApiResponse<BookingResponse> getBookingById(@PathVariable UUID bookingId) {
+        return ApiResponse.<BookingResponse>builder()
+                .message("Get booking by id")
+                .result(bookingService.getAllBookings().stream()
+                        .filter(booking -> booking.getId().equals(bookingId))
+                        .findFirst()
+                        .orElse(null))
+                .build();
+    }
+
+    @PutMapping("/check-late-returns")
+    ApiResponse<Void> checkLateReturns() {
+        bookingService.checkAndUpdateLateReturns();
+        return ApiResponse.<Void>builder()
+                .message("Checked and updated late returns successfully")
+                .build();
+    }
+}

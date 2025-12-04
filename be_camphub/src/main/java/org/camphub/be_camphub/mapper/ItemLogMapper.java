@@ -5,7 +5,9 @@ import org.camphub.be_camphub.entity.ItemLog;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring", uses = { Utils_Mapper.class, MediaResourceMapper.class})
+@Mapper(
+        componentModel = "spring",
+        uses = {Utils_Mapper.class, MediaResourceMapper.class})
 public interface ItemLogMapper {
     @Mapping(target = "account", ignore = true) // sẽ set trong service
     @Mapping(target = "itemName", ignore = true) // sẽ set trong service
@@ -16,5 +18,3 @@ public interface ItemLogMapper {
     @Mapping(target = "media", source = "evidenceUrls", qualifiedByName = "toResponse")
     ItemLogsResponse entityToResponse(ItemLog itemLog);
 }
-
-

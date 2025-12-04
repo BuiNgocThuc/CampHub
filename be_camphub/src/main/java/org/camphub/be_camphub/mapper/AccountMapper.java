@@ -49,4 +49,3 @@ public interface AccountMapper {
 
     AccountResponse entityToResponse(Account account);
 }
-

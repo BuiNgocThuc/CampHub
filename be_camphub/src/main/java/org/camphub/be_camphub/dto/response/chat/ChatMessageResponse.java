@@ -1,13 +1,13 @@
 package org.camphub.be_camphub.dto.response.chat;
 
+import java.time.Instant;
+import java.util.UUID;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
-import java.time.Instant;
-import java.util.UUID;
 
 @Data
 @NoArgsConstructor

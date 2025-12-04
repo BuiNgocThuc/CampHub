@@ -1,8 +1,9 @@
 package org.camphub.be_camphub.dto.request;
 
+import org.camphub.be_camphub.enums.MediaType;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.camphub.be_camphub.enums.MediaType;
 
 @Data
 @Builder

@@ -1,7 +1,11 @@
 package org.camphub.be_camphub.service.impl;
 
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.camphub.be_camphub.dto.response.transaction.TransactionDetailResponse;
 import org.camphub.be_camphub.dto.response.transaction.TransactionResponse;
 import org.camphub.be_camphub.entity.Booking;
@@ -15,11 +19,8 @@ import org.camphub.be_camphub.repository.*;
 import org.camphub.be_camphub.service.TransactionService;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +36,8 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     public TransactionResponse getTransactionById(UUID transactionId) {
-        Transaction tx = transactionRepository.findById(transactionId)
+        Transaction tx = transactionRepository
+                .findById(transactionId)
                 .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
         return transactionMapper.entityToResponse(tx);
     }
@@ -43,12 +45,11 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public List<TransactionResponse> getTransactionsByAccount(UUID accountId) {
         List<Transaction> transactions =
-                transactionRepository.findByFromAccountIdOrToAccountId(accountId, accountId)
-                        .stream().distinct().toList();
+                transactionRepository.findByFromAccountIdOrToAccountId(accountId, accountId).stream()
+                        .distinct()
+                        .toList();
 
-        return transactions.stream()
-                .map(this::enrichTransactionResponse)
-                .toList();
+        return transactions.stream().map(this::enrichTransactionResponse).toList();
     }
 
     @Override
@@ -60,9 +61,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public List<TransactionResponse> getAllTransactions() {
         List<Transaction> transactions = transactionRepository.findAll();
-        return transactions.stream()
-                .map(transactionMapper::entityToResponse)
-                .toList();
+        return transactions.stream().map(transactionMapper::entityToResponse).toList();
     }
 
     @Override
@@ -92,30 +91,31 @@ public class TransactionServiceImpl implements TransactionService {
                 .map(TransactionBooking::getBookingId)
                 .distinct()
                 .toList();
-        Map<UUID, Booking> bookingMap = bookingRepository.findAllById(bookingIds).stream()
-                .collect(Collectors.toMap(Booking::getId, b -> b));
+        Map<UUID, Booking> bookingMap =
+                bookingRepository.findAllById(bookingIds).stream().collect(Collectors.toMap(Booking::getId, b -> b));
 
         // Load batched Items
-        List<UUID> itemIds = bookingMap.values().stream()
-                .map(Booking::getItemId)
-                .distinct()
+        List<UUID> itemIds =
+                bookingMap.values().stream().map(Booking::getItemId).distinct().toList();
+        Map<UUID, Item> itemMap =
+                itemRepository.findAllById(itemIds).stream().collect(Collectors.toMap(Item::getId, i -> i));
+
+        return txBookings.stream()
+                .map(tb -> {
+                    Transaction tx = txMap.get(tb.getTransactionId());
+                    if (tx == null) throw new AppException(ErrorCode.TRANSACTION_NOT_FOUND);
+
+                    Booking booking = bookingMap.get(tb.getBookingId());
+                    if (booking == null) throw new AppException(ErrorCode.BOOKING_NOT_FOUND);
+
+                    Item item = itemMap.get(booking.getItemId());
+                    if (item == null) throw new AppException(ErrorCode.ITEM_NOT_FOUND);
+
+                    TransactionDetailResponse response =
+                            transactionMapper.toTransactionDetailResponse(tx, tb, booking, item);
+                    return enrichTransactionDetailResponse(response);
+                })
                 .toList();
-        Map<UUID, Item> itemMap = itemRepository.findAllById(itemIds).stream()
-                .collect(Collectors.toMap(Item::getId, i -> i));
-
-        return txBookings.stream().map(tb -> {
-            Transaction tx = txMap.get(tb.getTransactionId());
-            if (tx == null) throw new AppException(ErrorCode.TRANSACTION_NOT_FOUND);
-
-            Booking booking = bookingMap.get(tb.getBookingId());
-            if (booking == null) throw new AppException(ErrorCode.BOOKING_NOT_FOUND);
-
-            Item item = itemMap.get(booking.getItemId());
-            if (item == null) throw new AppException(ErrorCode.ITEM_NOT_FOUND);
-
-            TransactionDetailResponse response = transactionMapper.toTransactionDetailResponse(tx, tb, booking, item);
-            return enrichTransactionDetailResponse(response);
-        }).toList();
     }
 
     private Map<UUID, Transaction> loadTransactions(List<TransactionBooking> txBookings) {
@@ -126,13 +126,13 @@ public class TransactionServiceImpl implements TransactionService {
                 .distinct()
                 .toList();
 
-        return transactionRepository.findAllById(txIds).stream()
-                .collect(Collectors.toMap(Transaction::getId, t -> t));
+        return transactionRepository.findAllById(txIds).stream().collect(Collectors.toMap(Transaction::getId, t -> t));
     }
 
     private String getAccountName(UUID accountId) {
-        return accountRepository.findById(accountId)
-                .map(acc -> acc.getLastname() + " " +  acc.getFirstname())
+        return accountRepository
+                .findById(accountId)
+                .map(acc -> acc.getLastname() + " " + acc.getFirstname())
                 .orElse("Unknown Account");
     }
 

@@ -1,4 +1,3 @@
-// src/libs/hooks/useItemMutations.ts
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createItem, updateItem, deleteItem } from "@/libs/api/item-api";
 import { Item } from "@/libs/core/types";

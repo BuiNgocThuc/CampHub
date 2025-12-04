@@ -6,7 +6,6 @@ export interface BookingCreationRequest {
 
 export interface BookingItemRequest {
     cartItemId: string;  // UUID
-    lessorId: string;    // UUID
     startDate: string;   // yyyy-MM-dd
     endDate: string;     // yyyy-MM-dd
     quantity: number;

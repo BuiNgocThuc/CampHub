@@ -1,7 +1,5 @@
 package org.camphub.be_camphub.configuration;
 
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import org.camphub.be_camphub.interceptor.JwtHandshakeInterceptor;
 import org.camphub.be_camphub.interceptor.StompAuthChannelInterceptor;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +8,9 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -33,7 +34,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .addInterceptors(jwtHandshakeInterceptor)
                 .withSockJS();
     }
-
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {

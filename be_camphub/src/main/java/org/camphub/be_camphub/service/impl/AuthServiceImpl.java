@@ -1,11 +1,11 @@
 package org.camphub.be_camphub.service.impl;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.UUID;
+
 import org.camphub.be_camphub.Utils.SecurityUtils;
 import org.camphub.be_camphub.dto.request.auth.AuthRequest;
 import org.camphub.be_camphub.dto.request.auth.RefreshTokenRequest;
 import org.camphub.be_camphub.dto.request.auth.RegisterRequest;
-import org.camphub.be_camphub.dto.response.account.AccountResponse;
 import org.camphub.be_camphub.dto.response.auth.AuthResponse;
 import org.camphub.be_camphub.dto.response.auth.MyInfoResponse;
 import org.camphub.be_camphub.dto.response.auth.RefreshTokenResponse;
@@ -24,8 +24,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
-import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -42,13 +41,13 @@ public class AuthServiceImpl implements AuthService {
     // compare request password with the password stored in the database
     @Override
     public AuthResponse authenticate(AuthRequest request) {
-        var user = accountRepository.findByUsername(request.getUsername())
+        var user = accountRepository
+                .findByUsername(request.getUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         boolean authenticated = securityUtils.checkMatchPassword(request.getPassword(), user.getPassword());
 
-        if (!authenticated)
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        if (!authenticated) throw new AppException(ErrorCode.UNAUTHENTICATED);
 
         String accessToken = securityUtils.generateAccessToken(user);
         String refreshToken = securityUtils.generateRefreshToken(user);
@@ -76,9 +75,7 @@ public class AuthServiceImpl implements AuthService {
         Account account = accountMapper.registerRequestToEntity(request);
         accountRepository.save(account);
 
-        return RegisterResponse.builder()
-                .success(true)
-                .build();
+        return RegisterResponse.builder().success(true).build();
     }
 
     @Override
@@ -89,8 +86,7 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        Account user = accountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Account user = accountRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         String newAccessToken = securityUtils.generateAccessToken(user);
 
@@ -103,22 +99,22 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public MyInfoResponse getMyInfo(UUID userId) {
         log.info("Fetching info for user ID in service layer: {}", userId);
-        Account account = accountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        Cart cart = cartRepository.findByAccountId(userId)
-                .orElseGet(() -> {
-                    Cart newCart = Cart.builder()
-                            .accountId(userId)
-                            .build();
-                    return cartRepository.save(newCart);
-                });
+        Account account =
+                accountRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Cart cart = cartRepository.findByAccountId(userId).orElseGet(() -> {
+            Cart newCart = Cart.builder().accountId(userId).build();
+            return cartRepository.save(newCart);
+        });
 
         Integer cartItemCount = cartItemRepository.countByCartId(cart.getId());
 
         Integer unreadNotificationCount = notificationRepository.countByReceiverIdAndIsReadFalse(userId);
 
-        log.info("User ID: {} has {} items in cart and {} unread notifications",
-                userId, cartItemCount, unreadNotificationCount);
+        log.info(
+                "User ID: {} has {} items in cart and {} unread notifications",
+                userId,
+                cartItemCount,
+                unreadNotificationCount);
         return MyInfoResponse.builder()
                 .id(account.getId())
                 .username(account.getUsername())

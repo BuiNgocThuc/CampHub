@@ -1,131 +1,170 @@
+// app/admin/disputes/page.tsx
 "use client";
 
 import { useState } from "react";
-import { Chip, IconButton } from "@mui/material";
+import {
+    Chip,
+    IconButton,
+    Tooltip,
+    Box,
+    Typography,
+    CircularProgress,
+} from "@mui/material";
 import { Eye } from "lucide-react";
-import { PrimaryTable, PrimaryModal } from "@/libs/components";
-import { Dispute, DamageType } from "@/libs/core/types";
+import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
+import { useQuery } from "@tanstack/react-query";
+import { getPendingDisputes } from "@/libs/api/dispute-api";
+import DisputeDetailModal from "./dispute-detail";
+import { Dispute } from "@/libs/core/types";
+import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { DisputeStatus } from "@/libs/core/constants";
-import { mockDisputes, mockDamageTypes } from "@/libs/utils";
 
-// Chi tiết khiếu nại hiển thị trong modal
-function DisputeDetail({ dispute }: { dispute: Dispute | null }) {
-    if (!dispute) return <div className="italic text-gray-500">Không có dữ liệu</div>;
-
-    const damageTypeName =
-        mockDamageTypes.find((d: DamageType) => d.id === dispute.damageTypeId)?.name ??
-        "Không xác định";
-
-    return (
-        <div className="space-y-4">
-            <p><strong>Mã đơn thuê:</strong> {dispute.bookingId}</p>
-            <p><strong>Người báo cáo:</strong> {dispute.reporterId}</p>
-            <p><strong>Người bị khiếu nại:</strong> {dispute.defenderId}</p>
-            <p><strong>Loại hư hại:</strong> {damageTypeName}</p>
-            <p><strong>Trạng thái:</strong> {dispute.status}</p>
-            {dispute.description && (
-                <p><strong>Mô tả khiếu nại:</strong> {dispute.description}</p>
-            )}
-            {dispute.compensationAmount !== undefined && (
-                <p><strong>Số tiền bồi thường đề xuất:</strong> {dispute.compensationAmount}</p>
-            )}
-            {dispute.evidences && dispute.evidences.length > 0 && (
-                <div>
-                    <strong>Minh chứng:</strong>
-                    <div className="grid grid-cols-3 gap-3 mt-2">
-                        {dispute.evidences.map((media, idx) => (
-                            <div
-                                key={idx}
-                                className="relative w-full flex flex-col items-center border rounded-lg overflow-hidden shadow-sm bg-gray-50"
-                            >
-                                {media.type === "VIDEO" ? (
-                                    <video
-                                        controls
-                                        className="w-full h-40 object-cover bg-black"
-                                        src={media.url}
-                                    />
-                                ) : (
-                                    <div className="relative w-full h-40">
-                                        <img
-                                            src={media.url}
-                                            alt={`evidence-${idx}`}
-                                            className="object-cover w-full h-full"
-                                        />
-                                    </div>
-                                )}
-                                {media.description && (
-                                    <p className="text-sm text-gray-600 px-2 py-1 text-center bg-white w-full border-t">
-                                        {media.description}
-                                    </p>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
+const statusConfig: Record<DisputeStatus, { label: string; color: "warning" | "success" }> = {
+    PENDING_REVIEW: { label: "Chờ xử lý", color: "warning" },
+    RESOLVED: { label: "Đã xử lý", color: "success" },
+};
 
 export default function DisputeList() {
-    const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
     const [openModal, setOpenModal] = useState(false);
+    const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
 
-    const columns = [
-        { field: "id", headerName: "Mã khiếu nại" },
-        { field: "reporterId", headerName: "Người báo cáo" },
-        { field: "defenderId", headerName: "Người bị khiếu nại" },
+    const { data: disputes = [], isLoading } = useQuery({
+        queryKey: ["pendingDisputes"],
+        queryFn: getPendingDisputes,
+    });
+
+    const handleView = (dispute: Dispute) => {
+        setSelectedDispute(dispute);
+        setOpenModal(true);
+    };
+
+
+    const columns: GridColDef<Dispute>[] = [
         {
-            field: "damageTypeId",
+            field: "id",
+            headerName: "Mã khiếu nại",
+            width: 130,
+            renderCell: (params) => (
+                <Typography fontFamily="monospace" color="text.secondary">
+                    {(params.value as string).slice(0, 8)}
+                </Typography>
+            ),
+        },
+        {
+            field: "reporterName",
+            headerName: "Người báo cáo",
+            width: 180,
+            renderCell: (params) => (
+                <Typography fontWeight="medium">{params.value as string}</Typography>
+            ),
+        },
+        {
+            field: "defenderName",
+            headerName: "Người bị báo cáo",
+            width: 180,
+            renderCell: (params) => (
+                <Typography fontWeight="medium">{params.value as string}</Typography>
+            ),
+        },
+        {
+            field: "damageTypeName",
             headerName: "Loại hư hại",
-            render: (row: Dispute) =>
-                mockDamageTypes.find(d => d.id === row.damageTypeId)?.name ?? "Không xác định",
+            width: 200,
+            renderCell: (params) => (
+                <Typography variant="body2">{params.value as string}</Typography>
+            ),
+        },
+        {
+            field: "compensationRate",
+            headerName: "Tỷ lệ bồi thường",
+            width: 140,
+            renderCell: (params) => {
+                const rate = params.value as number | null;
+                return rate != null ? `${(rate * 100).toFixed(0)}%` : "—";
+            },
         },
         {
             field: "status",
             headerName: "Trạng thái",
-            render: (row: Dispute) => {
-                const color =
-                    row.status === DisputeStatus.PENDING_REVIEW ? "warning" : "success";
-                return <Chip label={row.status} color={color as any} size="small" />;
+            width: 140,
+            renderCell: (params) => {
+                const status = params.value as DisputeStatus;
+                const config = statusConfig[status];
+                return (
+                    <Chip
+                        label={config.label}
+                        color={config.color}
+                        size="small"
+                        sx={{ fontWeight: 600, minWidth: 100 }}
+                    />
+                );
             },
         },
         {
             field: "createdAt",
             headerName: "Ngày tạo",
-            render: (row: Dispute) => new Date(row.createdAt).toLocaleString("vi-VN"),
+            width: 170,
+            renderCell: (params) => (
+                <Typography variant="body2">
+                    {new Date(params.value as string).toLocaleString("vi-VN")}
+                </Typography>
+            ),
         },
         {
             field: "actions",
-            headerName: "Chi tiết",
-            render: (row: Dispute) => (
-                <IconButton
-                    color="primary"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedDispute(row);
-                        setOpenModal(true);
-                    }}
-                >
-                    <Eye size={18} />
-                </IconButton>
+            headerName: "",
+            width: 100,
+            sortable: false,
+            renderCell: (params) => (
+                <Tooltip title="Xem chi tiết & xử lý">
+                    <IconButton
+                        color="primary"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleView(params.row);
+                        }}
+                    >
+                        <Eye size={18} />
+                    </IconButton>
+                </Tooltip>
             ),
         },
     ];
 
     return (
-        <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Danh sách khiếu nại – bồi thường</h2>
+        <Box p={6}>
+            <Typography variant="h5" fontWeight="bold" mb={4}>
+                Quản lý khiếu nại & bồi thường hư hỏng
+            </Typography>
 
-            <PrimaryTable columns={columns} rows={mockDisputes} />
+            {isLoading ? (
+                <Box display="flex" justifyContent="center" my={8}>
+                    <CircularProgress />
+                    <Typography ml={2}>Đang tải khiếu nại...</Typography>
+                </Box>
+            ) : disputes.length === 0 ? (
+                <Typography textAlign="center" color="text.secondary" py={10}>
+                    Không có khiếu nại nào đang chờ xử lý
+                </Typography>
+            ) : (
+                <PrimaryDataGrid<Dispute>
+                    rows={disputes}
+                    columns={columns}
+                    getRowId={(row) => row.id}
+                    onRowClick={(dispute: Dispute) => handleView(dispute)}
+                />
+            )}
 
             <PrimaryModal
                 open={openModal}
                 onClose={() => setOpenModal(false)}
-                title="Chi tiết khiếu nại"
+                title={selectedDispute ? `Khiếu nại #${selectedDispute.id.slice(0, 8)}` : "Chi tiết"}
+                maxWidth="lg"
             >
-                <DisputeDetail dispute={selectedDispute} />
+                {selectedDispute && (
+                    <DisputeDetailModal dispute={selectedDispute} onClose={() => setOpenModal(false)} />
+                )}
             </PrimaryModal>
-        </div>
+        </Box>
     );
 }

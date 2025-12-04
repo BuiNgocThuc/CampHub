@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
+
 import org.camphub.be_camphub.dto.request.cart.CartItemCreationRequest;
 import org.camphub.be_camphub.dto.request.cart.CartItemDeleteRequest;
 import org.camphub.be_camphub.dto.request.cart.CartItemPatchRequest;
@@ -29,9 +30,7 @@ public class CartController {
 
     @PostMapping("/items")
     public ApiResponse<CartItemResponse> addItemToCart(
-            @RequestBody @Valid CartItemCreationRequest request,
-            @AuthenticationPrincipal Jwt jwt
-    ) {
+            @RequestBody @Valid CartItemCreationRequest request, @AuthenticationPrincipal Jwt jwt) {
         UUID accountId = UUID.fromString(jwt.getClaim("userId"));
         CartItemResponse response = cartService.addItemToCart(accountId, request);
         return ApiResponse.<CartItemResponse>builder()
@@ -42,9 +41,7 @@ public class CartController {
 
     @PutMapping("/items/{cartItemId}")
     public ApiResponse<CartItemResponse> updateCartItem(
-            @PathVariable UUID cartItemId,
-            @RequestBody @Valid CartItemUpdateRequest request
-    ) {
+            @PathVariable UUID cartItemId, @RequestBody @Valid CartItemUpdateRequest request) {
         CartItemResponse response = cartService.updateCartItem(cartItemId, request);
         return ApiResponse.<CartItemResponse>builder()
                 .message("Update cart item successfully")
@@ -54,9 +51,7 @@ public class CartController {
 
     @PatchMapping("/items/{cartItemId}")
     public ApiResponse<CartItemResponse> patchCartItem(
-            @PathVariable UUID cartItemId,
-            @RequestBody @Valid CartItemPatchRequest request
-    ) {
+            @PathVariable UUID cartItemId, @RequestBody @Valid CartItemPatchRequest request) {
         CartItemResponse response = cartService.patchCartItem(cartItemId, request);
         return ApiResponse.<CartItemResponse>builder()
                 .message("Patch cart item successfully")
@@ -84,9 +79,7 @@ public class CartController {
     public ApiResponse<Void> clearCart(@AuthenticationPrincipal Jwt jwt) {
         UUID accountId = UUID.fromString(jwt.getClaim("userId"));
         cartService.clearCart(accountId);
-        return ApiResponse.<Void>builder()
-                .message("Clear cart successfully")
-                .build();
+        return ApiResponse.<Void>builder().message("Clear cart successfully").build();
     }
 
     @GetMapping("/items")
@@ -105,6 +98,15 @@ public class CartController {
         return ApiResponse.<Integer>builder()
                 .message("Get cart item count successfully")
                 .result(count)
+                .build();
+    }
+
+    @GetMapping("/items/{cartItemId}/validate-quantity")
+    public ApiResponse<Boolean> validateQuantity(@PathVariable UUID cartItemId, @RequestParam Integer quantity) {
+        boolean isValid = cartService.validateQuantity(cartItemId, quantity);
+        return ApiResponse.<Boolean>builder()
+                .message(isValid ? "Quantity is valid" : "Insufficient item quantity")
+                .result(isValid)
                 .build();
     }
 }

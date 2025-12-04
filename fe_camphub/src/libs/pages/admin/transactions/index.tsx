@@ -1,223 +1,228 @@
+// app/admin/transactions/TransactionList.tsx
 "use client";
 
 import { useState } from "react";
+import { IconButton, Chip, Box, Typography, CircularProgress, Tooltip } from "@mui/material";
+import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
+import { useQuery } from "@tanstack/react-query";
+import { getAllTransactions } from "@/libs/api/transaction-api";
 import { Transaction } from "@/libs/core/types";
-import { formatCurrency, formatDateTime, mockAccounts, mockBookings, mockTransactionBookings, mockTransactions } from "@/libs/utils";
-import { Chip, TextField, MenuItem, Divider, IconButton, Tooltip } from "@mui/material";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { TransactionStatus, TransactionType } from "@/libs/core/constants";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import TransactionDetailModal from "./transaction-detail";
+import { TransactionStatus, TransactionType } from "@/libs/core/constants";
+import { Visibility } from "@mui/icons-material";
+import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
+const typeLabels: Record<TransactionType, string> = {
+    RENTAL_PAYMENT: "Thanh toán thuê",
+    REFUND_FULL: "Hoàn tiền toàn phần",
+    REFUND_DEPOSIT: "Hoàn cọc",
+    RENTAL_PAYOUT: "Chi trả cho chủ",
+    EXTENSION_PAYMENT: "Phí gia hạn",
+    COMPENSATION_PAYOUT: "Bồi thường thiệt hại",
+};
+
+const statusLabels: Record<TransactionStatus, string> = {
+    SUCCESS: "Thành công",
+    FAILED: "Thất bại",
+    PENDING: "Đang xử lý",
+};
+
+const statusColors: Record<TransactionStatus, "success" | "error" | "warning" | "info"> = {
+    SUCCESS: "success",
+    FAILED: "error",
+    PENDING: "warning",
+};
 
 export default function TransactionList() {
-    const [typeFilter, setTypeFilter] = useState<string>("");
-    const [statusFilter, setStatusFilter] = useState<string>("");
-    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [typeFilter, setTypeFilter] = useState<TransactionType | "">("");
+    const [statusFilter, setStatusFilter] = useState<TransactionStatus | "">("");
+    const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
     const [openDetail, setOpenDetail] = useState(false);
-    const router = useRouter();
 
-    //Map accountId -> fullName
-    const getAccountName = (accountId: string): string => {
-        const acc = mockAccounts.find((a) => a.id === accountId);
-        return acc ? acc.firstname + " " + acc.lastname : "N/A";
-    };
+    const { data: transactions = [], isLoading } = useQuery({
+        queryKey: ["adminTransactions"],
+        queryFn: getAllTransactions,
+    });
 
-    // Bổ sung thêm tên người gửi / nhận
-    const transactionsWithNames = mockTransactions.map((t) => ({
-        ...t,
-        fromAccountName: getAccountName(t.fromAccountId),
-        toAccountName: getAccountName(t.toAccountId),
-    }));
-
-    // Lọc theo loại & trạng thái
-    const filteredTransactions = transactionsWithNames.filter((t) => {
+    const filteredTransactions = transactions.filter((t) => {
         const typeMatch = typeFilter ? t.type === typeFilter : true;
         const statusMatch = statusFilter ? t.status === statusFilter : true;
         return typeMatch && statusMatch;
     });
 
-    const handleView = (transaction: Transaction) => {
-        setSelectedTransaction(transaction);
-        setOpenDetail(true);
-    };
-
-    const getBookingsByTransaction = (transactionId: string) => {
-        const relatedIds = mockTransactionBookings
-            .filter((tb) => tb.transactionId === transactionId)
-            .map((tb) => tb.bookingId);
-        return mockBookings.filter((b) => relatedIds.includes(b.id));
-    };
-
-    const columns: GridColDef[] = [
-        { field: "id", headerName: "Mã GD", width: 140 },
-        { field: "fromAccountName", headerName: "Người gửi", width: 180 },
-        { field: "toAccountName", headerName: "Người nhận", width: 180 },
+    const columns: GridColDef<Transaction>[] = [
+        {
+            field: "id",
+            headerName: "Mã giao dịch",
+            width: 150,
+            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
+                <Typography fontFamily="monospace" fontSize="0.875rem">
+                    {String(params.value).slice(0, 12)}...
+                </Typography>
+            ),
+        },
+        {
+            field: "senderName",
+            headerName: "Người gửi",
+            width: 200,
+            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
+                <Box>
+                    <div className="font-medium">{params.row.senderName}</div>
+                    <div className="text-xs text-gray-500">ID: {params.row.fromAccountId}</div>
+                </Box>
+            ),
+        },
+        {
+            field: "receiverName",
+            headerName: "Người nhận",
+            width: 200,
+            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
+                <Box>
+                    <div className="font-medium">{params.row.receiverName}</div>
+                    <div className="text-xs text-gray-500">ID: {params.row.toAccountId}</div>
+                </Box>
+            ),
+        },
         {
             field: "amount",
-            headerName: "Số tiền (VNĐ)",
+            headerName: "Số tiền",
             width: 160,
-            renderCell: (params) => (
-                <span className="font-semibold text-blue-600">
-                    {formatCurrency(params.value)}
-                </span>
+            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
+                <Typography fontWeight="bold" color="primary">
+                    {new Intl.NumberFormat("vi-VN", {
+                        style: "currency",
+                        currency: "VND",
+                    }).format(Number(params.value) ?? 0)}
+                </Typography>
             ),
         },
         {
             field: "type",
             headerName: "Loại giao dịch",
-            width: 180,
-            renderCell: (params) => (
-                <Chip
-                    label={mapTransactionType(params.value)}
-                    color="info"
-                    size="small"
-                    variant="outlined"
-                />
-            ),
+            width: 200,
+            renderCell: (params: GridRenderCellParams<any, Transaction>) => {
+                const type = params.row.type as TransactionType;
+                return (
+                    <Chip
+                        label={typeLabels[type] || type}
+                        color="info"
+                        variant="outlined"
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                    />
+                );
+            },
         },
         {
             field: "status",
             headerName: "Trạng thái",
             width: 140,
-            renderCell: (params) => (
-                <Chip
-                    label={mapStatus(params.value)}
-                    color={
-                        params.value === TransactionStatus.SUCCESS
-                            ? "success"
-                            : params.value === TransactionStatus.FAILED
-                                ? "error"
-                                : "warning"
-                    }
-                    size="small"
-                />
-            ),
+            renderCell: (params: GridRenderCellParams<any, Transaction>) => {
+                const status = params.row.status as TransactionStatus;
+                return (
+                    <Chip
+                        label={statusLabels[status] || status}
+                        color={statusColors[status] || "default"}
+                        size="small"
+                    />
+                );
+            },
         },
         {
             field: "createdAt",
-            headerName: "Ngày tạo",
+            headerName: "Thời gian",
             width: 180,
-            renderCell: (params) => formatDateTime(params.value),
+            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
+                <Typography variant="body2">
+                    {format(new Date(params.row.createdAt), "dd/MM/yyyy HH:mm")}
+                </Typography>
+            ),
         },
-
         {
             field: "actions",
-            headerName: "Thao tác",
-            width: 120,
+            headerName: "",
+            width: 100,
             sortable: false,
             filterable: false,
-            align: "center",
-            headerAlign: "center",
-            renderCell: (params) => (
+            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
                 <Tooltip title="Xem chi tiết">
                     <IconButton
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTx(params.row);
+                            setOpenDetail(true);
+                        }}
                         color="primary"
-                        onClick={() => router.push(`/admin/transactions/${params.row.id}`)}
                     >
-                        <VisibilityIcon />
+                        <Visibility />
                     </IconButton>
                 </Tooltip>
             ),
         },
     ];
 
+    if (isLoading) {
+        return (
+            <Box display="flex" justifyContent="center" my={10} gap={2}>
+                <CircularProgress />
+                <Typography>Đang tải danh sách giao dịch...</Typography>
+            </Box>
+        );
+    }
+
     return (
-        <div className="space-y-4">
-            <div className="flex flex-wrap gap-3 items-center">
-                <TextField
-                    label="Loại giao dịch"
-                    select
-                    size="small"
+        <Box p={4}>
+            <Typography variant="h5" fontWeight="bold" mb={4}>
+                Quản lý giao dịch tài chính
+            </Typography>
+
+            <Box display="flex" gap={3} mb={3} flexWrap="wrap">
+                <select
                     value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                    sx={{ minWidth: 200 }}
+                    onChange={(e) => setTypeFilter(e.target.value as TransactionType | "")}
+                    className="px-4 py-2 border rounded-lg text-sm min-w-[220px]"
                 >
-                    <MenuItem value="">Tất cả</MenuItem>
+                    <option value="">Tất cả loại giao dịch</option>
                     {Object.values(TransactionType).map((t) => (
-                        <MenuItem key={t} value={t}>
-                            {mapTransactionType(t)}
-                        </MenuItem>
+                        <option key={t} value={t}>
+                            {typeLabels[t]}
+                        </option>
                     ))}
-                </TextField>
+                </select>
 
-                <TextField
-                    label="Trạng thái"
-                    select
-                    size="small"
+                <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    sx={{ minWidth: 200 }}
+                    onChange={(e) => setStatusFilter(e.target.value as TransactionStatus | "")}
+                    className="px-4 py-2 border rounded-lg text-sm min-w-[180px]"
                 >
-                    <MenuItem value="">Tất cả</MenuItem>
+                    <option value="">Tất cả trạng thái</option>
                     {Object.values(TransactionStatus).map((s) => (
-                        <MenuItem key={s} value={s}>
-                            {mapStatus(s)}
-                        </MenuItem>
+                        <option key={s} value={s}>
+                            {statusLabels[s]}
+                        </option>
                     ))}
-                </TextField>
-            </div>
+                </select>
+            </Box>
 
-            <Divider />
-
-            <DataGrid
+            <PrimaryDataGrid<Transaction>
                 rows={filteredTransactions}
                 columns={columns}
+                loading={isLoading}
                 getRowId={(row) => row.id}
-                autoHeight
-                disableRowSelectionOnClick
-                pageSizeOptions={[5, 10]}
-                initialState={{
-                    pagination: { paginationModel: { pageSize: 5, page: 0 } },
-                }}
-                localeText={{
-                    noRowsLabel: "Không có dữ liệu giao dịch",
+                onRowClick={(transaction: Transaction) => {
+                    setSelectedTx(transaction);
+                    setOpenDetail(true);
                 }}
             />
 
-            <TransactionDetailModal
+            <PrimaryModal
                 open={openDetail}
                 onClose={() => setOpenDetail(false)}
-                transaction={selectedTransaction || undefined}
-                bookings={
-                    selectedTransaction
-                        ? getBookingsByTransaction(selectedTransaction.id)
-                        : []
-                }
-            />
-        </div>
-
-
+                title={selectedTx ? `Chi tiết giao dịch #${selectedTx.id.slice(0, 12)}` : "Chi tiết giao dịch"}
+            >
+                {selectedTx && <TransactionDetailModal transaction={selectedTx} />}
+            </PrimaryModal>
+        </Box>
     );
-}
-
-function mapTransactionType(type: TransactionType) {
-    switch (type) {
-        case TransactionType.RENTAL_PAYMENT:
-            return "Thanh toán thuê";
-        case TransactionType.REFUND_DEPOSIT:
-            return "Hoàn cọc";
-        case TransactionType.REFUND_FULL:
-            return "Hoàn tiền";
-        case TransactionType.COMPENSATION_PAYOUT:
-            return "Bồi thường";
-        case TransactionType.EXTENSION_PAYMENT:
-            return "Phí gia hạn";
-        default:
-            return type;
-    }
-}
-
-function mapStatus(status: TransactionStatus) {
-    switch (status) {
-        case TransactionStatus.SUCCESS:
-            return "Thành công";
-        case TransactionStatus.FAILED:
-            return "Thất bại";
-        case TransactionStatus.PENDING:
-            return "Đang xử lý";
-        default:
-            return status;
-    }
 }

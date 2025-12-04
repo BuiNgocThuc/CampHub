@@ -19,10 +19,70 @@ export const disputeMapper = createMapper({
 // ========================================================
 // Metadata
 // ========================================================
-PojosMetadataMap.create<Dispute>('Dispute', {});
-PojosMetadataMap.create<DisputeResponse>('DisputeResponse', {});
-PojosMetadataMap.create<DisputeCreationRequest>('DisputeCreationRequest', {});
-PojosMetadataMap.create<AdminReviewDisputeRequest>('AdminReviewDisputeRequest', {});
+PojosMetadataMap.create<Dispute>('Dispute', {
+    id: String,
+    bookingId: String,
+    reporterId: String,
+    defenderId: String,
+    adminId: String,
+
+    reporterName: String,
+    defenderName: String,
+    adminName: String,
+
+    description: String,
+    evidenceUrls: Array,
+    damageTypeId: String,
+    damageTypeName: String,
+    compensationRate: Number,
+
+    status: String,
+    adminDecision: String,
+    compensationAmount: Number,
+    adminNote: String,
+
+    createdAt: String,
+    resolvedAt: String,
+});
+
+PojosMetadataMap.create<DisputeResponse>('DisputeResponse', {
+    id: String,
+    bookingId: String,
+    reporterId: String,
+    defenderId: String,
+    adminId: String,
+
+    reporterName: String,
+    defenderName: String,
+    adminName: String,
+
+    description: String,
+    evidenceUrls: Array,
+    damageTypeId: String,
+    damageTypeName: String,
+    compensationRate: Number,
+
+    status: String,
+    adminDecision: String,
+    compensationAmount: Number,
+    adminNote: String,
+
+    createdAt: String,
+    resolvedAt: String,
+});
+
+PojosMetadataMap.create<DisputeCreationRequest>('DisputeCreationRequest', {
+    bookingId: String,
+    damageTypeId: String,
+    note: String,
+    evidenceUrls: Array,
+});
+
+PojosMetadataMap.create<AdminReviewDisputeRequest>('AdminReviewDisputeRequest', {
+    disputeId: String,
+    isApproved: Boolean,
+    adminNote: String,
+});
 
 
 // ========================================================
@@ -63,12 +123,12 @@ createMap<Dispute, AdminReviewDisputeRequest>(
 export const disputeMap = {
     /** Backend → FE model */
     fromResponse(dto: DisputeResponse): Dispute {
-        return disputeMapper.map(dto, 'Dispute', 'DisputeResponse');
+        return disputeMapper.map(dto, 'DisputeResponse', 'Dispute');
     },
 
     /** FE model → Create Dispute Request */
     toCreationRequest(model: Dispute): DisputeCreationRequest {
-        return disputeMapper.map(model, 'DisputeCreationRequest', 'Dispute');
+        return disputeMapper.map(model, 'Dispute', 'DisputeCreationRequest');
     },
 
     /** FE model → Admin review request */

@@ -1,6 +1,5 @@
 package org.camphub.be_camphub.dto.response.category;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import lombok.*;

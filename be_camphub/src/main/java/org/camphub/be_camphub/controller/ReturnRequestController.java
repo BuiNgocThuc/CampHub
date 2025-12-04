@@ -1,9 +1,10 @@
 package org.camphub.be_camphub.controller;
 
+import java.util.List;
+import java.util.UUID;
+
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+
 import org.camphub.be_camphub.dto.request.return_req.AdminDecisionRequest;
 import org.camphub.be_camphub.dto.request.return_req.LesseeSubmitReturnRequest;
 import org.camphub.be_camphub.dto.request.return_req.LessorConfirmReturnRequest;
@@ -15,8 +16,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
@@ -31,9 +33,7 @@ public class ReturnRequestController {
      */
     @PostMapping("/create")
     public ApiResponse<ReturnReqResponse> createReturnRequest(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody @Valid ReturnReqCreationRequest request
-    ) {
+            @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid ReturnReqCreationRequest request) {
         UUID ownerId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ReturnReqResponse>builder()
                 .message("Create return request successfully")
@@ -46,9 +46,7 @@ public class ReturnRequestController {
      */
     @PostMapping("/lessee/submit-return")
     public ApiResponse<ReturnReqResponse> lesseeSubmitReturn(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody @Valid LesseeSubmitReturnRequest request
-    ) {
+            @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid LesseeSubmitReturnRequest request) {
         UUID lesseeId = UUID.fromString(jwt.getClaim("userId"));
 
         return ApiResponse.<ReturnReqResponse>builder()
@@ -62,9 +60,7 @@ public class ReturnRequestController {
      */
     @PostMapping("/lessor/confirm")
     public ApiResponse<ReturnReqResponse> lessorConfirmReturn(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody @Valid LessorConfirmReturnRequest request
-    ) {
+            @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid LessorConfirmReturnRequest request) {
         UUID lessorId = UUID.fromString(jwt.getClaim("userId"));
 
         return ApiResponse.<ReturnReqResponse>builder()
@@ -78,9 +74,7 @@ public class ReturnRequestController {
      */
     @PostMapping("/admin/decision")
     public ApiResponse<ReturnReqResponse> adminDecision(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody @Valid AdminDecisionRequest request
-    ) {
+            @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid AdminDecisionRequest request) {
         UUID adminId = UUID.fromString(jwt.getClaim("userId"));
 
         return ApiResponse.<ReturnReqResponse>builder()

@@ -2,12 +2,9 @@ package org.camphub.be_camphub.mapper;
 
 import org.camphub.be_camphub.dto.request.chat.ChatMessageRequest;
 import org.camphub.be_camphub.dto.response.chat.ChatMessageResponse;
-import org.camphub.be_camphub.dto.response.chat.ChatRoomResponse;
 import org.camphub.be_camphub.entity.ChatMessage;
-import org.camphub.be_camphub.entity.ChatRoom;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-
 
 @Mapper(componentModel = "spring")
 public interface ChatMessageMapper {

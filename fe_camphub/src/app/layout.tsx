@@ -1,26 +1,19 @@
-import type { Metadata } from "next";
+import { QueryProvider } from "@/libs/providers";
 import "./globals.css";
-
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-const queryClient = new QueryClient();
+import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "CampHub",
   description: "A platform to rent and manage camping gear with ease.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <QueryClientProvider client={queryClient}>
+        <QueryProvider>
           {children}
-        </QueryClientProvider>
+        </QueryProvider>
       </body>
     </html>
   );

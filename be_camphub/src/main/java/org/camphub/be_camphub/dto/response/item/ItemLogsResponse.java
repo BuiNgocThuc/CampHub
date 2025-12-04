@@ -3,9 +3,10 @@ package org.camphub.be_camphub.dto.response.item;
 import java.util.List;
 import java.util.UUID;
 
+import org.camphub.be_camphub.dto.response.MediaResourceResponse;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.camphub.be_camphub.dto.response.MediaResourceResponse;
 
 @Data
 @Builder

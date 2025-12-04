@@ -19,10 +19,48 @@ export const extensionRequestMapper = createMapper({
 // ===============================
 // Metadata declarations
 // ===============================
-PojosMetadataMap.create<ExtensionRequest>("ExtensionRequest", {});
-PojosMetadataMap.create<ExtensionReqResponse>("ExtensionReqResponse", {});
-PojosMetadataMap.create<ExtensionReqCreationRequest>("ExtensionReqCreationRequest", {});
-PojosMetadataMap.create<ExtensionResponseRequest>("ExtensionResponseRequest", {});
+PojosMetadataMap.create<ExtensionRequest>("ExtensionRequest", {
+    id: String,
+    bookingId: String,
+    lesseeId: String,
+    lessorId: String,
+    itemName: String,
+    lesseeName: String,
+    lessorName: String,
+    oldEndDate: String,
+    requestedNewEndDate: String,
+    additionalFee: Number,
+    status: String,
+    note: String,
+    createdAt: String,
+});
+
+PojosMetadataMap.create<ExtensionReqResponse>("ExtensionReqResponse", {
+    id: String,
+    bookingId: String,
+    lesseeId: String,
+    lessorId: String,
+    itemName: String,
+    lesseeName: String,
+    lessorName: String,
+    oldEndDate: String,
+    requestedNewEndDate: String,
+    additionalFee: Number,
+    status: String,
+    note: String,
+    createdAt: String,
+});
+
+PojosMetadataMap.create<ExtensionReqCreationRequest>("ExtensionReqCreationRequest", {
+    bookingId: String,
+    additionalDays: Number,
+    note: String,
+});
+
+PojosMetadataMap.create<ExtensionResponseRequest>("ExtensionResponseRequest", {
+    requestId: String,
+    note: String,
+});
 
 // ===============================
 // Mapping: DTO Response → Model

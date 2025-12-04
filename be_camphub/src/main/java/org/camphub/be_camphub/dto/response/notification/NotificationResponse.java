@@ -1,10 +1,6 @@
 package org.camphub.be_camphub.dto.response.notification;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
-
-import org.camphub.be_camphub.enums.NotificationType;
-import org.camphub.be_camphub.enums.ReferenceType;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

@@ -43,3 +43,8 @@ export const getPendingDisputes = async (): Promise<Dispute[]> => {
         throw error;
     }
 };
+
+export const getDisputeById = async (disputeId: string): Promise<Dispute> => {
+  const response = await api.get<ApiResponse<DisputeResponse>>(`/disputes/${disputeId}`);
+  return disputeMap.fromResponse(response.data.result);
+};

@@ -1,5 +1,5 @@
 "use client";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent } from "@mui/material";
 import { X } from "lucide-react";
 import { ReactNode } from "react";
 
@@ -10,11 +10,13 @@ interface PrimaryModalProps {
     onSave?: () => void;
     children: ReactNode;
     isCreate?: boolean;
+    maxWidth?: "xs" | "sm" | "md" | "lg" | "xl" | false;
+    fullWidth?: boolean;
 }
 
-export default function PrimaryModal({ open, title, onClose, onSave, children, isCreate }: PrimaryModalProps) {
+export default function PrimaryModal({ open, title, onClose, onSave, children, isCreate, maxWidth = "md", fullWidth = true }: PrimaryModalProps) {
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth={maxWidth} fullWidth={fullWidth}>
             <DialogTitle className="font-bold text-lg flex justify-between items-center">
                 {title}
                 <div className="w-8 h-8 float-right cursor-pointer flex items-center justify-center rounded-full hover:bg-gray-100" onClick={onClose}>

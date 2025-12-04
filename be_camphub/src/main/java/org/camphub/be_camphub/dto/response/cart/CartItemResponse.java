@@ -21,6 +21,8 @@ public class CartItemResponse {
     // image URL of the item
     String itemImage;
 
+    BigDecimal depositAmount;
+
     Integer quantity;
     Integer rentalDays;
     BigDecimal price;

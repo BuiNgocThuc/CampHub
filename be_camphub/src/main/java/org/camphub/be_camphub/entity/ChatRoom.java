@@ -1,17 +1,19 @@
 package org.camphub.be_camphub.entity;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import jakarta.persistence.Id;
+
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 @Document(collection = "chat_rooms")
 @Data
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class ChatRoom {
     @Id
     String id;
+
     String chatCode;
     List<UUID> participantIds;
     String lastMessage;

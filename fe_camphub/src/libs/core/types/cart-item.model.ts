@@ -5,6 +5,9 @@ export interface CartItem {
 
     itemName: string;
     itemImage: string;
+
+    depositAmount: number;
+    isAvailable: boolean;
     
     quantity: number;
     rentalDays: number;

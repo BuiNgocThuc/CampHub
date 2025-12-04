@@ -1,12 +1,9 @@
 package org.camphub.be_camphub.dto.response.review;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.camphub.be_camphub.dto.request.MediaResourceRequest;
 import org.camphub.be_camphub.dto.response.MediaResourceResponse;
-import org.camphub.be_camphub.entity.MediaResource;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -23,6 +20,7 @@ public class ReviewResponse {
     UUID reviewedId;
 
     String reviewerName;
+    String reviewerAvatar;
     String itemName;
 
     Integer rating;
