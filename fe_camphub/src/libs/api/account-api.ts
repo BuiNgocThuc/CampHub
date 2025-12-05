@@ -73,3 +73,15 @@ export const topUpAccount = async (request: TopUpRequest): Promise<ApiResponse<T
         throw error;
     }
 };
+
+// --------------------- LOCK/UNLOCK ---------------------
+export const toggleAccountStatus = async (id: string, isActive: boolean): Promise<Account> => {
+    try {
+        const response = await api.patch<ApiResponse<AccountResponse>>(`/accounts/${id}`, {
+            status: isActive ? "ACTIVE" : "INACTIVE",
+        });
+        return accountMap.fromResponse(response.data.result);
+    } catch (error) {
+        throw error;
+    }
+};

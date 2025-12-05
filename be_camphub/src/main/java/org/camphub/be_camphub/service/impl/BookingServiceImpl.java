@@ -639,6 +639,7 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
     }
 
+    // xử lý trường hợp người thuê không trả đồ sau 3 ngày trễ
     private void handleUnreturnedBooking(Booking booking) {
         LocalDateTime now = LocalDateTime.now();
         // Cập nhật trạng thái Booking và Item

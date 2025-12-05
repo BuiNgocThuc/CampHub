@@ -2,12 +2,14 @@
 "use client";
 
 import { useState } from "react";
-import { PrimaryDataGrid, PrimaryModal, PrimaryTextField, PrimaryButton, CustomizedButton, OutlineButton } from "@/libs/components";
+import { PrimaryDataGrid, PrimaryModal, PrimaryTextField, PrimaryButton, OutlineButton } from "@/libs/components";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllCategories, createCategory, updateCategory, deleteCategory } from "@/libs/api/category-api";
 import { Category } from "@/libs/core/types";
 import { toast } from "sonner";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography, IconButton, Tooltip } from "@mui/material";
+import { Edit, Trash2 } from "lucide-react";
+import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 export default function CategoryList() {
   const [open, setOpen] = useState(false);
@@ -41,55 +43,74 @@ export default function CategoryList() {
     onError: () => toast.error("Không thể xóa danh mục đang có sản phẩm!"),
   });
 
+  const columns: GridColDef<Category>[] = [
+    { field: "name", headerName: "Tên danh mục", width: 250, flex: 1.2, minWidth: 200 },
+    { field: "description", headerName: "Mô tả", width: 400, flex: 2, minWidth: 300 },
+    {
+      field: "actions",
+      headerName: "Thao tác",
+      width: 120,
+      flex: 0,
+      sortable: false,
+      renderCell: (params: GridRenderCellParams<Category>) => (
+        <Box display="flex" gap={0.5}>
+          <Tooltip title="Sửa">
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelected(params.row);
+                setOpen(true);
+              }}
+            >
+              <Edit size={16} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Xóa">
+            <IconButton
+              size="small"
+              color="error"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm(`Xóa danh mục "${params.row.name}"?`)) {
+                  deleteMutation.mutate(params.row.id);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              <Trash2 size={16} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
+
   return (
     <>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h6" fontWeight="bold">Danh mục sản phẩm</Typography>
-        <PrimaryButton
-          content="Thêm danh mục"
-          onClick={() => {
-            setSelected(null);
-            setOpen(true);
-          }}
-        />
-      </Box>
+      <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 140px)" }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} sx={{ flexShrink: 0 }}>
+          <Typography variant="h5" fontWeight="bold">Danh mục sản phẩm ({categories.length})</Typography>
+          <PrimaryButton
+            content="Thêm danh mục"
+            className="text-sm px-3 py-1.5"
+            onClick={() => {
+              setSelected(null);
+              setOpen(true);
+            }}
+          />
+        </Box>
 
-      <PrimaryDataGrid<Category>
-        rows={categories}
-        columns={[
-          { field: "name", headerName: "Tên danh mục", width: 300 },
-          { field: "description", headerName: "Mô tả", width: 500 },
-          {
-            field: "actions",
-            headerName: "Thao tác",
-            width: 200,
-            renderCell: (params) => (
-              <div className="flex gap-2">
-                <PrimaryButton
-                  content="Sửa"
-                  size="small"
-                  onClick={() => {
-                    setSelected(params.row);
-                    setOpen(true);
-                  }}
-                />
-                <CustomizedButton
-                  color="red"
-                  content="Xóa"
-                  size="small"
-                  onClick={() => {
-                    if (confirm(`Xóa danh mục "${params.row.name}"?`)) {
-                      deleteMutation.mutate(params.row.id);
-                    }
-                  }}
-                />
-              </div>
-            ),
-          },
-        ]}
-        loading={isLoading}
-        getRowId={(r) => r.id}
-      />
+        <Box sx={{ flex: 1, minHeight: 0 }}>
+          <PrimaryDataGrid<Category>
+            rows={categories}
+            columns={columns}
+            loading={isLoading}
+            getRowId={(r) => r.id}
+          />
+        </Box>
+      </Box>
 
       <PrimaryModal
         open={open}

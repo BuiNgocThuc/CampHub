@@ -132,28 +132,30 @@ export default function DisputeList() {
     ];
 
     return (
-        <Box p={6}>
-            <Typography variant="h5" fontWeight="bold" mb={4}>
-                Quản lý khiếu nại & bồi thường hư hỏng
-            </Typography>
-
-            {isLoading ? (
-                <Box display="flex" justifyContent="center" my={8}>
-                    <CircularProgress />
-                    <Typography ml={2}>Đang tải khiếu nại...</Typography>
-                </Box>
-            ) : disputes.length === 0 ? (
-                <Typography textAlign="center" color="text.secondary" py={10}>
-                    Không có khiếu nại nào đang chờ xử lý
+        <div className="p-6 bg-gray-50 min-h-screen">
+            <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ maxHeight: "calc(100vh - 120px)", overflow: "auto" }}>
+                <Typography variant="h5" fontWeight="bold" mb={4}>
+                    Quản lý khiếu nại & bồi thường hư hỏng
                 </Typography>
-            ) : (
-                <PrimaryDataGrid<Dispute>
-                    rows={disputes}
-                    columns={columns}
-                    getRowId={(row) => row.id}
-                    onRowClick={(dispute: Dispute) => handleView(dispute)}
-                />
-            )}
+
+                {isLoading ? (
+                    <Box display="flex" justifyContent="center" my={8}>
+                        <CircularProgress />
+                        <Typography ml={2}>Đang tải khiếu nại...</Typography>
+                    </Box>
+                ) : disputes.length === 0 ? (
+                    <Typography textAlign="center" color="text.secondary" py={10}>
+                        Không có khiếu nại nào đang chờ xử lý
+                    </Typography>
+                ) : (
+                    <PrimaryDataGrid<Dispute>
+                        rows={disputes}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                        onRowClick={(dispute: Dispute) => handleView(dispute)}
+                    />
+                )}
+            </Box>
 
             <PrimaryModal
                 open={openModal}
@@ -165,6 +167,6 @@ export default function DisputeList() {
                     <DisputeDetailModal dispute={selectedDispute} onClose={() => setOpenModal(false)} />
                 )}
             </PrimaryModal>
-        </Box>
+        </div>
     );
 }

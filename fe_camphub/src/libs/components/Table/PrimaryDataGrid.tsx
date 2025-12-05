@@ -20,13 +20,13 @@ export default function PrimaryDataGrid<T extends GridValidRowModel>({
     loading = false,
     pageSize = 10,
     rowsPerPageOptions = [10, 20, 50],
-    
+
     onRowClick,
     getRowId,
 }: PrimaryDataGridProps<T>) {
     return (
-        <Paper elevation={3} sx={{ borderRadius: 3, overflow: "hidden" }}>
-            <Box sx={{ height: 600, width: "100%" }}>
+        <Paper elevation={0} sx={{ borderRadius: 0, overflow: "hidden", boxShadow: "none", height: "100%" }}>
+            <Box sx={{ height: "100%", width: "100%" }}>
                 <DataGrid
                     rows={rows}
                     columns={columns}
@@ -47,7 +47,25 @@ export default function PrimaryDataGrid<T extends GridValidRowModel>({
                             fontWeight: "bold",
                             color: "#1e293b",
                         },
+                        "& .MuiDataGrid-main": {
+                            overflowX: "hidden",
+                        },
+                        "& .MuiDataGrid-virtualScroller": {
+                            overflowX: "hidden !important",
+                        },
+                        "& .MuiDataGrid-cell": {
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "flex-start",
+                        },
+                        "& .MuiDataGrid-columnHeader": {
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        },
                     }}
+                    disableColumnResize
+                    disableColumnMenu
                 />
             </Box>
         </Paper>

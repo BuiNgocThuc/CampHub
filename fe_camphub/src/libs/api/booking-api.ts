@@ -120,6 +120,7 @@ export const getAllBookings = async (): Promise<Booking[]> => {
         const response = await api.get<ApiResponse<BookingResponse[]>>(
             `/bookings`
         );
+        console.log(response.data.result);
         return response.data.result.map(bookingMap.fromResponse);
     } catch (error) {
         throw error;

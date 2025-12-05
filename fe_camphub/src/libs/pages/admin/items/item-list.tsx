@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { PrimaryDataGrid, PrimaryModal, PrimarySelectField } from "@/libs/components";
-import { Chip, IconButton, Box, Typography, CircularProgress, Grid } from "@mui/material";
+import { Chip, IconButton, Box, Typography, CircularProgress } from "@mui/material";
 import { Eye } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllItems, approveItem, lockItem } from "@/libs/api/item-api";
@@ -12,6 +12,7 @@ import { Item, Category } from "@/libs/core/types";
 import ItemDetail from "./item-detail";
 import { toast } from "sonner";
 import { ItemStatus } from "@/libs/core/constants";
+import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 const itemStatusConfig: Record<ItemStatus, { label: string; color: any }> = {
     PENDING_APPROVAL: { label: "Chờ duyệt", color: "warning" },
@@ -67,34 +68,64 @@ export default function ItemList() {
         },
     });
 
-    const columns = [
-        { field: "name", headerName: "Tên sản phẩm", width: 340 },
-        { field: "ownerName", headerName: "Chủ sở hữu", width: 180 },
+    const columns: GridColDef<Item>[] = [
+        {
+            field: "stt",
+            headerName: "STT",
+            width: 60,
+            flex: 0,
+            renderCell: (params: GridRenderCellParams<Item>) => {
+                const index = items.findIndex((item) => item.id === params.row.id);
+                return <Typography>{index + 1}</Typography>;
+            },
+        },
+        { field: "name", headerName: "Tên sản phẩm", width: 200, flex: 1.5, minWidth: 150 },
+        { field: "ownerName", headerName: "Chủ sở hữu", width: 150, flex: 1, minWidth: 120 },
         {
             field: "price",
             headerName: "Giá thuê/ngày",
             width: 140,
-            renderCell: (params: any) => {
+            flex: 0.9,
+            minWidth: 120,
+            renderCell: (params: GridRenderCellParams<Item>) => {
                 const price = params.row.price;
-                if (price == null || isNaN(Number(price))) return "N/A";
-                return `${Number(price).toLocaleString("vi-VN")}₫`;
+                if (price == null || isNaN(Number(price))) return <Typography>N/A</Typography>;
+                return (
+                    <Typography fontWeight="bold" color="primary" fontSize="0.875rem">
+                        {new Intl.NumberFormat("vi-VN", {
+                            style: "currency",
+                            currency: "VND",
+                        }).format(Number(price) ?? 0)}
+                    </Typography>
+                );
             },
         },
         {
             field: "depositAmount",
             headerName: "Tiền cọc",
             width: 140,
-            renderCell: (params: any) => {
+            flex: 0.9,
+            minWidth: 120,
+            renderCell: (params: GridRenderCellParams<Item>) => {
                 const deposit = params.row.depositAmount;
-                if (deposit == null || isNaN(Number(deposit))) return "N/A";
-                return `${Number(deposit).toLocaleString("vi-VN")}₫`;
+                if (deposit == null || isNaN(Number(deposit))) return <Typography>N/A</Typography>;
+                return (
+                    <Typography fontWeight="bold" color="primary" fontSize="0.875rem">
+                        {new Intl.NumberFormat("vi-VN", {
+                            style: "currency",
+                            currency: "VND",
+                        }).format(Number(deposit) ?? 0)}
+                    </Typography>
+                );
             },
         },
         {
             field: "status",
             headerName: "Trạng thái",
-            width: 180,
-            renderCell: (params: any) => {
+            width: 150,
+            flex: 1,
+            minWidth: 130,
+            renderCell: (params: GridRenderCellParams<Item>) => {
                 const status = params.row.status as ItemStatus;
                 const config = itemStatusConfig[status] || { label: status, color: "default" };
                 return <Chip label={config.label} color={config.color} size="small" variant="outlined" />;
@@ -102,17 +133,20 @@ export default function ItemList() {
         },
         {
             field: "actions",
-            headerName: "",
+            headerName: "Thao tác",
             width: 100,
-            renderCell: (params: any) => (
+            flex: 0,
+            sortable: false,
+            renderCell: (params: GridRenderCellParams<Item>) => (
                 <IconButton
+                    size="small"
                     onClick={(e) => {
                         e.stopPropagation();
                         setSelectedItem(params.row);
                         setOpenDetail(true);
                     }}
                 >
-                    <Eye size={20} />
+                    <Eye size={16} />
                 </IconButton>
             ),
         },
@@ -129,55 +163,59 @@ export default function ItemList() {
 
     return (
         <>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} flexWrap="wrap" gap={2}>
-                <Typography variant="h6" fontWeight="bold">
-                    Danh sách sản phẩm ({items.length})
-                </Typography>
+            <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 140px)" }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2} sx={{ flexShrink: 0 }}>
+                    <Typography variant="h5" fontWeight="bold">
+                        Danh sách sản phẩm ({items.length})
+                    </Typography>
 
-                {/* Filters */}
-                <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
-                    <Box minWidth={200}>
-                        <PrimarySelectField
-                            label="Lọc theo trạng thái"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            options={[
-                                { value: "", label: "Tất cả trạng thái" },
-                                ...Object.entries(itemStatusConfig).map(([key, config]) => ({
-                                    value: key,
-                                    label: config.label,
-                                })),
-                            ]}
-                        />
-                    </Box>
-                    <Box minWidth={200}>
-                        <PrimarySelectField
-                            label="Lọc theo danh mục"
-                            value={categoryFilter}
-                            onChange={(e) => setCategoryFilter(e.target.value)}
-                            disabled={loadingCategories}
-                            options={[
-                                { value: "", label: loadingCategories ? "Đang tải..." : "Tất cả danh mục" },
-                                ...categories.map((category) => ({
-                                    value: category.id,
-                                    label: category.name,
-                                })),
-                            ]}
-                        />
+                    {/* Filters */}
+                    <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
+                        <Box minWidth={200}>
+                            <PrimarySelectField
+                                label="Lọc theo trạng thái"
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                options={[
+                                    { value: "", label: "Tất cả trạng thái" },
+                                    ...Object.entries(itemStatusConfig).map(([key, config]) => ({
+                                        value: key,
+                                        label: config.label,
+                                    })),
+                                ]}
+                            />
+                        </Box>
+                        <Box minWidth={200}>
+                            <PrimarySelectField
+                                label="Lọc theo danh mục"
+                                value={categoryFilter}
+                                onChange={(e) => setCategoryFilter(e.target.value)}
+                                disabled={loadingCategories}
+                                options={[
+                                    { value: "", label: loadingCategories ? "Đang tải..." : "Tất cả danh mục" },
+                                    ...categories.map((category) => ({
+                                        value: category.id,
+                                        label: category.name,
+                                    })),
+                                ]}
+                            />
+                        </Box>
                     </Box>
                 </Box>
-            </Box>
 
-            <PrimaryDataGrid<Item>
-                rows={items}
-                columns={columns}
-                loading={isLoading}
-                getRowId={(row) => row.id}
-                onRowClick={(item: Item) => {
-                    setSelectedItem(item);
-                    setOpenDetail(true);
-                }}
-            />
+                <Box sx={{ flex: 1, minHeight: 0 }}>
+                    <PrimaryDataGrid<Item>
+                        rows={items}
+                        columns={columns}
+                        loading={isLoading}
+                        getRowId={(row) => row.id}
+                        onRowClick={(item: Item) => {
+                            setSelectedItem(item);
+                            setOpenDetail(true);
+                        }}
+                    />
+                </Box>
+            </Box>
 
             <PrimaryModal
                 open={openDetail}

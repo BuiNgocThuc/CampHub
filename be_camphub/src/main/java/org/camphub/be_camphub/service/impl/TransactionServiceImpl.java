@@ -2,7 +2,6 @@ package org.camphub.be_camphub.service.impl;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -39,7 +38,7 @@ public class TransactionServiceImpl implements TransactionService {
         Transaction tx = transactionRepository
                 .findById(transactionId)
                 .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
-        return transactionMapper.entityToResponse(tx);
+        return enrichTransactionResponse(tx);
     }
 
     @Override
@@ -61,7 +60,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public List<TransactionResponse> getAllTransactions() {
         List<Transaction> transactions = transactionRepository.findAll();
-        return transactions.stream().map(transactionMapper::entityToResponse).toList();
+        return transactions.stream().map(this::enrichTransactionResponse).toList();
     }
 
     @Override
@@ -72,11 +71,12 @@ public class TransactionServiceImpl implements TransactionService {
         Map<UUID, Transaction> txMap = loadTransactions(txBookings);
 
         return txBookings.stream()
-                .map(TransactionBooking::getTransactionId)
+                .map(tb -> {
+                    Transaction tx = txMap.get(tb.getTransactionId());
+                    if (tx == null) throw new AppException(ErrorCode.TRANSACTION_NOT_FOUND);
+                    return enrichTransactionResponse(tx);
+                })
                 .distinct()
-                .map(txMap::get)
-                .filter(Objects::nonNull)
-                .map(transactionMapper::entityToResponse)
                 .toList();
     }
 

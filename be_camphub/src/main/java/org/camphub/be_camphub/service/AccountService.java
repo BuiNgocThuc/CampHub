@@ -23,7 +23,5 @@ public interface AccountService {
 
     AccountResponse patchAccount(UUID id, AccountPatchRequest request);
 
-    void deleteAccount(UUID id);
-
     TopUpResponse topUpAccount(TopUpRequest request, UUID accountId);
 }

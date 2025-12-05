@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { IconButton, Chip, Box, Typography, CircularProgress, Tooltip } from "@mui/material";
-import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
+import { PrimaryDataGrid, PrimaryModal, PrimarySelectField } from "@/libs/components";
 import { useQuery } from "@tanstack/react-query";
 import { getAllTransactions } from "@/libs/api/transaction-api";
 import { Transaction } from "@/libs/core/types";
@@ -53,43 +53,55 @@ export default function TransactionList() {
 
     const columns: GridColDef<Transaction>[] = [
         {
-            field: "id",
-            headerName: "Mã giao dịch",
-            width: 150,
-            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
-                <Typography fontFamily="monospace" fontSize="0.875rem">
-                    {String(params.value).slice(0, 12)}...
-                </Typography>
-            ),
+            field: "stt",
+            headerName: "STT",
+            width: 60,
+            flex: 0,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Transaction>) => {
+                const index = filteredTransactions.findIndex((tx) => tx.id === params.row.id);
+                return <Typography>{index + 1}</Typography>;
+            },
         },
         {
             field: "senderName",
             headerName: "Người gửi",
-            width: 200,
-            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
-                <Box>
-                    <div className="font-medium">{params.row.senderName}</div>
-                    <div className="text-xs text-gray-500">ID: {params.row.fromAccountId}</div>
-                </Box>
+            width: 180,
+            flex: 1.2,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Transaction>) => (
+                <Typography fontSize="0.875rem" fontWeight="medium">
+                    {params.row.senderName || "N/A"}
+                </Typography>
             ),
         },
         {
             field: "receiverName",
             headerName: "Người nhận",
-            width: 200,
-            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
-                <Box>
-                    <div className="font-medium">{params.row.receiverName}</div>
-                    <div className="text-xs text-gray-500">ID: {params.row.toAccountId}</div>
-                </Box>
+            width: 180,
+            flex: 1.2,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Transaction>) => (
+                <Typography fontSize="0.875rem" fontWeight="medium">
+                    {params.row.receiverName || "N/A"}
+                </Typography>
             ),
         },
         {
             field: "amount",
             headerName: "Số tiền",
             width: 160,
-            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
-                <Typography fontWeight="bold" color="primary">
+            flex: 1,
+            minWidth: 140,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Transaction>) => (
+                <Typography fontWeight="bold" color="primary" fontSize="0.875rem">
                     {new Intl.NumberFormat("vi-VN", {
                         style: "currency",
                         currency: "VND",
@@ -100,8 +112,12 @@ export default function TransactionList() {
         {
             field: "type",
             headerName: "Loại giao dịch",
-            width: 200,
-            renderCell: (params: GridRenderCellParams<any, Transaction>) => {
+            width: 180,
+            flex: 1.1,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Transaction>) => {
                 const type = params.row.type as TransactionType;
                 return (
                     <Chip
@@ -117,8 +133,12 @@ export default function TransactionList() {
         {
             field: "status",
             headerName: "Trạng thái",
-            width: 140,
-            renderCell: (params: GridRenderCellParams<any, Transaction>) => {
+            width: 130,
+            flex: 0.8,
+            minWidth: 110,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Transaction>) => {
                 const status = params.row.status as TransactionStatus;
                 return (
                     <Chip
@@ -132,22 +152,30 @@ export default function TransactionList() {
         {
             field: "createdAt",
             headerName: "Thời gian",
-            width: 180,
-            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
-                <Typography variant="body2">
+            width: 160,
+            flex: 1,
+            minWidth: 140,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Transaction>) => (
+                <Typography variant="body2" fontSize="0.875rem">
                     {format(new Date(params.row.createdAt), "dd/MM/yyyy HH:mm")}
                 </Typography>
             ),
         },
         {
             field: "actions",
-            headerName: "",
+            headerName: "Thao tác",
             width: 100,
+            flex: 0,
             sortable: false,
             filterable: false,
-            renderCell: (params: GridRenderCellParams<any, Transaction>) => (
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Transaction>) => (
                 <Tooltip title="Xem chi tiết">
                     <IconButton
+                        size="small"
                         onClick={(e) => {
                             e.stopPropagation();
                             setSelectedTx(params.row);
@@ -155,7 +183,7 @@ export default function TransactionList() {
                         }}
                         color="primary"
                     >
-                        <Visibility />
+                        <Visibility fontSize="small" />
                     </IconButton>
                 </Tooltip>
             ),
@@ -164,7 +192,7 @@ export default function TransactionList() {
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" my={10} gap={2}>
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh" gap={2}>
                 <CircularProgress />
                 <Typography>Đang tải danh sách giao dịch...</Typography>
             </Box>
@@ -172,49 +200,60 @@ export default function TransactionList() {
     }
 
     return (
-        <Box p={4}>
-            <Typography variant="h5" fontWeight="bold" mb={4}>
-                Quản lý giao dịch tài chính
-            </Typography>
+        <div className="p-6 bg-gray-50 min-h-screen">
+            <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 60px)" }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2} sx={{ flexShrink: 0 }}>
+                    <Typography variant="h5" fontWeight="bold">
+                        Quản lý giao dịch tài chính ({filteredTransactions.length})
+                    </Typography>
 
-            <Box display="flex" gap={3} mb={3} flexWrap="wrap">
-                <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value as TransactionType | "")}
-                    className="px-4 py-2 border rounded-lg text-sm min-w-[220px]"
-                >
-                    <option value="">Tất cả loại giao dịch</option>
-                    {Object.values(TransactionType).map((t) => (
-                        <option key={t} value={t}>
-                            {typeLabels[t]}
-                        </option>
-                    ))}
-                </select>
+                    <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
+                        <Box minWidth={220}>
+                            <PrimarySelectField
+                                size="small"
+                                label="Lọc theo loại giao dịch"
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value as TransactionType | "")}
+                                options={[
+                                    { value: "", label: "Tất cả loại giao dịch" },
+                                    ...Object.entries(typeLabels).map(([key, label]) => ({
+                                        value: key,
+                                        label: label,
+                                    })),
+                                ]}
+                            />
+                        </Box>
+                        <Box minWidth={180}>
+                            <PrimarySelectField
+                                size="small"
+                                label="Lọc theo trạng thái"
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as TransactionStatus | "")}
+                                options={[
+                                    { value: "", label: "Tất cả trạng thái" },
+                                    ...Object.entries(statusLabels).map(([key, label]) => ({
+                                        value: key,
+                                        label: label,
+                                    })),
+                                ]}
+                            />
+                        </Box>
+                    </Box>
+                </Box>
 
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as TransactionStatus | "")}
-                    className="px-4 py-2 border rounded-lg text-sm min-w-[180px]"
-                >
-                    <option value="">Tất cả trạng thái</option>
-                    {Object.values(TransactionStatus).map((s) => (
-                        <option key={s} value={s}>
-                            {statusLabels[s]}
-                        </option>
-                    ))}
-                </select>
+                <Box sx={{ flex: 1, minHeight: 0 }}>
+                    <PrimaryDataGrid<Transaction>
+                        rows={filteredTransactions}
+                        columns={columns}
+                        loading={isLoading}
+                        getRowId={(row) => row.id}
+                        onRowClick={(transaction: Transaction) => {
+                            setSelectedTx(transaction);
+                            setOpenDetail(true);
+                        }}
+                    />
+                </Box>
             </Box>
-
-            <PrimaryDataGrid<Transaction>
-                rows={filteredTransactions}
-                columns={columns}
-                loading={isLoading}
-                getRowId={(row) => row.id}
-                onRowClick={(transaction: Transaction) => {
-                    setSelectedTx(transaction);
-                    setOpenDetail(true);
-                }}
-            />
 
             <PrimaryModal
                 open={openDetail}
@@ -223,6 +262,6 @@ export default function TransactionList() {
             >
                 {selectedTx && <TransactionDetailModal transaction={selectedTx} />}
             </PrimaryModal>
-        </Box>
+        </div>
     );
 }

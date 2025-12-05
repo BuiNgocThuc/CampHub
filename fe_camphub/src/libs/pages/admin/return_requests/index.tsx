@@ -128,27 +128,29 @@ export default function ReturnRequestList() {
     ];
 
     return (
-        <Box p={6}>
-            <Typography variant="h5" fontWeight="bold" mb={4}>
-                Quản lý yêu cầu trả đồ & hoàn tiền
-            </Typography>
-
-            {isLoading ? (
-                <Box display="flex" justifyContent="center" my={8}>
-                    <CircularProgress />
-                    <Typography ml={2}>Đang tải yêu cầu hoàn tiền...</Typography>
-                </Box>
-            ) : requests.length === 0 ? (
-                <Typography textAlign="center" color="text.secondary" py={10}>
-                    Không có yêu cầu hoàn tiền nào đang chờ xử lý
+        <div className="p-6 bg-gray-50 min-h-screen">
+            <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ maxHeight: "calc(100vh - 120px)", overflow: "auto" }}>
+                <Typography variant="h5" fontWeight="bold" mb={4}>
+                    Quản lý yêu cầu trả đồ & hoàn tiền
                 </Typography>
-            ) : (
-                <PrimaryDataGrid<ReturnRequest>
-                    rows={requests}
-                    columns={columns}
-                    getRowId={(row) => row.id}
-                />
-            )}
-        </Box>
+
+                {isLoading ? (
+                    <Box display="flex" justifyContent="center" my={8}>
+                        <CircularProgress />
+                        <Typography ml={2}>Đang tải yêu cầu hoàn tiền...</Typography>
+                    </Box>
+                ) : requests.length === 0 ? (
+                    <Typography textAlign="center" color="text.secondary" py={10}>
+                        Không có yêu cầu hoàn tiền nào đang chờ xử lý
+                    </Typography>
+                ) : (
+                    <PrimaryDataGrid<ReturnRequest>
+                        rows={requests}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                    />
+                )}
+            </Box>
+        </div>
     );
 }

@@ -3,14 +3,14 @@
 
 import { useState } from "react";
 import { Chip, IconButton, Tooltip, Box, Typography, CircularProgress } from "@mui/material";
-import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
+import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { PrimaryDataGrid, PrimaryModal, PrimarySelectField } from "@/libs/components";
 import BookingDetail from "./booking-detail";
 import { useQuery } from "@tanstack/react-query";
 import { getAllBookings, getBookingById } from "@/libs/api/booking-api";
 import { Booking } from "@/libs/core/types";
 import { BookingStatus } from "@/libs/core/constants";
 import { Visibility } from "@mui/icons-material";
-import { GridRenderCellParams } from "@mui/x-data-grid";
 
 
 export const bookingStatusConfig: Record<
@@ -38,10 +38,16 @@ export const bookingStatusConfig: Record<
 export default function BookingList() {
     const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
     const [openDetail, setOpenDetail] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<BookingStatus | "">("");
 
     const { data: bookings = [], isLoading, error } = useQuery({
         queryKey: ["adminBookings"],
         queryFn: getAllBookings,
+    });
+
+    const filteredBookings = bookings.filter((booking) => {
+        if (!statusFilter) return true;
+        return booking.status === statusFilter;
     });
 
     const {
@@ -59,62 +65,92 @@ export default function BookingList() {
         setOpenDetail(true);
     };
 
-    const columns = [
+    const columns: GridColDef<Booking>[] = [
         {
-            field: "id",
-            headerName: "Mã đơn",
-            width: 120,
-            renderCell: (params: any) => (
-                <span className="font-mono text-xs">{params.value.slice(0, 8)}</span>
-            ),
+            field: "stt",
+            headerName: "STT",
+            width: 60,
+            flex: 0,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Booking>) => {
+                const index = filteredBookings.findIndex((booking) => booking.id === params.row.id);
+                return <Typography>{index + 1}</Typography>;
+            },
         },
         {
             field: "lesseeName",
             headerName: "Người thuê",
             width: 180,
-            renderCell: (params: any) => <strong>{params.value}</strong>,
+            flex: 1.2,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Booking>) => (
+                <Typography fontSize="0.875rem" fontWeight="medium">
+                    {params.row.lesseeName || "N/A"}
+                </Typography>
+            ),
         },
         {
             field: "lessorName",
-            headerName: "Chủ đồ",
+            headerName: "Chủ thuê",
             width: 180,
-            renderCell: (params: any) => <strong>{params.value}</strong>,
+            flex: 1.2,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Booking>) => (
+                <Typography fontSize="0.875rem" fontWeight="medium">
+                    {params.row.lessorName || "N/A"}
+                </Typography>
+            ),
         },
         {
             field: "itemName",
             headerName: "Sản phẩm",
-            width: 220,
-            renderCell: (params: any) => (
-                <Tooltip title={params.value}>
-                    <span className="truncate block max-w-full">{params.value}</span>
+            width: 200,
+            flex: 1.5,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Booking>) => (
+                <Tooltip title={params.row.itemName}>
+                    <Typography fontSize="0.875rem" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
+                        {params.row.itemName}
+                    </Typography>
                 </Tooltip>
             ),
         },
         {
             field: "totalAmount",
             headerName: "Tổng tiền",
-            width: 130,
-            renderCell: (params: any) => (
-                <span className="font-semibold text-green-600">
-                    {params.value.toLocaleString()}₫
-                </span>
-            ),
+            width: 160,
+            flex: 1,
+            minWidth: 140,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Booking>) => {
+                // Tổng tiền = tiền thuê + cọc
+                const total = (params.row.totalAmount || 0) + (params.row.depositAmount || 0);
+                return (
+                    <Typography fontWeight="bold" color="primary" fontSize="0.875rem">
+                        {new Intl.NumberFormat("vi-VN", {
+                            style: "currency",
+                            currency: "VND",
+                        }).format(total)}
+                    </Typography>
+                );
+            },
         },
-        {
-            field: "depositAmount",
-            headerName: "Cọc",
-            width: 110,
-            renderCell: (params: any) => (
-                <span className="text-orange-600 font-medium">
-                    {params.value.toLocaleString()}₫
-                </span>
-            ),
-        },
-        // Trong columns
         {
             field: "status",
             headerName: "Trạng thái",
             width: 160,
+            flex: 1.1,
+            minWidth: 140,
+            align: "center",
+            headerAlign: "center",
             renderCell: (params: GridRenderCellParams<Booking>) => {
                 const status = params.row.status as BookingStatus;
                 const config = bookingStatusConfig[status] || { label: status, color: "default" as const };
@@ -130,19 +166,24 @@ export default function BookingList() {
             },
         },
         {
-            field: "createdAt",
-            headerName: "Ngày tạo",
-            width: 120,
-            renderCell: (params: any) => new Date(params.value).toLocaleDateString("vi-VN"),
-        },
-        {
             field: "actions",
             headerName: "Thao tác",
             width: 100,
-            renderCell: (params: any) => (
+            flex: 0,
+            sortable: false,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Booking>) => (
                 <Tooltip title="Xem chi tiết">
-                    <IconButton color="primary" onClick={() => handleView(params.row)}>
-                        <Visibility />
+                    <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleView(params.row);
+                        }}
+                    >
+                        <Visibility fontSize="small" />
                     </IconButton>
                 </Tooltip>
             ),
@@ -168,20 +209,40 @@ export default function BookingList() {
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
-            <Box className="bg-white rounded-2xl shadow-lg p-6">
-                <Typography variant="h5" fontWeight="bold" mb={4}>
-                    Quản lý đơn thuê ({bookings.length})
-                </Typography>
+            <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 60px)" }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2} sx={{ flexShrink: 0 }}>
+                    <Typography variant="h5" fontWeight="bold">
+                        Quản lý đơn thuê ({filteredBookings.length})
+                    </Typography>
 
-                <PrimaryDataGrid<Booking>
-                    rows={bookings}
-                    columns={columns}
-                    loading={isLoading}
-                    pageSize={10}
-                    rowsPerPageOptions={[10, 20, 50]}
-                    onRowClick={handleView}
-                    getRowId={(row) => row.id}
-                />
+                    <Box minWidth={200}>
+                        <PrimarySelectField
+                            size="small"
+                            label="Lọc theo trạng thái"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "")}
+                            options={[
+                                { value: "", label: "Tất cả trạng thái" },
+                                ...Object.entries(bookingStatusConfig).map(([key, config]) => ({
+                                    value: key,
+                                    label: config.label,
+                                })),
+                            ]}
+                        />
+                    </Box>
+                </Box>
+
+                <Box sx={{ flex: 1, minHeight: 0 }}>
+                    <PrimaryDataGrid<Booking>
+                        rows={filteredBookings}
+                        columns={columns}
+                        loading={isLoading}
+                        pageSize={10}
+                        rowsPerPageOptions={[10, 20, 50]}
+                        onRowClick={handleView}
+                        getRowId={(row) => row.id}
+                    />
+                </Box>
             </Box>
 
             <PrimaryModal

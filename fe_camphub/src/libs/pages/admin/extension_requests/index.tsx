@@ -88,7 +88,10 @@ export default function ExtensionManagementPage() {
             width: 140,
             renderCell: (params) => (
                 <Typography fontWeight="bold" color="primary">
-                    {Number(params.value).toLocaleString("vi-VN")}₫
+                    {new Intl.NumberFormat("vi-VN", {
+                        style: "currency",
+                        currency: "VND",
+                    }).format(Number(params.value) ?? 0)}
                 </Typography>
             ),
         },
@@ -141,8 +144,9 @@ export default function ExtensionManagementPage() {
     ];
 
     return (
-        <Box p={6}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <div className="p-6 bg-gray-50 min-h-screen">
+            <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ maxHeight: "calc(100vh - 120px)", overflow: "auto" }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
                 <Typography variant="h5" fontWeight="bold">
                     Quản lý yêu cầu gia hạn thuê
                 </Typography>
@@ -184,6 +188,7 @@ export default function ExtensionManagementPage() {
                     onRowClick={(exr: ExtensionRequest) => handleView(exr)}
                 />
             )}
+            </Box>
 
             <PrimaryModal
                 open={openModal}
@@ -192,6 +197,6 @@ export default function ExtensionManagementPage() {
             >
                 {selectedRequest && <ExtensionDetailModal request={selectedRequest} />}
             </PrimaryModal>
-        </Box>
+        </div>
     );
 }

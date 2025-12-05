@@ -1,6 +1,5 @@
 package org.camphub.be_camphub.service.impl;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -91,18 +90,6 @@ public class AccountServiceImpl implements AccountService {
 
         accountMapper.patchRequestToEntity(account, request);
         return accountMapper.entityToResponse(accountRepository.save(account));
-    }
-
-    @Override
-    public void deleteAccount(UUID id) {
-        Account account = accountRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        account.setDeletedAt(LocalDateTime.now());
-        accountRepository.save(account);
-    }
-
-    @Override
-    public Account getMyInfo() {
-        return null;
     }
 
     @Override
