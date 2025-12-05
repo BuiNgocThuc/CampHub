@@ -1,11 +1,11 @@
 // app/admin/items/ItemDetail.tsx
 "use client";
 
-import { Box, Grid, Typography, Chip, Button, Alert } from "@mui/material";
+import { Box, Grid, Typography, Chip, Alert } from "@mui/material";
 import { CheckCircle, XCircle, Lock, Unlock } from "lucide-react";
 import { Item } from "@/libs/core/types";
 import { ItemStatus } from "@/libs/core/constants";
-import { MediaPreview } from "@/libs/components";
+import { MediaPreview, CustomizedButton } from "@/libs/components";
 
 interface ItemDetailProps {
     item: Item;
@@ -99,49 +99,49 @@ export default function ItemDetail({ item, onAction, loading }: ItemDetailProps)
                     <Box display="flex" justifyContent="flex-end" gap={2} mt={4}>
                         {status === "PENDING_APPROVAL" && (
                             <>
-                                <Button
-                                    variant="contained"
-                                    color="success"
-                                    startIcon={<CheckCircle />}
+                                <CustomizedButton
+                                    content="Duyệt sản phẩm"
                                     onClick={() => onAction("approve")}
                                     disabled={loading}
-                                >
-                                    Duyệt sản phẩm
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    color="error"
-                                    startIcon={<XCircle />}
+                                    size="small"
+                                    color="#16a34a"
+                                    icon={<CheckCircle size={16} />}
+                                    className="font-semibold"
+                                />
+                                <CustomizedButton
+                                    content="Từ chối"
                                     onClick={() => onAction("reject")}
                                     disabled={loading}
-                                >
-                                    Từ chối
-                                </Button>
+                                    size="small"
+                                    color="#dc2626"
+                                    icon={<XCircle size={16} />}
+                                    className="font-semibold"
+                                />
                             </>
                         )}
 
                         {status === "AVAILABLE" && (
-                            <Button
-                                variant="outlined"
-                                color="warning"
-                                startIcon={<Lock />}
+                            <CustomizedButton
+                                content="Khóa sản phẩm"
                                 onClick={() => onAction("lock")}
                                 disabled={loading}
-                            >
-                                Khóa sản phẩm
-                            </Button>
+                                size="small"
+                                color="#f59e0b"
+                                icon={<Lock size={16} />}
+                                className="font-semibold"
+                            />
                         )}
 
                         {(status === "BANNED" || status === "REJECTED") && (
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                startIcon={<Unlock />}
+                            <CustomizedButton
+                                content="Mở khóa / Bỏ từ chối"
                                 onClick={() => onAction("unlock")}
                                 disabled={loading}
-                            >
-                                Mở khóa / Bỏ từ chối
-                            </Button>
+                                size="small"
+                                color="#2563eb"
+                                icon={<Unlock size={16} />}
+                                className="font-semibold"
+                            />
                         )}
                     </Box>
                 </Grid>

@@ -7,6 +7,7 @@ import org.camphub.be_camphub.Utils.SecurityUtils;
 import org.camphub.be_camphub.dto.request.account.AccountCreationRequest;
 import org.camphub.be_camphub.dto.request.account.AccountPatchRequest;
 import org.camphub.be_camphub.dto.request.account.AccountUpdateRequest;
+import org.camphub.be_camphub.dto.request.account.ChangePasswordRequest;
 import org.camphub.be_camphub.dto.request.account.TopUpRequest;
 import org.camphub.be_camphub.dto.response.account.AccountResponse;
 import org.camphub.be_camphub.dto.response.account.TopUpResponse;
@@ -105,5 +106,27 @@ public class AccountServiceImpl implements AccountService {
         accountRepository.save(account);
 
         return TopUpResponse.builder().newBalance(account.getCoinBalance()).build();
+    }
+
+    @Override
+    public AccountResponse patchCurrentAccount(UUID id, AccountPatchRequest request) {
+        // Không cho tự đổi trạng thái / role bằng endpoint tự cập nhật
+        request.setStatus(null);
+        request.setUserType(null);
+        request.setTrustScore(null);
+        request.setCoinBalance(null);
+        return patchAccount(id, request);
+    }
+
+    @Override
+    public void changePassword(UUID id, ChangePasswordRequest request) {
+        Account account = accountRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (!securityUtils.checkMatchPassword(request.getOldPassword(), account.getPassword())) {
+            throw new AppException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        account.setPassword(securityUtils.encryptPassword(request.getNewPassword()));
+        accountRepository.save(account);
     }
 }

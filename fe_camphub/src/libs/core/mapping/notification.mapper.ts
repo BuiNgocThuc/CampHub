@@ -18,6 +18,7 @@ PojosMetadataMap.create<Notification>("Notification", {
     referenceType: String,
     referenceId: String,
     isRead: Boolean,
+    isBroadcast: Boolean,
     createdAt: String,
 });
 PojosMetadataMap.create<NotificationCreationRequest>("NotificationCreationRequest", {
@@ -39,6 +40,7 @@ PojosMetadataMap.create<NotificationResponse>("NotificationResponse", {
     referenceType: String,
     referenceId: String,
     isRead: Boolean,
+    isBroadcast: Boolean,
     createdAt: String,
 });
 

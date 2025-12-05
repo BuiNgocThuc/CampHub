@@ -64,6 +64,32 @@ export const getAccountById = async (id: string): Promise<Account> => {
     }
 };
 
+// --------------------- UPDATE MY ACCOUNT (PATCH SELF) ---------------------
+export const updateMyAccount = async (request: AccountPatchRequest): Promise<Account> => {
+    try {
+        const response = await api.patch<ApiResponse<AccountResponse>>(`/accounts/me`, request);
+        return accountMapper.map<AccountResponse, Account>(
+            response.data.result,
+            'AccountResponse',
+            'Account'
+        );
+    } catch (error) {
+        throw error;
+    }
+};
+
+// --------------------- CHANGE MY PASSWORD ---------------------
+export const changeMyPassword = async (oldPassword: string, newPassword: string): Promise<void> => {
+    try {
+        await api.post<ApiResponse<void>>(`/accounts/change-password`, {
+            oldPassword,
+            newPassword,
+        });
+    } catch (error) {
+        throw error;
+    }
+};
+
 // --------------------- TOP-UP ---------------------
 export const topUpAccount = async (request: TopUpRequest): Promise<ApiResponse<TopUpResponse>> => {
     try {

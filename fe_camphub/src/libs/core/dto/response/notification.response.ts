@@ -2,7 +2,7 @@ import { NotificationType, ReferenceType } from "@/libs/core/constants";
 
 export interface NotificationResponse {
     id: string;
-    receiverId: string;
+    receiverId: string | null;
     senderId: string;
     type: NotificationType;
     title: string;
@@ -10,5 +10,6 @@ export interface NotificationResponse {
     referenceType: ReferenceType;
     referenceId: string;
     isRead: boolean;
+    isBroadcast: boolean;
     createdAt: string;
 }

@@ -51,6 +51,10 @@ public class Notification {
     @Column(name = "is_read")
     Boolean isRead = false;
 
+    @Column(name = "is_broadcast")
+    @Builder.Default
+    Boolean isBroadcast = false;
+
     @CreatedDate
     @Column(name = "created_at")
     LocalDateTime createdAt;

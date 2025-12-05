@@ -108,7 +108,7 @@ public class AuthServiceImpl implements AuthService {
 
         Integer cartItemCount = cartItemRepository.countByCartId(cart.getId());
 
-        Integer unreadNotificationCount = notificationRepository.countByReceiverIdAndIsReadFalse(userId);
+        Integer unreadNotificationCount = notificationRepository.countUnreadByReceiverIdOrBroadcast(userId);
 
         log.info(
                 "User ID: {} has {} items in cart and {} unread notifications",

@@ -12,12 +12,14 @@ import {
     Stack,
     Alert,
 } from "@mui/material";
-import { AppImage } from "@/libs/components";
+import { AppImage, CustomizedButton } from "@/libs/components";
 import { adminReviewDispute } from "@/libs/api/dispute-api";
 import { Dispute } from "@/libs/core/types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DisputeDecision, DisputeStatus } from "@/libs/core/constants";
 import { toast } from "sonner";
+import { getBookingById } from "@/libs/api/booking-api";
+import { getItemById } from "@/libs/api/item-api";
 
 interface DisputeDetailModalProps {
     dispute: Dispute;
@@ -27,6 +29,21 @@ interface DisputeDetailModalProps {
 export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailModalProps) {
     const [adminNote, setAdminNote] = useState("");
     const queryClient = useQueryClient();
+
+    const { data: booking, isLoading: bookingLoading } = useQuery({
+        queryKey: ["booking", dispute.bookingId],
+        queryFn: () => getBookingById(dispute.bookingId),
+        enabled: !!dispute.bookingId,
+    });
+
+    const { data: item, isLoading: itemLoading } = useQuery({
+        queryKey: ["item", (booking as any)?.itemId || (booking as any)?.item?.id],
+        queryFn: () => {
+            const itemId = (booking as any)?.itemId || (booking as any)?.item?.id;
+            return getItemById(itemId);
+        },
+        enabled: !!((booking as any)?.itemId || (booking as any)?.item?.id),
+    });
 
     const reviewMutation = useMutation({
         mutationFn: (decision: DisputeDecision) =>
@@ -100,6 +117,58 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                         </Box>
                     </Box>
                 </Stack>
+
+                {/* Thông tin đơn thuê */}
+                <Box>
+                    <Typography fontWeight="bold" color="primary" gutterBottom>
+                        Thông tin đơn thuê
+                    </Typography>
+                    {bookingLoading ? (
+                        <Typography color="text.secondary">Đang tải đơn thuê...</Typography>
+                    ) : booking ? (
+                        <>
+                            <GridRow label="Mã đơn thuê" value={booking.id} />
+                            <GridRow label="Người thuê" value={(booking as any).lesseeName || (booking as any).lessee?.fullName || "N/A"} />
+                            <GridRow label="Chủ đồ" value={(booking as any).lessorName || (booking as any).lessor?.fullName || "N/A"} />
+                            <GridRow
+                                label="Trạng thái"
+                                value={(booking as any).status || "N/A"}
+                            />
+                            <GridRow
+                                label="Tổng tiền (bao gồm cọc)"
+                                value={
+                                    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                                        Number((booking as any).totalAmount || 0) + Number((booking as any).depositAmount || 0)
+                                    )
+                                }
+                            />
+                        </>
+                    ) : (
+                        <Typography color="error">Không tải được thông tin đơn thuê.</Typography>
+                    )}
+                </Box>
+
+                {/* Thông tin sản phẩm */}
+                <Box>
+                    <Typography fontWeight="bold" color="primary" gutterBottom>
+                        Sản phẩm bị khiếu nại
+                    </Typography>
+                    {itemLoading ? (
+                        <Typography color="text.secondary">Đang tải sản phẩm...</Typography>
+                    ) : item ? (
+                        <>
+                            <GridRow label="Tên sản phẩm" value={item.name} />
+                            <GridRow label="Danh mục" value={(item as any).categoryName || "N/A"} />
+                            <GridRow
+                                label="Giá thuê / ngày"
+                                value={new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number((item as any).price || 0))}
+                            />
+                            <GridRow label="Tiền cọc" value={new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number((item as any).depositAmount || 0))} />
+                        </>
+                    ) : (
+                        <Typography color="error">Không tải được thông tin sản phẩm.</Typography>
+                    )}
+                </Box>
 
                 {/* MINH CHỨNG – DÙNG APPIMAGE → KHÔNG BAO GIỜ VỠ */}
                 {dispute.evidenceUrls && dispute.evidenceUrls.length > 0 && (
@@ -187,21 +256,17 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                             sx={{ mb: 4 }}
                         />
 
-                        <Stack direction="row" spacing={3} justifyContent="flex-end">
-                            <Button
-                                variant="contained"
-                                color="success"
-                                size="large"
+                        <Stack direction="row" spacing={2} justifyContent="flex-end">
+                            <CustomizedButton
+                                content={reviewMutation.isPending ? "Đang xử lý..." : "Chấp nhận bồi thường"}
                                 onClick={() => reviewMutation.mutate(DisputeDecision.APPROVED)}
                                 disabled={reviewMutation.isPending}
-                                sx={{ minWidth: 200, py: 1.5, fontSize: "1.1rem", fontWeight: "bold" }}
-                            >
-                                {reviewMutation.isPending ? "Đang xử lý..." : "Chấp nhận bồi thường"}
-                            </Button>
-                            <Button
-                                variant="contained"
-                                color="error"
-                                size="large"
+                                size="small"
+                                color="#16a34a"
+                                className="font-semibold"
+                            />
+                            <CustomizedButton
+                                content={reviewMutation.isPending ? "Đang xử lý..." : "Từ chối khiếu nại"}
                                 onClick={() => {
                                     if (!adminNote.trim()) {
                                         toast.error("Vui lòng nhập ghi chú khi từ chối!");
@@ -210,10 +275,10 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                                     reviewMutation.mutate(DisputeDecision.REJECTED);
                                 }}
                                 disabled={reviewMutation.isPending}
-                                sx={{ minWidth: 200, py: 1.5, fontSize: "1.1rem", fontWeight: "bold" }}
-                            >
-                                {reviewMutation.isPending ? "Đang xử lý..." : "Từ chối khiếu nại"}
-                            </Button>
+                                size="small"
+                                color="#dc2626"
+                                className="font-semibold"
+                            />
                         </Stack>
                     </Box>
                 ) : (

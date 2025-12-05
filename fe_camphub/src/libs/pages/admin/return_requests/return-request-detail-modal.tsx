@@ -89,11 +89,11 @@ export default function ReturnRequestDetailModal({ request, onClose }: ReturnReq
                                 label={
                                     isPending
                                         ? "Chờ xử lý"
-                                        : request.status === "APPROVED"
+                                        : request.status === ReturnRequestStatus.APPROVED
                                         ? "Đã hoàn tiền"
                                         : "Bị từ chối"
                                 }
-                                color={isPending ? "warning" : request.status === "APPROVED" ? "success" : "error"}
+                                color={isPending ? "warning" : request.status === ReturnRequestStatus.APPROVED ? "success" : "error"}
                                 size="small"
                             />
                         }
@@ -183,8 +183,8 @@ export default function ReturnRequestDetailModal({ request, onClose }: ReturnReq
                 )}
 
                 {!isPending && request.adminNote && (
-                    <Alert severity={request.status === "APPROVED" ? "success" : "error"}>
-                        <strong>Kết quả xử lý:</strong> {request.status === "APPROVED" ? "Đã hoàn tiền" : "Từ chối"}
+                    <Alert severity={request.status === ReturnRequestStatus.APPROVED ? "success" : "error"}>
+                        <strong>Kết quả xử lý:</strong> {request.status === ReturnRequestStatus.APPROVED ? "Đã hoàn tiền" : "Từ chối"}
                         <Typography mt={1}>
                             <strong>Ghi chú:</strong> {request.adminNote}
                         </Typography>

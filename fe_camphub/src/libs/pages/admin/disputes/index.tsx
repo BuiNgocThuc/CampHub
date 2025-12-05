@@ -1,7 +1,7 @@
 // app/admin/disputes/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Chip,
     IconButton,
@@ -14,6 +14,8 @@ import { Eye } from "lucide-react";
 import { PrimaryDataGrid, PrimaryModal, PrimarySelectField } from "@/libs/components";
 import { useQuery } from "@tanstack/react-query";
 import { getAllDisputes } from "@/libs/api/dispute-api";
+import { getBookingById } from "@/libs/api/booking-api";
+import { getItemById } from "@/libs/api/item-api";
 import DisputeDetailModal from "./dispute-detail";
 import { Dispute } from "@/libs/core/types";
 import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
@@ -28,11 +30,48 @@ export default function DisputeList() {
     const [openModal, setOpenModal] = useState(false);
     const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
     const [statusFilter, setStatusFilter] = useState<DisputeStatus | "">("");
+    const [itemNameMap, setItemNameMap] = useState<Record<string, string>>({});
 
     const { data: disputes = [], isLoading } = useQuery({
         queryKey: ["AllDisputes"],
         queryFn: getAllDisputes,
     });
+
+    // Prefetch item names via booking -> item
+    useEffect(() => {
+        if (!disputes.length) return;
+        const missing = disputes.filter((d) => !itemNameMap[d.id]);
+        if (!missing.length) return;
+
+        let cancelled = false;
+        (async () => {
+            const entries = await Promise.all(
+                missing.map(async (d) => {
+                    try {
+                        const booking = await getBookingById(d.bookingId);
+                        const itemId = (booking as any)?.itemId || (booking as any)?.item?.id;
+                        if (!itemId) return [d.id, undefined] as const;
+                        const item = await getItemById(itemId);
+                        return [d.id, item.name] as const;
+                    } catch {
+                        return [d.id, undefined] as const;
+                    }
+                })
+            );
+            if (cancelled) return;
+            setItemNameMap((prev) => {
+                const next = { ...prev };
+                entries.forEach(([id, name]) => {
+                    if (id && name) next[id] = name;
+                });
+                return next;
+            });
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [disputes, itemNameMap]);
 
     const filteredDisputes = disputes.filter((dispute) => {
         if (!statusFilter) return true;
@@ -95,8 +134,11 @@ export default function DisputeList() {
             align: "center",
             headerAlign: "center",
             renderCell: (params: GridRenderCellParams<Dispute>) => {
-                // Nếu không có itemName trong dispute, có thể lấy từ booking hoặc hiển thị bookingId
-                const itemName = (params.row as any).itemName || params.row.bookingId?.slice(0, 8) || "N/A";
+                const itemName =
+                    itemNameMap[params.row.id] ||
+                    (params.row as any).itemName ||
+                    params.row.bookingId?.slice(0, 8) ||
+                    "N/A";
                 return (
                     <Tooltip title={itemName}>
                         <Typography fontSize="0.875rem" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>

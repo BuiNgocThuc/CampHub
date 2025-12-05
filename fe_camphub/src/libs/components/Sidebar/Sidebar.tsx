@@ -13,10 +13,8 @@ import {
     ChevronDown,
     User,
     LogOut,
-    Bell
 } from "lucide-react";
 import SidebarItem from "./SidebarItem";
-import AdminNotificationDropdown from "./AdminNotificationDropdown";
 import { useAuthStore } from "@/libs/stores";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
@@ -40,10 +38,8 @@ export default function Sidebar() {
     const logout = useAuthStore((s) => s.logout);
     const router = useRouter();
     const [showDropdown, setShowDropdown] = useState(false);
-    const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const notificationRef = useRef<HTMLDivElement>(null);
 
     // Fetch user info nếu chưa có
     useEffect(() => {
@@ -52,60 +48,22 @@ export default function Sidebar() {
         }
     }, [user, fetchMyInfo]);
 
-    // Fetch unread notification count
-    useEffect(() => {
-        if (!user?.id) return;
-
-        const fetchUnreadCount = async () => {
-            try {
-                const notifications = await getNotificationsByReceiver();
-                const unread = notifications.filter((n: Notification) => !n.isRead).length;
-                setUnreadCount(unread);
-            } catch (error) {
-                console.error("Error fetching notification count:", error);
-            }
-        };
-
-        fetchUnreadCount();
-        // Refresh mỗi 30 giây
-        const interval = setInterval(fetchUnreadCount, 30000);
-        return () => clearInterval(interval);
-    }, [user?.id]);
-
     // Đóng dropdown khi click bên ngoài
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setShowDropdown(false);
             }
-            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-                setShowNotificationDropdown(false);
-            }
         };
 
-        if (showDropdown || showNotificationDropdown) {
+        if (showDropdown) {
             document.addEventListener("mousedown", handleClickOutside);
         }
 
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, [showDropdown, showNotificationDropdown]);
-
-    const handleNotificationClick = () => {
-        setShowNotificationDropdown(!showNotificationDropdown);
-        setShowDropdown(false);
-    };
-
-    const refreshUnreadCount = async () => {
-        try {
-            const notifications = await getNotificationsByReceiver();
-            const unread = notifications.filter((n: Notification) => !n.isRead).length;
-            setUnreadCount(unread);
-        } catch (error) {
-            console.error("Error fetching notification count:", error);
-        }
-    };
+    }, [showDropdown]);
 
     const handleLogout = () => {
         logout();
@@ -113,7 +71,7 @@ export default function Sidebar() {
     };
 
     const handleProfileClick = () => {
-        router.push("/CampHub/profile");
+        router.push("/admin/profile");
         setShowDropdown(false);
     };
 
@@ -132,10 +90,7 @@ export default function Sidebar() {
             <div className="mt-auto pt-4 border-t border-gray-200">
                 <div className="relative" ref={dropdownRef}>
                     <button
-                        onClick={() => {
-                            setShowDropdown(!showDropdown);
-                            setShowNotificationDropdown(false);
-                        }}
+                        onClick={() => setShowDropdown(!showDropdown)}
                         className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                         <div className="relative">
@@ -148,11 +103,7 @@ export default function Sidebar() {
                             ) : (
                                 <CircleUserRound size={32} className="text-gray-700" />
                             )}
-                            {unreadCount > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
-                                    {unreadCount > 9 ? "9+" : unreadCount}
-                                </span>
-                            )}
+                            
                         </div>
                         <div className="flex-1 text-left">
                             <p className="text-sm font-medium text-gray-800 flex items-center gap-2">
@@ -181,32 +132,6 @@ export default function Sidebar() {
                                 <User size={16} />
                                 <span>Thông tin cá nhân</span>
                             </button>
-                            <div className="relative" ref={notificationRef}>
-                                <button
-                                    onClick={handleNotificationClick}
-                                    className="w-full flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-gray-100 text-sm text-gray-700 transition-colors"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Bell size={16} />
-                                        <span>Thông báo</span>
-                                    </div>
-                                    {unreadCount > 0 && (
-                                        <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
-                                            {unreadCount > 9 ? "9+" : unreadCount}
-                                        </span>
-                                    )}
-                                </button>
-                                {showNotificationDropdown && (
-                                    <div className="absolute left-0 top-full mt-1 w-80 z-[101]">
-                                        <AdminNotificationDropdown
-                                            onClose={() => {
-                                                setShowNotificationDropdown(false);
-                                                refreshUnreadCount();
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </div>
                             <button
                                 onClick={handleLogout}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-100 text-sm text-red-600 transition-colors"

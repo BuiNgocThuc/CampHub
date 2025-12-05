@@ -10,6 +10,7 @@ import { ReferenceType } from "@/libs/core/constants";
 
 interface AdminNotificationDropdownProps {
   onClose: () => void;
+  onNotificationRead?: () => void; // Callback để cập nhật unread count
 }
 
 // Format thời gian tương đối (ví dụ: "2 giờ trước", "Hôm qua")
@@ -66,6 +67,14 @@ const getNavigationPath = (referenceType: ReferenceType, referenceId: string): s
       return `/admin/bookings?bookingId=${referenceId}`;
     case ReferenceType.USER:
       return `/admin/accounts?accountId=${referenceId}`;
+    case ReferenceType.RETURN_REQUEST:
+      return `/admin/return-requests?returnRequestId=${referenceId}`;
+    case ReferenceType.EXTENSION_REQUEST:
+      return `/admin/extension-requests?extensionRequestId=${referenceId}`;
+    case ReferenceType.DISPUTE:
+      return `/admin/disputes?disputeId=${referenceId}`;
+    case ReferenceType.TRANSACTION:
+      return `/admin/transactions?transactionId=${referenceId}`;
     default:
       return "/admin";
   }
@@ -73,6 +82,7 @@ const getNavigationPath = (referenceType: ReferenceType, referenceId: string): s
 
 export default function AdminNotificationDropdown({
   onClose,
+  onNotificationRead,
 }: AdminNotificationDropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -121,6 +131,7 @@ export default function AdminNotificationDropdown({
 
   // Đánh dấu đã đọc và điều hướng
   const handleNotificationClick = async (noti: Notification) => {
+    // Đánh dấu đã đọc nếu chưa đọc
     if (!noti.isRead) {
       try {
         setMarkingAsRead(noti.id);
@@ -128,9 +139,12 @@ export default function AdminNotificationDropdown({
         setNotifications((prev) =>
           prev.map((n) => (n.id === noti.id ? { ...n, isRead: true } : n))
         );
+        // Gọi callback để cập nhật unread count trong floating button
+        onNotificationRead?.();
       } catch (error) {
         console.error("Error marking notification as read:", error);
         toast.error("Không thể đánh dấu đã đọc");
+        return; // Không điều hướng nếu có lỗi
       } finally {
         setMarkingAsRead(null);
       }
@@ -170,6 +184,8 @@ export default function AdminNotificationDropdown({
       setNotifications((prev) =>
         prev.map((noti) => ({ ...noti, isRead: true }))
       );
+      // Gọi callback để cập nhật unread count trong floating button
+      onNotificationRead?.();
       toast.success("Đã đánh dấu tất cả đã đọc");
     } catch (error) {
       console.error("Error marking all as read:", error);

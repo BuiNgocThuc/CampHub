@@ -21,4 +21,5 @@ public class NotificationCreationRequest {
     String content;
     ReferenceType referenceType;
     UUID referenceId;
+    Boolean isBroadcast;
 }

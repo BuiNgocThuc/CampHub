@@ -20,5 +20,6 @@ public class NotificationResponse {
     String referenceType;
     UUID referenceId;
     boolean isRead;
+    boolean isBroadcast;
     String createdAt;
 }

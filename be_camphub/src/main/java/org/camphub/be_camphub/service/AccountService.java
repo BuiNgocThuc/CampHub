@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.camphub.be_camphub.dto.request.account.AccountCreationRequest;
 import org.camphub.be_camphub.dto.request.account.AccountPatchRequest;
 import org.camphub.be_camphub.dto.request.account.AccountUpdateRequest;
+import org.camphub.be_camphub.dto.request.account.ChangePasswordRequest;
 import org.camphub.be_camphub.dto.request.account.TopUpRequest;
 import org.camphub.be_camphub.dto.response.account.AccountResponse;
 import org.camphub.be_camphub.dto.response.account.TopUpResponse;
@@ -24,4 +25,8 @@ public interface AccountService {
     AccountResponse patchAccount(UUID id, AccountPatchRequest request);
 
     TopUpResponse topUpAccount(TopUpRequest request, UUID accountId);
+
+    AccountResponse patchCurrentAccount(UUID id, AccountPatchRequest request);
+
+    void changePassword(UUID id, ChangePasswordRequest request);
 }

@@ -14,3 +14,4 @@ export { default as DamageTypeManagement } from "./admin/damage-types";
 export { default as ReturnRequestList } from "./admin/return_requests";
 export { default as DisputeList } from "./admin/disputes";
 export { default as DisputeDetail } from "./admin/disputes/dispute-detail";
+export { default as AdminProfile } from "./admin/profile";

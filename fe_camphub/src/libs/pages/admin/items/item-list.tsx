@@ -173,6 +173,7 @@ export default function ItemList() {
                     <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
                         <Box minWidth={200}>
                             <PrimarySelectField
+                                size="small"
                                 label="Lọc theo trạng thái"
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -187,6 +188,7 @@ export default function ItemList() {
                         </Box>
                         <Box minWidth={200}>
                             <PrimarySelectField
+                                size="small"
                                 label="Lọc theo danh mục"
                                 value={categoryFilter}
                                 onChange={(e) => setCategoryFilter(e.target.value)}

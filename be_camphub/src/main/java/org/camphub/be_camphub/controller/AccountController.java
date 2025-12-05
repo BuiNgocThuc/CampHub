@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.camphub.be_camphub.dto.request.account.AccountCreationRequest;
 import org.camphub.be_camphub.dto.request.account.AccountPatchRequest;
 import org.camphub.be_camphub.dto.request.account.AccountUpdateRequest;
+import org.camphub.be_camphub.dto.request.account.ChangePasswordRequest;
 import org.camphub.be_camphub.dto.request.account.TopUpRequest;
 import org.camphub.be_camphub.dto.response.ApiResponse;
 import org.camphub.be_camphub.dto.response.account.AccountResponse;
@@ -76,6 +77,27 @@ public class AccountController {
         return ApiResponse.<TopUpResponse>builder()
                 .message("Top up account Successfully")
                 .result(accountService.topUpAccount(request, accountId))
+                .build();
+    }
+
+    // Patch current user's account
+    @PatchMapping("/me")
+    ApiResponse<AccountResponse> patchMyAccount(
+            @AuthenticationPrincipal Jwt jwt, @RequestBody AccountPatchRequest request) {
+        UUID accountId = UUID.fromString(jwt.getClaimAsString("userId"));
+        return ApiResponse.<AccountResponse>builder()
+                .message("Update my account successfully")
+                .result(accountService.patchCurrentAccount(accountId, request))
+                .build();
+    }
+
+    // Change current user's password
+    @PostMapping("/change-password")
+    ApiResponse<Void> changeMyPassword(@AuthenticationPrincipal Jwt jwt, @RequestBody ChangePasswordRequest request) {
+        UUID accountId = UUID.fromString(jwt.getClaimAsString("userId"));
+        accountService.changePassword(accountId, request);
+        return ApiResponse.<Void>builder()
+                .message("Change password successfully")
                 .build();
     }
 }

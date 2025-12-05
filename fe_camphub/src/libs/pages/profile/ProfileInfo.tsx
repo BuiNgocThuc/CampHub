@@ -2,12 +2,10 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import {
-  PrimaryButton,
-  CustomizedButton,
-  PrimaryTextField,
-} from "@/libs/components";
+import { PrimaryButton, CustomizedButton, PrimaryTextField } from "@/libs/components";
 import { Account } from "@/libs/core/types";
+import { updateMyAccount, changeMyPassword } from "@/libs/api/account-api";
+import { toast } from "sonner";
 
 
 interface ProfileInfoProps {
@@ -17,21 +15,69 @@ interface ProfileInfoProps {
 export default function ProfileInfo({ account }: ProfileInfoProps) {
   const [editMode, setEditMode] = useState(false);
   const [editedAccount, setEditedAccount] = useState<Account>(account);
+  const [saving, setSaving] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
   // Khi props account thay đổi (ví dụ: reload từ server), đồng bộ lại state
   useEffect(() => {
     setEditedAccount(account);
   }, [account]);
 
-  const handleSave = () => {
-    // TODO: Gọi API cập nhật thông tin
-    console.log("Cập nhật profile:", editedAccount);
-    setEditMode(false);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateMyAccount({
+        firstname: editedAccount.firstname,
+        lastname: editedAccount.lastname,
+        email: editedAccount.email,
+        phoneNumber: editedAccount.phoneNumber,
+        idNumber: editedAccount.idNumber,
+        avatar: editedAccount.avatar,
+      });
+      toast.success("Cập nhật hồ sơ thành công");
+      setEditMode(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Cập nhật hồ sơ thất bại");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
     setEditedAccount(account); // reset về dữ liệu gốc
     setEditMode(false);
+  };
+
+  const handleChangePassword = async () => {
+    const { currentPassword, newPassword, confirmPassword } = passwordForm;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Vui lòng nhập đầy đủ mật khẩu");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Mật khẩu xác nhận không khớp");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await changeMyPassword(currentPassword, newPassword);
+      toast.success("Đổi mật khẩu thành công");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Đổi mật khẩu thất bại");
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   // Format ngày giờ đẹp
@@ -138,6 +184,38 @@ export default function ProfileInfo({ account }: ProfileInfoProps) {
         />
       </div>
 
+      {/* Đổi mật khẩu */}
+      <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
+        <h3 className="text-lg font-semibold mb-4">Đổi mật khẩu</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <PrimaryTextField
+            label="Mật khẩu hiện tại"
+            value={passwordForm.currentPassword}
+            onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+            type="password"
+          />
+          <PrimaryTextField
+            label="Mật khẩu mới"
+            value={passwordForm.newPassword}
+            onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+            type="password"
+          />
+          <PrimaryTextField
+            label="Xác nhận mật khẩu mới"
+            value={passwordForm.confirmPassword}
+            onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div className="mt-4 flex justify-end">
+          <PrimaryButton
+            content={changingPassword ? "Đang đổi..." : "Đổi mật khẩu"}
+            onClick={handleChangePassword}
+            disabled={changingPassword}
+          />
+        </div>
+      </div>
+
       {/* Thông tin chỉ xem */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl">
         <PrimaryTextField
@@ -156,7 +234,11 @@ export default function ProfileInfo({ account }: ProfileInfoProps) {
       <div className="mt-10 flex justify-end gap-4">
         {editMode ? (
           <>
-            <PrimaryButton content="Lưu thay đổi" onClick={handleSave} />
+            <PrimaryButton
+              content={saving ? "Đang lưu..." : "Lưu thay đổi"}
+              onClick={handleSave}
+              disabled={saving}
+            />
             <CustomizedButton
               content="Hủy bỏ"
               color="#EF4444"
