@@ -2,7 +2,7 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { cn } from "@/libs/utils"; // helper function gộp className (tạo nếu chưa có)
+import { cn } from "@/libs/utils";
 import { LucideIcon } from "lucide-react";
 
 interface SidebarItemProps {

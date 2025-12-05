@@ -45,6 +45,12 @@ export const getPendingDisputes = async (): Promise<Dispute[]> => {
 };
 
 export const getDisputeById = async (disputeId: string): Promise<Dispute> => {
-  const response = await api.get<ApiResponse<DisputeResponse>>(`/disputes/${disputeId}`);
-  return disputeMap.fromResponse(response.data.result);
+    const response = await api.get<ApiResponse<DisputeResponse>>(`/disputes/${disputeId}`);
+    return disputeMap.fromResponse(response.data.result);
+};
+
+// get all disputes
+export const getAllDisputes = async (): Promise<Dispute[]> => {
+    const response = await api.get<ApiResponse<DisputeResponse[]>>("/disputes");
+    return response.data.result.map(disputeMap.fromResponse);
 };

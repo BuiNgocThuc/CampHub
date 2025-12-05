@@ -74,18 +74,15 @@ public class DisputeServiceImpl implements DisputeService {
             itemRepository.save(item);
         });
 
-        // thông báo đến admin (ở đây tạm thời gửi tới hệ thống hoặc có thể chọn 1 admin chung)
-        accountRepository
-                .findSystemWallet()
-                .ifPresent(system -> notificationService.create(NotificationCreationRequest.builder()
-                        .receiverId(system.getId())
-                        .senderId(lessorId)
-                        .type(NotificationType.DAMAGE_REPORTED)
-                        .title("Khiếu nại mới cần xử lý")
-                        .content("Có khiếu nại mới cho đơn " + booking.getId())
-                        .referenceType(ReferenceType.BOOKING)
-                        .referenceId(booking.getId())
-                        .build()));
+        // thông báo đến tất cả admin có khiếu nại mới cần xử lý
+        notificationService.notifyAllAdmins(NotificationCreationRequest.builder()
+                .senderId(lessorId)
+                .type(NotificationType.DAMAGE_REPORTED)
+                .title("Khiếu nại mới cần xử lý")
+                .content("Có khiếu nại mới cho đơn " + booking.getId())
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
 
         // 7. Build response
         return enrichDisputeResponse(dispute);
@@ -242,6 +239,21 @@ public class DisputeServiceImpl implements DisputeService {
         return disputeRepository.findByStatus(DisputeStatus.PENDING_REVIEW).stream()
                 .map(this::enrichDisputeResponse)
                 .toList();
+    }
+
+    @Override
+    public List<DisputeResponse> getAllDisputes() {
+        return disputeRepository.findAll().stream()
+                .map(this::enrichDisputeResponse)
+                .toList();
+    }
+
+    @Override
+    public DisputeResponse getDisputeById(UUID disputeId) {
+        return disputeRepository
+                .findById(disputeId)
+                .map(this::enrichDisputeResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.DISPUTE_NOT_FOUND));
     }
 
     private void closeOpenReturnRequest(Booking booking) {

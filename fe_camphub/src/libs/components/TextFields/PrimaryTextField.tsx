@@ -17,6 +17,7 @@ interface PrimaryTextFieldProps {
   slotProps?: {};
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   multiline?: boolean;
+  type?: string;
 }
 
 const PrimaryTextField: React.FC<PrimaryTextFieldProps> = ({
@@ -33,6 +34,7 @@ const PrimaryTextField: React.FC<PrimaryTextFieldProps> = ({
   size = "medium",
   slotProps = {},
   onBlur = () => {},
+  type = "text",
 }) => {
   // Only allow "small" or "medium" for MUI TextField
   return (
@@ -52,6 +54,7 @@ const PrimaryTextField: React.FC<PrimaryTextFieldProps> = ({
       slotProps={slotProps}
       onBlur={onBlur}
       multiline={multiline}
+      type={type}
       sx={{
         // marginBottom: "1.5rem",
         "& .MuiOutlinedInput-root": {

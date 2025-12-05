@@ -13,7 +13,7 @@ import {
 import { Eye } from "lucide-react";
 import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
 import { useQuery } from "@tanstack/react-query";
-import { getPendingDisputes } from "@/libs/api/dispute-api";
+import { getAllDisputes, getPendingDisputes } from "@/libs/api/dispute-api";
 import DisputeDetailModal from "./dispute-detail";
 import { Dispute } from "@/libs/core/types";
 import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
@@ -29,8 +29,8 @@ export default function DisputeList() {
     const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
 
     const { data: disputes = [], isLoading } = useQuery({
-        queryKey: ["pendingDisputes"],
-        queryFn: getPendingDisputes,
+        queryKey: ["AllDisputes"],
+        queryFn: getAllDisputes,
     });
 
     const handleView = (dispute: Dispute) => {

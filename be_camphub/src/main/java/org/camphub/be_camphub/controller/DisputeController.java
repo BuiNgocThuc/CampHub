@@ -51,4 +51,12 @@ public class DisputeController {
                 .result(disputeService.getPendingDisputes())
                 .build();
     }
+
+    @GetMapping
+    public ApiResponse<List<DisputeResponse>> getAllDisputes() {
+        return ApiResponse.<List<DisputeResponse>>builder()
+                .message("All disputes fetched successfully")
+                .result(disputeService.getAllDisputes())
+                .build();
+    }
 }

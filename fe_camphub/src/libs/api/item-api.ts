@@ -86,7 +86,7 @@ export const deleteItem = async (id: string): Promise<ApiResponse<void>> => {
 // Admin approve/reject item
 export const approveItem = async (id: string, isApproved: boolean): Promise<Item> => {
     const response = await api.put<ApiResponse<ItemResponse>>(
-        `/items/${id}/approve`,
+        `/items/approve/${id}`,
         null,
         { params: { isApproved } }
     );
@@ -95,7 +95,7 @@ export const approveItem = async (id: string, isApproved: boolean): Promise<Item
 
 export const lockItem = async (id: string, isLocked: boolean): Promise<Item> => {
     const response = await api.put<ApiResponse<ItemResponse>>(
-        `/items/${id}/lock`,
+        `/items/lock/${id}`,
         null,
         { params: { isLocked } }
     );

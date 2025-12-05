@@ -1,7 +1,6 @@
 // app/admin/return-requests/page.tsx
 "use client";
 
-import { useState } from "react";
 import {
     Chip,
     IconButton,
@@ -13,10 +12,10 @@ import {
 import { Eye } from "lucide-react";
 import { PrimaryDataGrid } from "@/libs/components";
 import { useQuery } from "@tanstack/react-query";
-import { getPendingReturnRequests } from "@/libs/api/return-request-api";
+import { getReturnRequests } from "@/libs/api/return-request-api";
 import { ReturnRequest } from "@/libs/core/types";
 import { ReasonReturnType, ReturnRequestStatus } from "@/libs/core/constants";
-import { GridColDef } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 const reasonLabels: Record<ReasonReturnType, string> = {
     MISSING_PARTS: "Giao thiếu đồ",
@@ -32,12 +31,12 @@ const statusConfig: Record<ReturnRequestStatus, { label: string; color: "warning
 
 export default function ReturnRequestList() {
     const { data: requests = [], isLoading } = useQuery({
-        queryKey: ["pendingReturnRequests"],
-        queryFn: getPendingReturnRequests,
+        queryKey: ["ReturnRequests"],
+        queryFn: getReturnRequests,
     });
 
     const handleView = (id: string) => {
-        window.open(`/admin/return-requests/${id}`, "_blank");
+        // window.open(`/admin/return-requests/${id}`, "_blank");
     };
 
     const columns: GridColDef<ReturnRequest>[] = [
@@ -45,9 +44,9 @@ export default function ReturnRequestList() {
             field: "id",
             headerName: "Mã yêu cầu",
             width: 130,
-            renderCell: (params: any) => (
+            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => (
                 <Typography fontFamily="monospace" color="text.secondary">
-                    {params.value.slice(0, 8)}
+                    {params.value ? params.value.slice(0, 8) : "N/A"}
                 </Typography>
             ),
         },
@@ -55,25 +54,35 @@ export default function ReturnRequestList() {
             field: "lesseeName",
             headerName: "Người thuê",
             width: 180,
-            renderCell: (params: any) => <Typography fontWeight="medium">{params.value}</Typography>,
+            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => (
+                <Typography fontWeight="medium">{params.value || "N/A"}</Typography>
+            ),
         },
         {
             field: "lessorName",
             headerName: "Chủ đồ",
             width: 180,
-            renderCell: (params: any) => <Typography fontWeight="medium">{params.value}</Typography>,
+            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => (
+                <Typography fontWeight="medium">{params.value || "N/A"}</Typography>
+            ),
         },
         {
             field: "itemName",
             headerName: "Sản phẩm",
             width: 220,
+            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => (
+                <Typography>{params.value || "N/A"}</Typography>
+            ),
         },
         {
             field: "reason",
             headerName: "Lý do",
             width: 200,
-            renderCell: (params: any) => {
-                const reason = params.value as ReasonReturnType;
+            renderCell: (params: GridRenderCellParams<ReturnRequest, ReasonReturnType>) => {
+                const reason = params.value;
+                if (!reason || !reasonLabels[reason]) {
+                    return <Chip label="N/A" variant="outlined" size="small" />;
+                }
                 return <Chip label={reasonLabels[reason]} variant="outlined" size="small" />;
             },
         },
@@ -81,8 +90,12 @@ export default function ReturnRequestList() {
             field: "status",
             headerName: "Trạng thái",
             width: 140,
-            renderCell: (params: any) => {
-                const config = statusConfig[params.value as ReturnRequestStatus];
+            renderCell: (params: GridRenderCellParams<ReturnRequest, ReturnRequestStatus>) => {
+                const status = params.value;
+                if (!status || !statusConfig[status]) {
+                    return <Chip label="N/A" size="small" sx={{ fontWeight: 600 }} />;
+                }
+                const config = statusConfig[status];
                 return <Chip label={config.label} color={config.color} size="small" sx={{ fontWeight: 600 }} />;
             },
         },
@@ -90,14 +103,21 @@ export default function ReturnRequestList() {
             field: "createdAt",
             headerName: "Ngày gửi",
             width: 170,
-            renderCell: (params: any) => new Date(params.value).toLocaleString("vi-VN"),
+            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => {
+                if (!params.value) return <Typography>N/A</Typography>;
+                try {
+                    return <Typography>{new Date(params.value).toLocaleString("vi-VN")}</Typography>;
+                } catch {
+                    return <Typography>N/A</Typography>;
+                }
+            },
         },
         {
             field: "actions",
             headerName: "",
             width: 100,
             sortable: false,
-            renderCell: (params: any) => (
+            renderCell: (params: GridRenderCellParams<ReturnRequest>) => (
                 <Tooltip title="Xem chi tiết & xử lý">
                     <IconButton color="primary" onClick={() => handleView(params.row.id)}>
                         <Eye size={18} />
@@ -105,7 +125,7 @@ export default function ReturnRequestList() {
                 </Tooltip>
             ),
         },
-    ] as const;
+    ];
 
     return (
         <Box p={6}>

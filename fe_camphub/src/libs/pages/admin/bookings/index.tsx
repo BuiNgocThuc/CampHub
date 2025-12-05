@@ -6,7 +6,7 @@ import { Chip, IconButton, Tooltip, Box, Typography, CircularProgress } from "@m
 import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
 import BookingDetail from "./booking-detail";
 import { useQuery } from "@tanstack/react-query";
-import { getAllBookings } from "@/libs/api/booking-api";
+import { getAllBookings, getBookingById } from "@/libs/api/booking-api";
 import { Booking } from "@/libs/core/types";
 import { BookingStatus } from "@/libs/core/constants";
 import { Visibility } from "@mui/icons-material";
@@ -42,6 +42,16 @@ export default function BookingList() {
     const { data: bookings = [], isLoading, error } = useQuery({
         queryKey: ["adminBookings"],
         queryFn: getAllBookings,
+    });
+
+    const {
+        data: bookingDetail,
+        isLoading: isLoadingDetail,
+        error: detailError,
+    } = useQuery({
+        queryKey: ["adminBookingDetail", selectedBooking?.id],
+        queryFn: () => getBookingById(selectedBooking!.id),
+        enabled: !!selectedBooking,
     });
 
     const handleView = (booking: Booking) => {
@@ -179,7 +189,24 @@ export default function BookingList() {
                 onClose={() => setOpenDetail(false)}
                 title={selectedBooking ? `Chi tiết đơn #${selectedBooking.id.slice(0, 8)}` : "Chi tiết đơn thuê"}
             >
-                {selectedBooking && <BookingDetail booking={selectedBooking} />}
+                {isLoadingDetail && (
+                    <Box display="flex" justifyContent="center" alignItems="center" py={4}>
+                        <CircularProgress size={24} />
+                        <Typography ml={2}>Đang tải chi tiết đơn...</Typography>
+                    </Box>
+                )}
+
+                {detailError && (
+                    <Box textAlign="center" py={4}>
+                        <Typography color="error">
+                            Không thể tải chi tiết đơn: {(detailError as any).message}
+                        </Typography>
+                    </Box>
+                )}
+
+                {!isLoadingDetail && !detailError && bookingDetail && (
+                    <BookingDetail booking={bookingDetail} />
+                )}
             </PrimaryModal>
         </div>
     );

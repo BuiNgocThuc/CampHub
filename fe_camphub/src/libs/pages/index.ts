@@ -13,3 +13,5 @@ export { default as ExtensionManagementPage } from "./admin/extension_requests";
 export { default as DamageTypeManagement } from "./admin/damage-types";
 export { default as ReturnRequestList } from "./admin/return_requests";
 export { default as ReturnRequestDetail } from "./admin/return_requests/return-request-detail";
+export { default as DisputeList } from "./admin/disputes";
+export { default as DisputeDetail } from "./admin/disputes/dispute-detail";

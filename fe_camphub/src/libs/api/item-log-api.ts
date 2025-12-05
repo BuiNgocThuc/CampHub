@@ -6,7 +6,8 @@ import { itemLogMap } from "../core/mapping/item-log.mapper";
 // Lấy tất cả logs
 export const getAllItemLogs = async (): Promise<ItemLog[]> => {
     try {
-        const response = await api.get<ApiResponse<ItemLogsResponse[]>>("/item-logs");
+        const response = await api.get<ApiResponse<ItemLogsResponse[]>>("/item_logs");
+        console.log(response.data.result);
         return response.data.result.map(itemLogMap.fromResponse);
     } catch (error) {
         throw error;

@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { CustomizedButton, Tabs, TabsList, TabsTrigger } from "@/libs/components";
-import { useQuery } from "@tanstack/react-query";
-import { getBookingsByLessor } from "@/libs/api";
-import { PrimaryButton } from "@/libs/components";
+import { CustomizedButton, Tabs, TabsList, TabsTrigger, PrimaryButton } from "@/libs/components";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getBookingsByLessor, lessorConfirmReturnForReturnRequest } from "@/libs/api";
 import { MessageSquare } from "lucide-react";
 import BookingList from "./BookingList";
-import { Booking } from "@/libs/core/types";
+import { Booking, ExtensionRequest } from "@/libs/core/types";
 import OwnerResponseTrigger from "./booking-management/OwnerResponseTrigger";
-import { BookingStatus } from "@/libs/core/constants";
+import DisputeModal from "./booking-management/DisputeModal";
+import { BookingStatus, ExtensionStatus } from "@/libs/core/constants";
+import { toast } from "sonner";
+import { approveExtensionRequest, getAllExtensionRequests, rejectExtensionRequest } from "@/libs/api/extension-request-api";
 
 const tabs = ["Tất cả", "Chờ xác nhận", "Đã từ chối", "Chờ giao hàng", "Đang cho thuê", "Chờ nhận lại đồ", "Hoàn thành", "Khiếu nại"] as const;
 type Tab = (typeof tabs)[number];
@@ -35,10 +37,34 @@ const statusToTab: Record<BookingStatus, Tab> = {
 
 export default function RentalOrders() {
     const [activeTab, setActiveTab] = useState<Tab>("Tất cả");
+    const queryClient = useQueryClient();
+    const [selectedDisputeBooking, setSelectedDisputeBooking] = useState<Booking | null>(null);
+
     const { data: bookings = [], isLoading } = useQuery({
         queryKey: ["lessorBookings"],
         queryFn: getBookingsByLessor,
     });
+
+    const confirmReturnMut = useMutation({
+        mutationFn: lessorConfirmReturnForReturnRequest,
+        onSuccess: () => {
+            toast.success("Đã xác nhận nhận lại hàng trả");
+            queryClient.invalidateQueries({ queryKey: ["lessorBookings"] });
+            queryClient.invalidateQueries({ queryKey: ["myRentals"] });
+        },
+        onError: (error: any) => {
+            const msg = error?.response?.data?.message || "Không thể xác nhận nhận lại hàng";
+            toast.error(msg);
+        },
+    });
+
+    const handleLessorConfirmReturn = (booking: Booking) => {
+        if (confirmReturnMut.isPending) return;
+        if (!window.confirm("Xác nhận bạn đã nhận lại đầy đủ đồ từ khách thuê cho đơn này?")) {
+            return;
+        }
+        confirmReturnMut.mutate({ bookingId: booking.id });
+    };
 
     const filteredBookings = useMemo(() => {
         if (activeTab === "Tất cả") return bookings;
@@ -52,10 +78,24 @@ export default function RentalOrders() {
         if (["RETURNED_PENDING_CHECK", "RETURN_REFUND_REQUESTED"].includes(booking.status)) {
             return (
                 <div className="flex gap-3">
-                    <PrimaryButton content="Xác nhận" className="bg-blue-600 hover:bg-blue-700" />
-                    <CustomizedButton content="Khiếu nại" icon={<MessageSquare size={16} />} color="orange" className="hover:bg-orange-50" />
+                    <PrimaryButton
+                        content={confirmReturnMut.isPending ? "Đang xác nhận..." : "Xác nhận đã nhận lại hàng"}
+                        className="bg-blue-600 hover:bg-blue-700"
+                        onClick={() => handleLessorConfirmReturn(booking)}
+                        disabled={confirmReturnMut.isPending}
+                    />
+                    <CustomizedButton
+                        content="Khiếu nại"
+                        icon={<MessageSquare size={16} />}
+                        color="orange"
+                        className="hover:bg-orange-50"
+                        onClick={() => setSelectedDisputeBooking(booking)}
+                    />
                 </div>
             );
+        }
+        if (booking.status === BookingStatus.IN_USE) {
+            return <LessorExtensionActions booking={booking} />;
         }
         return null;
     };
@@ -84,6 +124,105 @@ export default function RentalOrders() {
             </Tabs>
 
             <BookingList bookings={filteredBookings} role="lessor" renderActions={renderActions} />
+
+            {selectedDisputeBooking && (
+                <DisputeModal
+                    open={!!selectedDisputeBooking}
+                    onClose={() => setSelectedDisputeBooking(null)}
+                    booking={selectedDisputeBooking}
+                />
+            )}
+        </div>
+    );
+}
+
+interface LessorExtensionActionsProps {
+    booking: Booking;
+}
+
+function LessorExtensionActions({ booking }: LessorExtensionActionsProps) {
+    const queryClient = useQueryClient();
+
+    const { data: extensionRequests = [], isLoading } = useQuery<ExtensionRequest[]>({
+        queryKey: ["extensionRequestsByBooking", booking.id],
+        queryFn: () => getAllExtensionRequests({ bookingId: booking.id }),
+    });
+
+    const pendingReq = extensionRequests.find(r => r.status === ExtensionStatus.PENDING);
+
+    const approveMut = useMutation({
+        mutationFn: approveExtensionRequest,
+        onSuccess: () => {
+            toast.success("Đã đồng ý gia hạn thuê");
+            queryClient.invalidateQueries({ queryKey: ["extensionRequestsByBooking", booking.id] });
+            queryClient.invalidateQueries({ queryKey: ["extensionRequests"] });
+            queryClient.invalidateQueries({ queryKey: ["lessorBookings"] });
+            queryClient.invalidateQueries({ queryKey: ["myRentals"] });
+        },
+        onError: (error: any) => {
+            const msg = error?.response?.data?.message || "Không thể đồng ý gia hạn";
+            toast.error(msg);
+        },
+    });
+
+    const rejectMut = useMutation({
+        mutationFn: rejectExtensionRequest,
+        onSuccess: () => {
+            toast.success("Đã từ chối yêu cầu gia hạn");
+            queryClient.invalidateQueries({ queryKey: ["extensionRequestsByBooking", booking.id] });
+            queryClient.invalidateQueries({ queryKey: ["extensionRequests"] });
+            queryClient.invalidateQueries({ queryKey: ["lessorBookings"] });
+            queryClient.invalidateQueries({ queryKey: ["myRentals"] });
+        },
+        onError: (error: any) => {
+            const msg = error?.response?.data?.message || "Không thể từ chối yêu cầu gia hạn";
+            toast.error(msg);
+        },
+    });
+
+    if (isLoading || !pendingReq) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-col items-end gap-2">
+            <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 max-w-xs text-right">
+                <div className="text-xs text-gray-700">
+                    Khách thuê yêu cầu gia hạn đến ngày{" "}
+                    <span className="font-semibold">
+                        {new Date(pendingReq.requestedNewEndDate).toLocaleDateString("vi-VN")}
+                    </span>
+                    . Phí thêm:{" "}
+                    <span className="font-semibold text-blue-700">
+                        {Number(pendingReq.additionalFee).toLocaleString("vi-VN")}₫
+                    </span>
+                </div>
+            </div>
+            <div className="flex gap-2">
+                <PrimaryButton
+                    content={approveMut.isPending ? "Đang đồng ý..." : "Đồng ý gia hạn"}
+                    onClick={() => {
+                        if (approveMut.isPending) return;
+                        if (window.confirm("Đồng ý gia hạn thuê cho đơn này?")) {
+                            approveMut.mutate({ requestId: pendingReq.id });
+                        }
+                    }}
+                    disabled={approveMut.isPending || rejectMut.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                />
+                <CustomizedButton
+                    content={rejectMut.isPending ? "Đang từ chối..." : "Từ chối"}
+                    onClick={() => {
+                        if (rejectMut.isPending) return;
+                        if (window.confirm("Từ chối yêu cầu gia hạn này?")) {
+                            rejectMut.mutate({ requestId: pendingReq.id });
+                        }
+                    }}
+                    disabled={approveMut.isPending || rejectMut.isPending}
+                    color="#f97316"
+                    className="hover:bg-orange-50"
+                />
+            </div>
         </div>
     );
 }

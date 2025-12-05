@@ -68,6 +68,12 @@ export const getPendingReturnRequests = async (): Promise<ReturnRequest[]> => {
     }
 };
 
+// Lấy danh sách return requests (admin)
+export const getReturnRequests = async (): Promise<ReturnRequest[]> => {
+    const response = await api.get<ApiResponse<ReturnReqResponse[]>>("/return-requests");
+    return response.data.result.map(returnRequestMap.fromResponse);
+};
+
 export const getReturnRequestById = async (requestId: string): Promise<ReturnRequest> => {
     const response = await api.get<ApiResponse<ReturnReqResponse>>(`/return-requests/${requestId}`);
     return returnRequestMap.fromResponse(response.data.result);

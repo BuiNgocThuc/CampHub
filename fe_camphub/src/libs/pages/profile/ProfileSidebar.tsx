@@ -5,7 +5,7 @@ import clsx from "clsx";
 
 const menuItems = [
   { id: "info", label: "Thông tin cá nhân", icon: <User size={18} /> },
-  { id: "items", label: "Sản phẩm cho thuê", icon: <Box size={18} /> },
+  { id: "items", label: "Sản phẩm cho thuê", icon: <Box size={18} /> }, 
   { id: "rental-orders", label: "Đơn cho thuê", icon: <Package size={18} /> },
   { id: "history", label: "Lịch sử thuê đồ", icon: <History size={18} /> },
   { id: "coin", label: "CampHub Xu", icon: <Coins size={18} /> },

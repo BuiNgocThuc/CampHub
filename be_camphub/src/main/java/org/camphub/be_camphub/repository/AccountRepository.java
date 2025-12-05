@@ -1,5 +1,6 @@
 package org.camphub.be_camphub.repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,4 +19,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
 
     @Query("SELECT a FROM Account  a WHERE a.username = 'SYSTEM_WALLET'")
     Optional<Account> findSystemWallet();
+
+    @Query("SELECT a FROM Account a WHERE a.userType = org.camphub.be_camphub.enums.UserType.ADMIN")
+    List<Account> findAllAdmins();
 }

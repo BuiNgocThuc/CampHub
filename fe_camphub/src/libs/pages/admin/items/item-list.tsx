@@ -2,12 +2,13 @@
 "use client";
 
 import { useState } from "react";
-import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
-import { Chip, IconButton, Box, Typography, CircularProgress } from "@mui/material";
+import { PrimaryDataGrid, PrimaryModal, PrimarySelectField } from "@/libs/components";
+import { Chip, IconButton, Box, Typography, CircularProgress, Grid } from "@mui/material";
 import { Eye } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllItems, approveItem, lockItem } from "@/libs/api/item-api";
-import { Item } from "@/libs/core/types";
+import { getAllCategories } from "@/libs/api/category-api";
+import { Item, Category } from "@/libs/core/types";
 import ItemDetail from "./item-detail";
 import { toast } from "sonner";
 import { ItemStatus } from "@/libs/core/constants";
@@ -27,11 +28,18 @@ const itemStatusConfig: Record<ItemStatus, { label: string; color: any }> = {
 export default function ItemList() {
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [openDetail, setOpenDetail] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<string>("");
+    const [categoryFilter, setCategoryFilter] = useState<string>("");
     const queryClient = useQueryClient();
 
+    const { data: categories = [], isLoading: loadingCategories } = useQuery<Category[]>({
+        queryKey: ["categories"],
+        queryFn: getAllCategories,
+    });
+
     const { data: items = [], isLoading } = useQuery({
-        queryKey: ["adminItems"] as const,
-        queryFn: async () => await getAllItems(),
+        queryKey: ["adminItems", statusFilter, categoryFilter] as const,
+        queryFn: async () => await getAllItems(statusFilter || undefined, categoryFilter || undefined),
     });
 
     const mutation = useMutation({
@@ -42,28 +50,45 @@ export default function ItemList() {
             if (action === "unlock") return lockItem(id, false);
             throw new Error("Hành động không hợp lệ");
         },
-        onSuccess: () => {
+        onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ["adminItems"] });
-            toast.success("Cập nhật trạng thái thành công!");
+            const actionMessages: Record<string, string> = {
+                approve: "Đã duyệt sản phẩm thành công!",
+                reject: "Đã từ chối sản phẩm thành công!",
+                lock: "Đã khóa sản phẩm thành công!",
+                unlock: "Đã mở khóa sản phẩm thành công!",
+            };
+            toast.success(actionMessages[variables.action] || "Cập nhật trạng thái thành công!");
             setOpenDetail(false);
         },
-        onError: () => toast.error("Cập nhật thất bại!"),
+        onError: (error: any) => {
+            const errorMessage = error?.response?.data?.message || error?.message || "Cập nhật thất bại!";
+            toast.error(errorMessage);
+        },
     });
 
     const columns = [
         { field: "name", headerName: "Tên sản phẩm", width: 340 },
         { field: "ownerName", headerName: "Chủ sở hữu", width: 180 },
         {
-            field: "pricePerDay",
+            field: "price",
             headerName: "Giá thuê/ngày",
             width: 140,
-            renderCell: (params: any) => `${Number(params.row.pricePerDay).toLocaleString()}₫`,
+            renderCell: (params: any) => {
+                const price = params.row.price;
+                if (price == null || isNaN(Number(price))) return "N/A";
+                return `${Number(price).toLocaleString("vi-VN")}₫`;
+            },
         },
         {
             field: "depositAmount",
             headerName: "Tiền cọc",
             width: 140,
-            renderCell: (params: any) => `${Number(params.row.depositAmount).toLocaleString()}₫`,
+            renderCell: (params: any) => {
+                const deposit = params.row.depositAmount;
+                if (deposit == null || isNaN(Number(deposit))) return "N/A";
+                return `${Number(deposit).toLocaleString("vi-VN")}₫`;
+            },
         },
         {
             field: "status",
@@ -104,10 +129,43 @@ export default function ItemList() {
 
     return (
         <>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} flexWrap="wrap" gap={2}>
                 <Typography variant="h6" fontWeight="bold">
                     Danh sách sản phẩm ({items.length})
                 </Typography>
+
+                {/* Filters */}
+                <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
+                    <Box minWidth={200}>
+                        <PrimarySelectField
+                            label="Lọc theo trạng thái"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            options={[
+                                { value: "", label: "Tất cả trạng thái" },
+                                ...Object.entries(itemStatusConfig).map(([key, config]) => ({
+                                    value: key,
+                                    label: config.label,
+                                })),
+                            ]}
+                        />
+                    </Box>
+                    <Box minWidth={200}>
+                        <PrimarySelectField
+                            label="Lọc theo danh mục"
+                            value={categoryFilter}
+                            onChange={(e) => setCategoryFilter(e.target.value)}
+                            disabled={loadingCategories}
+                            options={[
+                                { value: "", label: loadingCategories ? "Đang tải..." : "Tất cả danh mục" },
+                                ...categories.map((category) => ({
+                                    value: category.id,
+                                    label: category.name,
+                                })),
+                            ]}
+                        />
+                    </Box>
+                </Box>
             </Box>
 
             <PrimaryDataGrid<Item>

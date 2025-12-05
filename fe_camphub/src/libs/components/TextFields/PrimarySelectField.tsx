@@ -7,7 +7,7 @@ interface PrimarySelectFieldProps {
     label: string | React.ReactNode;
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    options: { value: string; label: string }[];
+    options: { value: string; label: string; disabled?: boolean }[];
     required?: boolean;
     disabled?: boolean;
     error?: boolean;
@@ -100,7 +100,7 @@ const PrimarySelectField: React.FC<PrimarySelectFieldProps> = ({
             }}
         >
             {options.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
+                <MenuItem key={option.value} value={option.value} disabled={option.disabled}>
                     {option.label}
                 </MenuItem>
             ))}

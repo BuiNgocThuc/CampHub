@@ -1,10 +1,10 @@
 // app/profile/owned-items/ItemModal/ItemForm.tsx
 "use client";
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2, Upload, X, Video, AlertCircle } from "lucide-react";
-import { PrimaryButton, CustomizedButton } from "@/libs/components";
+import { PrimaryButton, CustomizedButton, PrimaryAlert } from "@/libs/components";
 import { useCloudinaryUpload, useCreateItem, useUpdateItem } from "@/libs/hooks";
 import { Item } from "@/libs/core/types";
 import { ItemSchema, ItemFormValues } from "./schema";
@@ -13,6 +13,8 @@ import { MediaType } from "@/libs/core/constants";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCategories } from "@/libs/api/category-api";
 import type { Category } from "@/libs/core/types";
+import PrimaryTextField from "@/libs/components/TextFields/PrimaryTextField";
+import PrimarySelectField from "@/libs/components/TextFields/PrimarySelectField";
 import { useState } from "react";
 import { uploadMultipleToCloudinary } from "@/libs/services";
 
@@ -32,6 +34,18 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
     });
     const [isUploading, setIsUploading] = useState(false);
 
+    const [alert, setAlert] = useState<{
+        content: string;
+        type: "success" | "error" | "warning" | "info";
+        duration: number;
+    } | null>(null);
+
+    const showAlert = (
+        content: string,
+        type: "success" | "error" | "warning" | "info",
+        duration = 2000
+    ) => setAlert({ content, type, duration });
+
     const {
         register,
         handleSubmit,
@@ -39,6 +53,7 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
         setValue,
         watch,
         trigger,
+        control,
     } = useForm<ItemFormValues>({
         resolver: zodResolver(ItemSchema),
         defaultValues: item
@@ -99,10 +114,13 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
         try {
             const mutation = item ? updateMut : createMut;
             await mutation.mutateAsync({ ...data, id: item?.id } as Item);
-            toast.success(item ? "Cập nhật thành công!" : "Đăng sản phẩm thành công!");
+            showAlert(
+                item ? "Cập nhật sản phẩm thành công!" : "Đăng sản phẩm thành công!",
+                "success"
+            );
             onSuccess();
         } catch (err) {
-            toast.error("Có lỗi xảy ra. Vui lòng thử lại.");
+            showAlert("Có lỗi xảy ra. Vui lòng thử lại.", "error");
         }
     };
 
@@ -150,65 +168,135 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
             {/* Các field */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                    <input
-                        {...register("name")}
-                        placeholder="Tên sản phẩm *"
-                        className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    <Controller
+                        control={control}
+                        name="name"
+                        render={({ field }) => (
+                            <PrimaryTextField
+                                label="Tên sản phẩm *"
+                                placeholder="Nhập tên sản phẩm"
+                                required
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                error={!!errors.name}
+                                helperText={errors.name?.message}
+                            />
+                        )}
                     />
-                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
                 </div>
 
                 <div>
-                    <input
-                        {...register("price", { valueAsNumber: true })}
-                        type="number"
-                        placeholder="Giá thuê/ngày (₫) *"
-                        className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    <Controller
+                        control={control}
+                        name="price"
+                        render={({ field }) => (
+                            <PrimaryTextField
+                                label="Giá thuê/ngày (₫) *"
+                                required
+                                type="number"
+                                value={
+                                    field.value === undefined || field.value === null
+                                        ? ""
+                                        : String(field.value)
+                                }
+                                onChange={(e) =>
+                                    field.onChange(e.target.value === "" ? "" : Number(e.target.value))
+                                }
+                                error={!!errors.price}
+                                helperText={errors.price?.message}
+                                slotProps={{
+                                    input: { min: 0 },
+                                }}
+                            />
+                        )}
                     />
-                    {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
                 </div>
 
                 <div>
-                    <input
-                        {...register("quantity", { valueAsNumber: true })}
-                        type="number"
-                        min="1"
-                        placeholder="Số lượng *"
-                        className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    <Controller
+                        control={control}
+                        name="quantity"
+                        render={({ field }) => (
+                            <PrimaryTextField
+                                label="Số lượng *"
+                                required
+                                type="number"
+                                value={
+                                    field.value === undefined || field.value === null
+                                        ? ""
+                                        : String(field.value)
+                                }
+                                onChange={(e) =>
+                                    field.onChange(e.target.value === "" ? "" : Number(e.target.value))
+                                }
+                                error={!!errors.quantity}
+                                helperText={errors.quantity?.message}
+                                slotProps={{
+                                    input: { min: 1 },
+                                }}
+                            />
+                        )}
                     />
-                    {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
                 </div>
 
                 <div>
-                    <input
-                        {...register("depositAmount", { valueAsNumber: true })}
-                        type="number"
-                        placeholder="Tiền đặt cọc (₫)"
-                        className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    <Controller
+                        control={control}
+                        name="depositAmount"
+                        render={({ field }) => (
+                            <PrimaryTextField
+                                label="Tiền đặt cọc (₫)"
+                                type="number"
+                                value={
+                                    field.value === undefined || field.value === null
+                                        ? ""
+                                        : String(field.value)
+                                }
+                                onChange={(e) =>
+                                    field.onChange(e.target.value === "" ? "" : Number(e.target.value))
+                                }
+                                error={!!errors.depositAmount}
+                                helperText={errors.depositAmount?.message}
+                                slotProps={{
+                                    input: { min: 0 },
+                                }}
+                            />
+                        )}
                     />
-                    {errors.depositAmount && <p className="text-red-500 text-xs mt-1">{errors.depositAmount.message}</p>}
                 </div>
 
                 <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Danh mục *
-                    </label>
-                    <select
-                        {...register("categoryId")}
-                        disabled={loadingCategories}
-                        className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-                        defaultValue=""
-                    >
-                        <option value="" disabled>
-                            {loadingCategories ? "Đang tải danh mục..." : "Chọn danh mục"}
-                        </option>
-                        {categories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                                {category.name}
-                            </option>
-                        ))}
-                    </select>
-                    {errors.categoryId && <p className="text-red-500 text-xs mt-1">{errors.categoryId.message}</p>}
+                    <Controller
+                        control={control}
+                        name="categoryId"
+                        render={({ field }) => (
+                            <PrimarySelectField
+                                label="Danh mục *"
+                                required
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                disabled={loadingCategories}
+                                error={!!errors.categoryId}
+                                helperText={errors.categoryId?.message}
+                                options={[
+                                    {
+                                        value: "",
+                                        label: loadingCategories ? "Đang tải danh mục..." : "Chọn danh mục",
+                                        disabled: true,
+                                    },
+                                    ...(
+                                        loadingCategories
+                                            ? []
+                                            : categories.map((category) => ({
+                                                value: category.id,
+                                                label: category.name,
+                                            }))
+                                    ),
+                                ]}
+                            />
+                        )}
+                    />
                 </div>
             </div>
 
@@ -237,6 +325,15 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
                 />
 
             </div>
+
+            {alert && (
+                <PrimaryAlert
+                    content={alert.content}
+                    type={alert.type}
+                    duration={alert.duration}
+                    onClose={() => setAlert(null)}
+                />
+            )}
         </form >
     );
 }

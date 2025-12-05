@@ -14,4 +14,11 @@ public interface NotificationService {
     NotificationResponse markAsRead(UUID id);
 
     void delete(UUID id);
+
+    /**
+     * Gửi thông báo cho tất cả admin trong hệ thống
+     * @param request NotificationCreationRequest (receiverId sẽ bị bỏ qua, sẽ gửi cho tất cả admin)
+     * @return Danh sách các notification đã tạo
+     */
+    List<NotificationResponse> notifyAllAdmins(NotificationCreationRequest request);
 }

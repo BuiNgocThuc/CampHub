@@ -59,20 +59,17 @@ public class ItemServiceImpl implements ItemService {
                 "Owner created a new item awaiting approval",
                 item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
-        // thông báo cho admin có item mới chờ duyệt
+        // thông báo cho tất cả admin có item mới chờ duyệt
         String itemName = item.getName();
         UUID referenceId = item.getId();
-        accountRepository
-                .findSystemWallet()
-                .ifPresent(system -> notificationService.create(NotificationCreationRequest.builder()
-                        .receiverId(system.getId())
-                        .senderId(ownerId)
-                        .type(NotificationType.BOOKING_CREATED)
-                        .title("Sản phẩm mới chờ duyệt")
-                        .content("Có sản phẩm \"" + itemName + "\" chờ duyệt.")
-                        .referenceType(ReferenceType.ITEM)
-                        .referenceId(referenceId)
-                        .build()));
+        notificationService.notifyAllAdmins(NotificationCreationRequest.builder()
+                .senderId(ownerId)
+                .type(NotificationType.BOOKING_CREATED) // Tạm dùng type này, có thể thêm type mới sau
+                .title("Sản phẩm mới chờ duyệt")
+                .content("Có sản phẩm \"" + itemName + "\" chờ duyệt.")
+                .referenceType(ReferenceType.ITEM)
+                .referenceId(referenceId)
+                .build());
 
         return itemMapper.entityToResponse(item);
     }
@@ -97,7 +94,26 @@ public class ItemServiceImpl implements ItemService {
             stream = stream.filter(i -> i.getCategoryId().equals(categoryId));
         }
 
-        return stream.map(this::enrichItemResponse).toList();
+        // Sắp xếp: PENDING_APPROVAL ưu tiên trên hết, sau đó giảm dần theo ngày đăng
+        return stream.sorted((a, b) -> {
+                    boolean aIsPending = a.getStatus() == ItemStatus.PENDING_APPROVAL;
+                    boolean bIsPending = b.getStatus() == ItemStatus.PENDING_APPROVAL;
+
+                    // Nếu một trong hai là PENDING_APPROVAL, ưu tiên nó
+                    if (aIsPending && !bIsPending) return -1;
+                    if (!aIsPending && bIsPending) return 1;
+
+                    // Cả hai cùng trạng thái hoặc không có PENDING_APPROVAL, sắp xếp giảm dần theo
+                    // ngày đăng
+                    if (a.getCreatedAt() != null && b.getCreatedAt() != null) {
+                        return b.getCreatedAt().compareTo(a.getCreatedAt());
+                    }
+                    if (a.getCreatedAt() != null) return -1;
+                    if (b.getCreatedAt() != null) return 1;
+                    return 0;
+                })
+                .map(this::enrichItemResponse)
+                .toList();
     }
 
     // ----------------- UPDATE -----------------
@@ -189,6 +205,21 @@ public class ItemServiceImpl implements ItemService {
                 item.getStatus(),
                 approved ? "Admin approved item" : "Admin rejected item",
                 item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
+
+        // Thông báo cho owner khi admin approve/reject
+        String itemName = item.getName();
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(item.getOwnerId())
+                .senderId(adminId)
+                .type(approved ? NotificationType.BOOKING_CREATED : NotificationType.BOOKING_CANCELLED)
+                .title(approved ? "Sản phẩm đã được duyệt" : "Sản phẩm bị từ chối")
+                .content(
+                        approved
+                                ? "Sản phẩm \"" + itemName + "\" của bạn đã được duyệt và hiện đang hiển thị."
+                                : "Sản phẩm \"" + itemName + "\" của bạn đã bị từ chối.")
+                .referenceType(ReferenceType.ITEM)
+                .referenceId(itemId)
+                .build());
 
         return itemMapper.entityToResponse(item);
     }

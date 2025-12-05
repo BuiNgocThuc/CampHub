@@ -62,10 +62,6 @@ export const getCategoryById = async (id: string): Promise<Category> => {
 export const getAllCategories = async (): Promise<Category[]> => {
     try {
         const response = await api.get<ApiResponse<CategoryResponse[]>>(`/categories`);
-        console.log(response.data.result);
-        const res = response.data.result.map(categoryMap.fromResponse);
-        console.log(res);
-        
         return response.data.result.map(categoryMap.fromResponse);
     } catch (error) {
         throw error;

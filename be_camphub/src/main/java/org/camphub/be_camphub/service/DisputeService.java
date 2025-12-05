@@ -13,4 +13,8 @@ public interface DisputeService {
     DisputeResponse adminReviewDispute(UUID adminId, AdminReviewDisputeRequest request);
 
     List<DisputeResponse> getPendingDisputes();
+
+    List<DisputeResponse> getAllDisputes();
+
+    DisputeResponse getDisputeById(UUID disputeId);
 }
