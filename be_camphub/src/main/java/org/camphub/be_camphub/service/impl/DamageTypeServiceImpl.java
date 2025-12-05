@@ -13,6 +13,7 @@ import org.camphub.be_camphub.exception.AppException;
 import org.camphub.be_camphub.exception.ErrorCode;
 import org.camphub.be_camphub.mapper.DamageTypeMapper;
 import org.camphub.be_camphub.repository.DamageTypeRepository;
+import org.camphub.be_camphub.repository.DisputeRepository;
 import org.camphub.be_camphub.service.DamageTypeService;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DamageTypeServiceImpl implements DamageTypeService {
     DamageTypeRepository damageTypeRepository;
+    DisputeRepository disputeRepository;
     DamageTypeMapper damageTypeMapper;
 
     @Override
@@ -42,6 +44,11 @@ public class DamageTypeServiceImpl implements DamageTypeService {
         DamageType entity =
                 damageTypeRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.DAMAGE_TYPE_NOT_FOUND));
 
+        // Kiểm tra xem damageType đã được dùng trong dispute chưa
+        if (disputeRepository.existsByDamageTypeId(id)) {
+            throw new AppException(ErrorCode.DAMAGE_TYPE_IN_USE);
+        }
+
         damageTypeMapper.updateRequestToEntity(entity, request);
         entity.setUpdatedAt(LocalDateTime.now());
         damageTypeRepository.save(entity);
@@ -54,6 +61,11 @@ public class DamageTypeServiceImpl implements DamageTypeService {
         DamageType entity =
                 damageTypeRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.DAMAGE_TYPE_NOT_FOUND));
 
+        // Kiểm tra xem damageType đã được dùng trong dispute chưa
+        if (disputeRepository.existsByDamageTypeId(id)) {
+            throw new AppException(ErrorCode.DAMAGE_TYPE_IN_USE);
+        }
+
         damageTypeMapper.patchRequestToEntity(entity, request);
         entity.setUpdatedAt(LocalDateTime.now());
         damageTypeRepository.save(entity);
@@ -63,10 +75,15 @@ public class DamageTypeServiceImpl implements DamageTypeService {
 
     @Override
     public void delete(UUID id) {
-        // soft delete
         DamageType entity =
                 damageTypeRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.DAMAGE_TYPE_NOT_FOUND));
 
+        // Kiểm tra xem damageType đã được dùng trong dispute chưa
+        if (disputeRepository.existsByDamageTypeId(id)) {
+            throw new AppException(ErrorCode.DAMAGE_TYPE_IN_USE);
+        }
+
+        // Soft delete
         entity.setIsDeleted(true);
         entity.setUpdatedAt(LocalDateTime.now());
         damageTypeRepository.save(entity);
@@ -82,7 +99,8 @@ public class DamageTypeServiceImpl implements DamageTypeService {
 
     @Override
     public List<DamageTypeResponse> getAll() {
-        return damageTypeRepository.findAll().stream()
+        // Chỉ lấy các damage type chưa bị xóa (isDeleted = false)
+        return damageTypeRepository.findByIsDeletedFalse().stream()
                 .map(damageTypeMapper::entityToResponse)
                 .toList();
     }

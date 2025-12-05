@@ -1,7 +1,6 @@
-// app/admin/return-requests/[returnRequestId]/page.tsx
+// app/admin/return-requests/return-request-detail-modal.tsx
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
 import {
     Box,
     Button,
@@ -13,14 +12,14 @@ import {
     Stack,
     CircularProgress,
 } from "@mui/material";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ReasonReturnType, ReturnRequestStatus } from "@/libs/core/constants";
 import { useState } from "react";
-import { adminDecisionOnReturnRequest, getReturnRequestById } from "@/libs/api";
+import { adminDecisionOnReturnRequest } from "@/libs/api";
 import { toast } from "sonner";
 import { ReturnRequest } from "@/libs/core/types";
 import { CustomizedButton, MediaPreview, PrimaryButton } from "@/libs/components";
-
+import { format } from "date-fns";
 
 const reasonLabels: Record<ReasonReturnType, string> = {
     MISSING_PARTS: "Giao thiếu đồ / phụ kiện",
@@ -28,24 +27,18 @@ const reasonLabels: Record<ReasonReturnType, string> = {
     NO_NEEDED_ANYMORE: "Không còn nhu cầu sử dụng",
 };
 
-export default function ReturnRequestDetailPage() {
-    const router = useRouter();
-    const { returnRequestId } = useParams() as { returnRequestId: string };
+interface ReturnRequestDetailModalProps {
+    request: ReturnRequest;
+    onClose: () => void;
+}
+
+export default function ReturnRequestDetailModal({ request, onClose }: ReturnRequestDetailModalProps) {
     const queryClient = useQueryClient();
     const [adminNote, setAdminNote] = useState("");
     const [pendingAction, setPendingAction] = useState<"APPROVE" | "REJECT" | null>(null);
 
-    const { data: request } = useQuery({
-        queryKey: ["returnRequest", returnRequestId],
-        queryFn: () => getReturnRequestById(returnRequestId),
-    });
-
     const decisionMutation = useMutation({
         mutationFn: (action: "APPROVE" | "REJECT") => {
-            if (!request) {
-                throw new Error("Yêu cầu chưa được tải. Vui lòng thử lại.");
-            }
-
             setPendingAction(action);
 
             return adminDecisionOnReturnRequest({
@@ -63,44 +56,27 @@ export default function ReturnRequestDetailPage() {
             toast.success(`Đã ${actionText} thành công!`);
 
             // Cập nhật lại cache
-            queryClient.invalidateQueries({ queryKey: ["pendingReturnRequests"] });
-            queryClient.invalidateQueries({ queryKey: ["returnRequest", returnRequestId] });
+            queryClient.invalidateQueries({ queryKey: ["ReturnRequests"] });
+            queryClient.invalidateQueries({ queryKey: ["returnRequest", request.id] });
+            
+            // Đóng modal sau khi thành công
+            onClose();
         },
         onError: (error: any) => {
             toast.error(error?.message || "Xử lý thất bại. Vui lòng thử lại!");
         },
         onSettled: () => {
-            setPendingAction(null); // ← Kết thúc loading
+            setPendingAction(null);
         },
     });
-
-    if (!request) {
-        return (
-            <Box p={6}>
-                <Typography variant="h6">Không tìm thấy yêu cầu hoàn tiền</Typography>
-                <Button variant="outlined" onClick={() => router.back()} sx={{ mt: 2 }}>
-                    Quay lại
-                </Button>
-            </Box>
-        );
-    }
 
     const isPending = request.status === ReturnRequestStatus.PENDING;
 
     return (
-        <Box p={6} maxWidth="lg" mx="auto">
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-                <Typography variant="h5" fontWeight="bold">
-                    Yêu cầu hoàn tiền #{request.id.slice(0, 8)}
-                </Typography>
-                <Button variant="outlined" onClick={() => router.back()}>
-                    ← Quay lại
-                </Button>
-            </Box>
-
-            <Stack spacing={4}>
+        <Box>
+            <Stack spacing={3}>
                 {/* Thông tin chính */}
-                <Box bgcolor="white" borderRadius={2} p={4} boxShadow={1}>
+                <Box>
                     <GridRow label="Người thuê" value={request.lesseeName} />
                     <GridRow label="Chủ đồ" value={request.lessorName} />
                     <GridRow label="Sản phẩm" value={request.itemName} />
@@ -110,38 +86,53 @@ export default function ReturnRequestDetailPage() {
                         label="Trạng thái"
                         value={
                             <Chip
-                                label={isPending ? "Chờ xử lý" : request.status === "APPROVED" ? "Đã hoàn tiền" : "Bị từ chối"}
+                                label={
+                                    isPending
+                                        ? "Chờ xử lý"
+                                        : request.status === "APPROVED"
+                                        ? "Đã hoàn tiền"
+                                        : "Bị từ chối"
+                                }
                                 color={isPending ? "warning" : request.status === "APPROVED" ? "success" : "error"}
+                                size="small"
                             />
                         }
                     />
-                    <GridRow label="Ngày gửi" value={new Date(request.createdAt).toLocaleString("vi-VN")} />
+                    <GridRow
+                        label="Ngày gửi"
+                        value={request.createdAt ? format(new Date(request.createdAt), "dd/MM/yyyy") : "N/A"}
+                    />
                 </Box>
 
                 {/* Ghi chú người thuê */}
                 {request.note && (
-                    <Box bgcolor="white" borderRadius={2} p={4} boxShadow={1}>
-                        <Typography fontWeight="bold" color="primary" mb={1}>Ghi chú từ người thuê</Typography>
-                        <Typography variant="body2" sx={{ bgcolor: "grey.50", p: 2, borderRadius: 1, whiteSpace: "pre-line" }}>
+                    <Box>
+                        <Typography fontWeight="bold" color="primary" mb={1}>
+                            Ghi chú từ người thuê
+                        </Typography>
+                        <Typography
+                            variant="body2"
+                            sx={{ bgcolor: "grey.50", p: 2, borderRadius: 1, whiteSpace: "pre-line" }}
+                        >
                             {request.note}
                         </Typography>
                     </Box>
                 )}
 
                 {/* Minh chứng */}
-                {request.evidenceUrls.length > 0 && (
-                    <Box bgcolor="white" borderRadius={2} p={4} boxShadow={1}>
-                        <Typography fontWeight="bold" color="primary" mb={3}>
+                {request.evidenceUrls && request.evidenceUrls.length > 0 && (
+                    <Box>
+                        <Typography fontWeight="bold" color="primary" mb={2}>
                             Minh chứng từ người thuê ({request.evidenceUrls.length})
                         </Typography>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             {request.evidenceUrls.map((media, idx) => (
                                 <MediaPreview
                                     key={idx}
                                     url={media.url}
                                     size="large"
-                                    showRemove={false}   // Không cho xóa ở trang admin
+                                    showRemove={false}
                                 />
                             ))}
                         </div>
@@ -171,7 +162,7 @@ export default function ReturnRequestDetailPage() {
                             <PrimaryButton
                                 content="Chấp thuận"
                                 onClick={() => decisionMutation.mutate("APPROVE")}
-                                disabled={!!pendingAction} // disable cả 2 khi đang xử lý
+                                disabled={!!pendingAction}
                                 icon={pendingAction === "APPROVE" ? <CircularProgress size={20} color="inherit" /> : undefined}
                             />
 
@@ -194,7 +185,9 @@ export default function ReturnRequestDetailPage() {
                 {!isPending && request.adminNote && (
                     <Alert severity={request.status === "APPROVED" ? "success" : "error"}>
                         <strong>Kết quả xử lý:</strong> {request.status === "APPROVED" ? "Đã hoàn tiền" : "Từ chối"}
-                        <Typography mt={1}><strong>Ghi chú:</strong> {request.adminNote}</Typography>
+                        <Typography mt={1}>
+                            <strong>Ghi chú:</strong> {request.adminNote}
+                        </Typography>
                     </Alert>
                 )}
             </Stack>
@@ -203,8 +196,9 @@ export default function ReturnRequestDetailPage() {
 }
 
 const GridRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <Box display="flex" justifyContent="space-between" py={0.8}>
+    <Box display="flex" justifyContent="space-between" py={1}>
         <Typography color="text.secondary">{label}:</Typography>
         <Typography fontWeight="medium">{value}</Typography>
     </Box>
 );
+

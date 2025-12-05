@@ -1,6 +1,7 @@
 // app/admin/return-requests/page.tsx
 "use client";
 
+import { useState } from "react";
 import {
     Chip,
     IconButton,
@@ -10,117 +11,142 @@ import {
     CircularProgress,
 } from "@mui/material";
 import { Eye } from "lucide-react";
-import { PrimaryDataGrid } from "@/libs/components";
+import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
 import { useQuery } from "@tanstack/react-query";
-import { getReturnRequests } from "@/libs/api/return-request-api";
+import { getReturnRequests } from "@/libs/api";
 import { ReturnRequest } from "@/libs/core/types";
-import { ReasonReturnType, ReturnRequestStatus } from "@/libs/core/constants";
+import { ReturnRequestStatus } from "@/libs/core/constants";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import ReturnRequestDetailModal from "./return-request-detail-modal";
 
-const reasonLabels: Record<ReasonReturnType, string> = {
-    MISSING_PARTS: "Giao thiếu đồ",
-    WRONG_DESCRIPTION: "Không đúng mô tả",
-    NO_NEEDED_ANYMORE: "Không còn nhu cầu",
-};
-
-const statusConfig: Record<ReturnRequestStatus, { label: string; color: "warning" | "success" | "error" }> = {
-    PENDING: { label: "Chờ xử lý", color: "warning" },
+const statusConfig: Record<string, { label: string; color: "warning" | "success" | "error" }> = {
+    // numeric enum values
+    [ReturnRequestStatus.PENDING]: { label: "Chờ xác nhận", color: "warning" },
+    [ReturnRequestStatus.PROCESSING]: { label: "Chờ xử lý", color: "warning" },
+    [ReturnRequestStatus.APPROVED]: { label: "Đã hoàn tiền", color: "success" },
+    [ReturnRequestStatus.REJECTED]: { label: "Bị từ chối", color: "error" },
+    [ReturnRequestStatus.AUTO_REFUNDED]: { label: "Tự hoàn tiền (hết hạn)", color: "success" },
+    [ReturnRequestStatus.RESOLVED]: { label: "Đã hoàn tất", color: "success" },
+    [ReturnRequestStatus.CLOSED_BY_DISPUTE]: { label: "Đã chuyển sang khiếu nại", color: "warning" },
+    // string values from API
+    PENDING: { label: "Chờ xác nhận", color: "warning" },
+    PROCESSING: { label: "Chờ xử lý", color: "warning" },
     APPROVED: { label: "Đã hoàn tiền", color: "success" },
     REJECTED: { label: "Bị từ chối", color: "error" },
+    AUTO_REFUNDED: { label: "Tự hoàn tiền (hết hạn)", color: "success" },
+    RESOLVED: { label: "Đã hoàn tất", color: "success" },
+    CLOSED_BY_DISPUTE: { label: "Đã chuyển sang khiếu nại", color: "warning" },
 };
 
 export default function ReturnRequestList() {
+    const [selectedRequest, setSelectedRequest] = useState<ReturnRequest | null>(null);
+    const [openModal, setOpenModal] = useState(false);
+
     const { data: requests = [], isLoading } = useQuery({
         queryKey: ["ReturnRequests"],
         queryFn: getReturnRequests,
     });
 
-    const handleView = (id: string) => {
-        // window.open(`/admin/return-requests/${id}`, "_blank");
+    const handleView = (request: ReturnRequest) => {
+        setSelectedRequest(request);
+        setOpenModal(true);
     };
 
     const columns: GridColDef<ReturnRequest>[] = [
         {
-            field: "id",
-            headerName: "Mã yêu cầu",
-            width: 130,
-            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => (
-                <Typography fontFamily="monospace" color="text.secondary">
-                    {params.value ? params.value.slice(0, 8) : "N/A"}
-                </Typography>
-            ),
+            field: "stt",
+            headerName: "STT",
+            width: 60,
+            flex: 0,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<ReturnRequest>) => {
+                const index = requests.findIndex((req) => req.id === params.row.id);
+                return <Typography>{index + 1}</Typography>;
+            },
         },
         {
             field: "lesseeName",
             headerName: "Người thuê",
             width: 180,
-            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => (
-                <Typography fontWeight="medium">{params.value || "N/A"}</Typography>
+            flex: 1.2,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<ReturnRequest>) => (
+                <Typography fontSize="0.875rem" fontWeight="medium">
+                    {params.row.lesseeName || "N/A"}
+                </Typography>
             ),
         },
         {
             field: "lessorName",
             headerName: "Chủ đồ",
             width: 180,
-            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => (
-                <Typography fontWeight="medium">{params.value || "N/A"}</Typography>
+            flex: 1.2,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<ReturnRequest>) => (
+                <Typography fontSize="0.875rem" fontWeight="medium">
+                    {params.row.lessorName || "N/A"}
+                </Typography>
             ),
         },
         {
             field: "itemName",
             headerName: "Sản phẩm",
-            width: 220,
-            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => (
-                <Typography>{params.value || "N/A"}</Typography>
-            ),
-        },
-        {
-            field: "reason",
-            headerName: "Lý do",
             width: 200,
-            renderCell: (params: GridRenderCellParams<ReturnRequest, ReasonReturnType>) => {
-                const reason = params.value;
-                if (!reason || !reasonLabels[reason]) {
-                    return <Chip label="N/A" variant="outlined" size="small" />;
-                }
-                return <Chip label={reasonLabels[reason]} variant="outlined" size="small" />;
-            },
+            flex: 1.5,
+            minWidth: 150,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<ReturnRequest>) => (
+                <Tooltip title={params.row.itemName}>
+                    <Typography fontSize="0.875rem" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
+                        {params.row.itemName || "N/A"}
+                    </Typography>
+                </Tooltip>
+            ),
         },
         {
             field: "status",
             headerName: "Trạng thái",
-            width: 140,
-            renderCell: (params: GridRenderCellParams<ReturnRequest, ReturnRequestStatus>) => {
-                const status = params.value;
-                if (!status || !statusConfig[status]) {
+            width: 150,
+            flex: 1.1,
+            minWidth: 130,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<ReturnRequest>) => {
+                const rawStatus = params.row.status as unknown as string | number;
+                const normalizedKey = typeof rawStatus === "string" ? rawStatus.toUpperCase() : String(rawStatus);
+                const config = statusConfig[normalizedKey] || statusConfig[String(rawStatus)];
+
+                if (!rawStatus || !config) {
                     return <Chip label="N/A" size="small" sx={{ fontWeight: 600 }} />;
                 }
-                const config = statusConfig[status];
                 return <Chip label={config.label} color={config.color} size="small" sx={{ fontWeight: 600 }} />;
             },
         },
         {
-            field: "createdAt",
-            headerName: "Ngày gửi",
-            width: 170,
-            renderCell: (params: GridRenderCellParams<ReturnRequest, string>) => {
-                if (!params.value) return <Typography>N/A</Typography>;
-                try {
-                    return <Typography>{new Date(params.value).toLocaleString("vi-VN")}</Typography>;
-                } catch {
-                    return <Typography>N/A</Typography>;
-                }
-            },
-        },
-        {
             field: "actions",
-            headerName: "",
+            headerName: "Thao tác",
             width: 100,
+            flex: 0,
             sortable: false,
+            align: "center",
+            headerAlign: "center",
             renderCell: (params: GridRenderCellParams<ReturnRequest>) => (
                 <Tooltip title="Xem chi tiết & xử lý">
-                    <IconButton color="primary" onClick={() => handleView(params.row.id)}>
-                        <Eye size={18} />
+                    <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleView(params.row);
+                        }}
+                    >
+                        <Eye size={16} />
                     </IconButton>
                 </Tooltip>
             ),
@@ -129,28 +155,55 @@ export default function ReturnRequestList() {
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
-            <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ maxHeight: "calc(100vh - 120px)", overflow: "auto" }}>
-                <Typography variant="h5" fontWeight="bold" mb={4}>
-                    Quản lý yêu cầu trả đồ & hoàn tiền
-                </Typography>
+            <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 60px)" }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} sx={{ flexShrink: 0 }}>
+                    <Typography variant="h5" fontWeight="bold">
+                        Quản lý yêu cầu trả đồ & hoàn tiền ({requests.length})
+                    </Typography>
+                </Box>
 
                 {isLoading ? (
-                    <Box display="flex" justifyContent="center" my={8}>
+                    <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
                         <CircularProgress />
                         <Typography ml={2}>Đang tải yêu cầu hoàn tiền...</Typography>
                     </Box>
                 ) : requests.length === 0 ? (
-                    <Typography textAlign="center" color="text.secondary" py={10}>
-                        Không có yêu cầu hoàn tiền nào đang chờ xử lý
-                    </Typography>
+                    <Box textAlign="center" py={10}>
+                        <Typography color="text.secondary">
+                            Không có yêu cầu hoàn tiền nào đang chờ xử lý
+                        </Typography>
+                    </Box>
                 ) : (
-                    <PrimaryDataGrid<ReturnRequest>
-                        rows={requests}
-                        columns={columns}
-                        getRowId={(row) => row.id}
-                    />
+                    <Box sx={{ flex: 1, minHeight: 0 }}>
+                        <PrimaryDataGrid<ReturnRequest>
+                            rows={requests}
+                            columns={columns}
+                            getRowId={(row) => row.id}
+                            onRowClick={(request: ReturnRequest) => handleView(request)}
+                        />
+                    </Box>
                 )}
             </Box>
+
+            <PrimaryModal
+                open={openModal}
+                onClose={() => {
+                    setOpenModal(false);
+                    setSelectedRequest(null);
+                }}
+                title={selectedRequest ? `Yêu cầu hoàn tiền #${selectedRequest.id.slice(0, 8)}` : "Chi tiết yêu cầu"}
+                maxWidth="lg"
+            >
+                {selectedRequest && (
+                    <ReturnRequestDetailModal
+                        request={selectedRequest}
+                        onClose={() => {
+                            setOpenModal(false);
+                            setSelectedRequest(null);
+                        }}
+                    />
+                )}
+            </PrimaryModal>
         </div>
     );
 }

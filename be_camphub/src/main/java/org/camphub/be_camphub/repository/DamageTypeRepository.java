@@ -1,5 +1,6 @@
 package org.camphub.be_camphub.repository;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.camphub.be_camphub.entity.DamageType;
@@ -9,4 +10,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DamageTypeRepository extends JpaRepository<DamageType, UUID> {
     boolean existsByName(String name);
+
+    List<DamageType> findByIsDeletedFalse();
 }

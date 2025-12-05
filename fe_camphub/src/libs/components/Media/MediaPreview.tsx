@@ -65,7 +65,7 @@ export default function MediaPreview({
                     className="rounded-3xl object-cover shadow-lg"
                 />
             ) : (
-                /* TRƯỜNG HỢP KHÔNG CÓ ẢNH → DÙNG PLACEHOLDER ĐẸP TỪ APPIMAGE */
+                /* TRƯỜNG HỢP KHÔNG CÓ ẢNH */
                 <Box
                     sx={{
                         width: size === "full" ? "100%" : sizeMap[size],

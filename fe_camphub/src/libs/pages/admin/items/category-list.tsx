@@ -113,6 +113,7 @@ export default function CategoryList() {
       </Box>
 
       <PrimaryModal
+        maxWidth="sm"
         open={open}
         onClose={() => {
           setOpen(false);

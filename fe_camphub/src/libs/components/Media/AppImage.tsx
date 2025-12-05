@@ -22,8 +22,9 @@ export default function AppImage({
     className = "",
     priority = false,
 }: AppImageProps) {
-    const isValid = src &&
-        src.startsWith("/img/") &&
+    const isValid =
+        !!src &&
+        src.trim() !== "" &&
         !src.includes("null") &&
         !src.includes("undefined");
 

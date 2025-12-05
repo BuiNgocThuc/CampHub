@@ -16,4 +16,6 @@ public interface DisputeRepository extends JpaRepository<Dispute, UUID> {
     List<Dispute> findByReporterId(UUID reporterId);
 
     List<Dispute> findByStatus(DisputeStatus status);
+
+    boolean existsByDamageTypeId(UUID damageTypeId);
 }
