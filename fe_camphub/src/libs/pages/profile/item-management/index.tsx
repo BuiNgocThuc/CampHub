@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { CustomizedButton, PrimaryButton, PrimaryTable } from "@/libs/components";
+import { useState, useMemo } from "react";
+import { PrimaryButton, PrimaryTable, PrimaryConfirmation } from "@/libs/components";
 import { Package, PencilIcon, PlusCircle, Trash2 } from "lucide-react";
 import type { Item } from "@/libs/core/types";
 import { ItemStatus } from "@/libs/core/constants";
 import { Column } from "@/libs/components/Table/PrimaryTable";
-import { useCreateItem, useDeleteItem, useUpdateItem } from "@/libs/hooks";
+import { useDeleteItem } from "@/libs/hooks";
 import ItemModal from "./ItemModal";
+import { IconButton, Tooltip } from "@mui/material";
+import { toast } from "sonner";
 
 interface OwnedItemsProps {
   items: Item[];
@@ -30,10 +32,24 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
   const [modalOpen, setModalOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [modalMode, setModalMode] = useState<"view" | "edit" | "create">("view");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
 
-  const createMut = useCreateItem();
-  const updateMut = useUpdateItem();
   const deleteMut = useDeleteItem();
+
+  // Lọc items: chỉ hiển thị các status được phép
+  const allowedStatuses = [
+    ItemStatus.PENDING_APPROVAL,
+    ItemStatus.AVAILABLE,
+    ItemStatus.REJECTED,
+    ItemStatus.RENTED,
+    ItemStatus.RENTED_PENDING_CONFIRM,
+    ItemStatus.RETURN_PENDING_CHECK,
+  ];
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => allowedStatuses.includes(item.status));
+  }, [items]);
 
   const openCreate = () => {
     setCurrentItem(null);
@@ -53,34 +69,105 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
     setModalOpen(true);
   };
 
-  const handleDelete = (item: Item) => {
-    if (![ItemStatus.AVAILABLE, ItemStatus.REJECTED].includes(item.status)) {
-      alert("Chỉ được xóa sản phẩm ở trạng thái 'Đang hiển thị' hoặc 'Bị từ chối'");
+  const handleDeleteClick = (item: Item, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // Chỉ cho phép xóa khi status = AVAILABLE, PENDING_APPROVAL hoặc REJECTED
+    const canDelete = [
+      ItemStatus.AVAILABLE,
+      ItemStatus.PENDING_APPROVAL,
+      ItemStatus.REJECTED,
+    ].includes(item.status);
+
+    if (!canDelete) {
+      toast.error("Chỉ được xóa sản phẩm ở trạng thái 'Đang hiển thị', 'Chờ duyệt' hoặc 'Bị từ chối'");
       return;
     }
-    if (confirm(`Xóa sản phẩm "${item.name}"? Hành động này không thể hoàn tác!`)) {
-      deleteMut.mutate(item.id);
+
+    // Mở dialog xác nhận xóa
+    setItemToDelete(item);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (itemToDelete) {
+      deleteMut.mutate(itemToDelete.id, {
+        onSuccess: () => {
+          toast.success("Xóa sản phẩm thành công");
+          setDeleteConfirmOpen(false);
+          setItemToDelete(null);
+        },
+        onError: (error: any) => {
+          toast.error(error?.response?.data?.message || "Xóa sản phẩm thất bại");
+        },
+      });
     }
   };
 
   const columns: Column<Item>[] = [
-    { field: "stt", headerName: "STT", width: 70, render: (_, i) => i + 1 },
-    { field: "name", headerName: "Tên sản phẩm", render: (i) => <div className="font-medium">{i.name}</div> },
-    { field: "price", headerName: "Giá thuê / ngày", render: (i) => <span className="font-semibold text-blue-600">{i.price.toLocaleString("vi-VN")} ₫</span> },
     {
-      field: "status", headerName: "Trạng thái", render: (i) => {
+      field: "stt",
+      headerName: "STT",
+      width: 80,
+      render: (_, i) => <div className="text-center">{i + 1}</div>
+    },
+    {
+      field: "name",
+      headerName: "Tên sản phẩm",
+      width: 300,
+      render: (i) => <div className="font-medium">{i.name}</div>
+    },
+    {
+      field: "price",
+      headerName: "Giá thuê / ngày",
+      width: 180,
+      render: (i) => (
+        <div className="text-center">
+          <span className="font-semibold text-blue-600">{i.price.toLocaleString("vi-VN")} ₫</span>
+        </div>
+      )
+    },
+    {
+      field: "status",
+      headerName: "Trạng thái",
+      width: 200,
+      render: (i) => {
         const s = statusText[i.status];
-        return <span className={`px-3 py-1 rounded-full text-xs font-medium ${s.color}`}>{s.text}</span>;
+        return (
+          <div className="text-center">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${s.color}`}>{s.text}</span>
+          </div>
+        );
       }
     },
     {
-      field: "actions", headerName: "Thao tác", render: (item) => (
-        <div className="flex gap-2">
-          <PrimaryButton content="Sửa" size="small" icon={<PencilIcon size={14} />}
-            onClick={(e) => { e.stopPropagation(); openEdit(item); }} />
-          <CustomizedButton content="Xóa" size="small" color="#EF4444" icon={<Trash2 size={14} />}
-            onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
-            disabled={deleteMut.isPending} />
+      field: "actions",
+      headerName: "Thao tác",
+      width: 150,
+      render: (item) => (
+        <div className="flex gap-2 justify-center items-center">
+          <Tooltip title="Sửa">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEdit(item);
+              }}
+              className="text-blue-600 hover:bg-blue-50"
+            >
+              <PencilIcon size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Xóa">
+            <IconButton
+              size="small"
+              onClick={(e) => handleDeleteClick(item, e)}
+              disabled={deleteMut.isPending}
+              className="text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={18} />
+            </IconButton>
+          </Tooltip>
         </div>
       ),
     },
@@ -95,7 +182,7 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
     );
   }
 
-  if (items.length === 0) {
+  if (filteredItems.length === 0 && !loading) {
     return (
       <div className="text-center py-16">
         <div className="bg-gray-100 w-24 h-24 rounded-full mx-auto mb-6 flex items-center justify-center">
@@ -130,7 +217,7 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
       {/* Bảng danh sách */}
       <PrimaryTable
         columns={columns}
-        rows={items}
+        rows={filteredItems}
         onRowClick={openView}
       />
 
@@ -139,7 +226,29 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
         onClose={() => setModalOpen(false)}
         item={currentItem}
         mode={modalMode}
-        onSuccess={() => setModalOpen(false)}
+        onSuccess={() => {
+          setModalOpen(false);
+          if (modalMode === "create") {
+            toast.success("Đăng sản phẩm thành công!");
+          } else if (modalMode === "edit") {
+            toast.success("Cập nhật sản phẩm thành công!");
+          }
+        }}
+      />
+
+      {/* Dialog xác nhận xóa */}
+      <PrimaryConfirmation
+        open={deleteConfirmOpen}
+        title="Xác nhận xóa sản phẩm"
+        message={`Bạn có chắc chắn muốn xóa sản phẩm "${itemToDelete?.name}"? Hành động này không thể hoàn tác.`}
+        confirmText={deleteMut.isPending ? "Đang xóa..." : "Xóa"}
+        cancelText="Hủy"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setItemToDelete(null);
+        }}
+        loading={deleteMut.isPending}
       />
     </div>
   );

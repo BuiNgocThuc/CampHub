@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Box, History, Coins, Package } from "lucide-react";
+import { User, Box, History, Coins, Package, AlertTriangle } from "lucide-react";
 import clsx from "clsx";
 
 const menuItems = [
@@ -8,6 +8,7 @@ const menuItems = [
   { id: "items", label: "Sản phẩm cho thuê", icon: <Box size={18} /> }, 
   { id: "rental-orders", label: "Đơn cho thuê", icon: <Package size={18} /> },
   { id: "history", label: "Lịch sử thuê đồ", icon: <History size={18} /> },
+  { id: "disputes", label: "Khiếu nại của tôi", icon: <AlertTriangle size={18} /> },
   { id: "coin", label: "CampHub Xu", icon: <Coins size={18} /> },
 ];
 

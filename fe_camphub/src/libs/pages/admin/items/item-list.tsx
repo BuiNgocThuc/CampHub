@@ -10,6 +10,7 @@ import { getAllItems, approveItem, lockItem } from "@/libs/api/item-api";
 import { getAllCategories } from "@/libs/api/category-api";
 import { Item, Category } from "@/libs/core/types";
 import ItemDetail from "./item-detail";
+import RejectItemModal from "./RejectItemModal";
 import { toast } from "sonner";
 import { ItemStatus } from "@/libs/core/constants";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
@@ -29,6 +30,7 @@ const itemStatusConfig: Record<ItemStatus, { label: string; color: any }> = {
 export default function ItemList() {
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [openDetail, setOpenDetail] = useState(false);
+    const [openRejectModal, setOpenRejectModal] = useState(false);
     const [statusFilter, setStatusFilter] = useState<string>("");
     const [categoryFilter, setCategoryFilter] = useState<string>("");
     const queryClient = useQueryClient();
@@ -44,9 +46,9 @@ export default function ItemList() {
     });
 
     const mutation = useMutation({
-        mutationFn: async ({ id, action }: { id: string; action: "approve" | "reject" | "lock" | "unlock" }) => {
+        mutationFn: async ({ id, action, rejectionReason }: { id: string; action: "approve" | "reject" | "lock" | "unlock"; rejectionReason?: string }) => {
             if (action === "approve") return approveItem(id, true);
-            if (action === "reject") return approveItem(id, false);
+            if (action === "reject") return approveItem(id, false, rejectionReason);
             if (action === "lock") return lockItem(id, true);
             if (action === "unlock") return lockItem(id, false);
             throw new Error("Hành động không hợp lệ");
@@ -61,12 +63,29 @@ export default function ItemList() {
             };
             toast.success(actionMessages[variables.action] || "Cập nhật trạng thái thành công!");
             setOpenDetail(false);
+            setOpenRejectModal(false);
         },
         onError: (error: any) => {
             const errorMessage = error?.response?.data?.message || error?.message || "Cập nhật thất bại!";
             toast.error(errorMessage);
         },
     });
+
+    const handleAction = (action: "approve" | "reject" | "lock" | "unlock") => {
+        if (action === "reject") {
+            // Mở modal nhập lý do từ chối
+            setOpenRejectModal(true);
+        } else {
+            // Các action khác không cần lý do
+            mutation.mutate({ id: selectedItem!.id, action });
+        }
+    };
+
+    const handleRejectConfirm = (rejectionReason: string) => {
+        if (selectedItem) {
+            mutation.mutate({ id: selectedItem.id, action: "reject", rejectionReason });
+        }
+    };
 
     const columns: GridColDef<Item>[] = [
         {
@@ -227,11 +246,19 @@ export default function ItemList() {
                 {selectedItem && (
                     <ItemDetail
                         item={selectedItem}
-                        onAction={(action) => mutation.mutate({ id: selectedItem.id, action })}
+                        onAction={handleAction}
                         loading={mutation.isPending}
                     />
                 )}
             </PrimaryModal>
+
+            <RejectItemModal
+                open={openRejectModal}
+                onClose={() => setOpenRejectModal(false)}
+                onConfirm={handleRejectConfirm}
+                itemName={selectedItem?.name}
+                loading={mutation.isPending}
+            />
         </>
     );
 }

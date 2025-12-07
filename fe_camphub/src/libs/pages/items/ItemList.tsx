@@ -7,9 +7,12 @@ import CategoryList from "./CategoryList";
 import ItemCard from "./ItemCard";
 import { getAllCategories, getAllItems } from "@/libs/api";
 import { Loader2, Package } from "lucide-react";
+import { useAuthStore } from "@/libs/stores/auth.store";
 
 export default function ItemList() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const currentUserId = user?.id;
 
   // Lấy danh sách sản phẩm
   const {
@@ -30,14 +33,21 @@ export default function ItemList() {
     queryFn: getAllCategories,
   });
 
+  // Lọc bỏ sản phẩm của chính user
   const items = useMemo(() => {
-    return itemsData?.map(item => ({
+    if (!itemsData) return [];
+
+    const filteredItems = currentUserId
+      ? itemsData.filter(item => item.ownerId !== currentUserId)
+      : itemsData;
+
+    return filteredItems.map(item => ({
       id: item.id,
       name: item.name,
       price: item.price,
       imageUrl: item.mediaUrls?.[0]?.url || "/placeholder.jpg",
-    })) || [];
-  }, [itemsData]);
+    }));
+  }, [itemsData, currentUserId]);
 
   if (itemsLoading || categoriesLoading) {
     return (

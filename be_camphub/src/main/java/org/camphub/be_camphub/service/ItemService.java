@@ -21,7 +21,7 @@ public interface ItemService {
 
     void deleteItem(UUID ownerId, UUID itemId);
 
-    ItemResponse approveItem(UUID adminId, UUID itemId, boolean approved);
+    ItemResponse approveItem(UUID adminId, UUID itemId, boolean approved, String rejectionReason);
 
     ItemResponse lockItem(UUID adminId, UUID itemId, boolean locked);
 

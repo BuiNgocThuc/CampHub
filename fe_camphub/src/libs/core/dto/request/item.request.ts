@@ -3,7 +3,6 @@ import { MediaResource } from "../../types";
 
 export interface ItemCreationRequest {
     name: string;
-    ownerId: string;
     categoryId: string;
     description: string;
     pricePerDay: number;

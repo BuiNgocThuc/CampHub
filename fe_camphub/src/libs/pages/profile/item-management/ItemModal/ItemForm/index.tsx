@@ -3,20 +3,20 @@
 
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Loader2, Upload, X, Video, AlertCircle } from "lucide-react";
-import { PrimaryButton, CustomizedButton, PrimaryAlert } from "@/libs/components";
+import { Loader2, Upload, X } from "lucide-react";
+import { PrimaryButton, CustomizedButton, PrimaryAlert, PrimaryTextField, PrimarySelectField } from "@/libs/components";
 import { useCloudinaryUpload, useCreateItem, useUpdateItem } from "@/libs/hooks";
 import { Item } from "@/libs/core/types";
 import { ItemSchema, ItemFormValues } from "./schema";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MediaType } from "@/libs/core/constants";
 import { useQuery } from "@tanstack/react-query";
-import { getAllCategories } from "@/libs/api/category-api";
+import { getAllCategories } from "@/libs/api";
 import type { Category } from "@/libs/core/types";
-import PrimaryTextField from "@/libs/components/TextFields/PrimaryTextField";
-import PrimarySelectField from "@/libs/components/TextFields/PrimarySelectField";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { uploadMultipleToCloudinary } from "@/libs/services";
+import { CircularProgress, Box } from "@mui/material";
 
 interface ItemFormProps {
     item?: Item;
@@ -25,7 +25,7 @@ interface ItemFormProps {
 }
 
 export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
-    const { uploads, uploadFile } = useCloudinaryUpload();
+    const { uploads } = useCloudinaryUpload();
     const createMut = useCreateItem();
     const updateMut = useUpdateItem();
     const { data: categories = [], isLoading: loadingCategories } = useQuery<Category[]>({
@@ -33,6 +33,16 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
         queryFn: getAllCategories,
     });
     const [isUploading, setIsUploading] = useState(false);
+
+    // Debug: Log item data khi edit
+    if (item) {
+        console.log("📦 Item data for edit:", {
+            id: item.id,
+            name: item.name,
+            mediaUrls: item.mediaUrls,
+            mediaUrlsLength: item.mediaUrls?.length || 0,
+        });
+    }
 
     const [alert, setAlert] = useState<{
         content: string;
@@ -46,16 +56,27 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
         duration = 2000
     ) => setAlert({ content, type, duration });
 
+    // Tạo schema động: khi edit cho phép min(0), khi create yêu cầu min(1)
+    const isEditMode = !!item;
+    const DynamicItemSchema = ItemSchema.extend({
+        mediaUrls: isEditMode
+            ? z.array(z.object({ url: z.string().url(), type: z.enum(["IMAGE", "VIDEO"]) }))
+                .min(0) // Khi edit, cho phép rỗng (sẽ validate custom trong onSubmit)
+                .max(10, "Tối đa 10 ảnh/video")
+            : z.array(z.object({ url: z.string().url(), type: z.enum(["IMAGE", "VIDEO"]) }))
+                .min(1, "Phải có ít nhất 1 ảnh/video")
+                .max(10, "Tối đa 10 ảnh/video"),
+    });
+
     const {
         register,
         handleSubmit,
         formState: { errors, isSubmitting },
         setValue,
         watch,
-        trigger,
         control,
     } = useForm<ItemFormValues>({
-        resolver: zodResolver(ItemSchema),
+        resolver: zodResolver(DynamicItemSchema),
         defaultValues: item
             ? {
                 name: item.name,
@@ -64,7 +85,7 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
                 quantity: item.quantity,
                 depositAmount: item.depositAmount,
                 categoryId: item.categoryId,
-                mediaUrls: item.mediaUrls || [],
+                mediaUrls: item.mediaUrls && item.mediaUrls.length > 0 ? item.mediaUrls : [],
             }
             : {
                 quantity: 1,
@@ -72,6 +93,15 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
                 mediaUrls: [],
             },
     });
+
+    // Debug: Log defaultValues sau khi khởi tạo
+    useEffect(() => {
+        console.log("📋 Form defaultValues:", {
+            hasItem: !!item,
+            mediaUrls: item?.mediaUrls,
+            mediaUrlsLength: item?.mediaUrls?.length || 0,
+        });
+    }, [item]);
 
     const mediaUrls = watch("mediaUrls");
     const uploadingCount = Object.values(uploads).filter(u => u.uploading).length;
@@ -111,21 +141,121 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
     };
 
     const onSubmit = async (data: ItemFormValues) => {
+        console.log("Form submitted! Data:", data);
+
+        // Validate custom: nếu đang edit và xóa hết mediaUrls thì báo lỗi
+        const isUpdate = !!item;
+        if (isUpdate && (!data.mediaUrls || data.mediaUrls.length === 0)) {
+            const errorMessage = "Vui lòng giữ lại ít nhất 1 hình ảnh hoặc video, hoặc thêm mới";
+            toast.error(errorMessage);
+            showAlert(errorMessage, "error");
+            return;
+        }
+
         try {
-            const mutation = item ? updateMut : createMut;
-            await mutation.mutateAsync({ ...data, id: item?.id } as Item);
-            showAlert(
-                item ? "Cập nhật sản phẩm thành công!" : "Đăng sản phẩm thành công!",
-                "success"
+            const mutation = isUpdate ? updateMut : createMut;
+
+            const itemData: Item = {
+                ...data,
+                ...(isUpdate && { id: item.id }),
+            } as Item;
+
+            console.log("Submitting item:", { isUpdate, itemData });
+
+            const result = await mutation.mutateAsync(itemData);
+
+            console.log("API call successful:", result);
+
+            toast.success(
+                isUpdate ? "Cập nhật sản phẩm thành công!" : "Đăng sản phẩm thành công!"
             );
+
             onSuccess();
-        } catch (err) {
-            showAlert("Có lỗi xảy ra. Vui lòng thử lại.", "error");
+        } catch (err: any) {
+            console.error("API call failed:", err);
+            const errorMessage = err?.response?.data?.message || "Có lỗi xảy ra. Vui lòng thử lại.";
+            toast.error(errorMessage);
+            showAlert(errorMessage, "error");
         }
     };
 
+    const isLoading = isSubmitting || createMut.isPending || updateMut.isPending || uploadingCount > 0;
+
+    // Format validation errors để hiển thị cho người dùng
+    const formatValidationErrors = (errors: any): string => {
+        const errorMessages: string[] = [];
+
+        if (errors.name) {
+            errorMessages.push(`Tên sản phẩm: ${errors.name.message || "Không được để trống"}`);
+        }
+        if (errors.price) {
+            errorMessages.push(`Giá thuê: ${errors.price.message || "Không hợp lệ"}`);
+        }
+        if (errors.quantity) {
+            errorMessages.push(`Số lượng: ${errors.quantity.message || "Không hợp lệ"}`);
+        }
+        if (errors.categoryId) {
+            errorMessages.push(`Danh mục: ${errors.categoryId.message || "Vui lòng chọn danh mục"}`);
+        }
+        if (errors.mediaUrls) {
+            // Khi edit, message khác với khi create
+            const mediaErrorMsg = item
+                ? "Vui lòng giữ lại ít nhất 1 hình ảnh hoặc video, hoặc thêm mới"
+                : "Vui lòng thêm ít nhất 1 hình ảnh hoặc video";
+            errorMessages.push(`Hình ảnh/Video: ${errors.mediaUrls.message || mediaErrorMsg}`);
+        }
+        if (errors.description) {
+            errorMessages.push(`Mô tả: ${errors.description.message || "Không hợp lệ"}`);
+        }
+        if (errors.depositAmount) {
+            errorMessages.push(`Tiền đặt cọc: ${errors.depositAmount.message || "Không hợp lệ"}`);
+        }
+
+        return errorMessages.length > 0
+            ? `Vui lòng kiểm tra lại:\n${errorMessages.join("\n")}`
+            : "Vui lòng kiểm tra lại các trường bắt buộc";
+    };
+
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form
+            onSubmit={handleSubmit(
+                (data) => {
+                    console.log("handleSubmit called with data:", data);
+                    onSubmit(data);
+                },
+                (errors) => {
+                    console.log("Form validation failed:", errors);
+                    const errorMessage = formatValidationErrors(errors);
+                    toast.error(errorMessage);
+                    showAlert(errorMessage, "error", 5000);
+                }
+            )}
+            className="space-y-6"
+        >
+            {/* Hiển thị lý do từ chối nếu có */}
+            {item?.rejectionReason && item.status === "REJECTED" && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3 flex-1">
+                            <h3 className="text-sm font-semibold text-red-800 mb-1">
+                                Sản phẩm đã bị từ chối
+                            </h3>
+                            <p className="text-sm text-red-700">
+                                <strong>Lý do:</strong> {item.rejectionReason}
+                            </p>
+                            <p className="text-xs text-red-600 mt-2">
+                                Vui lòng chỉnh sửa sản phẩm theo lý do trên và gửi lại để được duyệt.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Upload ảnh/video */}
             <div>
                 <label className="block text-sm font-medium mb-3">
@@ -311,19 +441,28 @@ export default function ItemForm({ item, onSuccess, onCancel }: ItemFormProps) {
             </div>
 
             <div className="flex justify-end gap-3 pt-6 border-t">
-                <CustomizedButton content="Hủy" color="#6b7280" onClick={onCancel} type="button" />
+                <CustomizedButton
+                    content="Hủy"
+                    color="#6b7280"
+                    onClick={onCancel}
+                    type="button"
+                    disabled={isLoading}
+                />
                 <PrimaryButton
                     type="submit"
-                    disabled={isSubmitting || uploadingCount > 0}
+                    disabled={isLoading}
                     className="min-w-40"
+                    icon={
+                        isLoading ? (
+                            <CircularProgress size={16} sx={{ color: "white" }} />
+                        ) : undefined
+                    }
                     content={
-                        item ? (
-                            "Cập nhật sản phẩm"
-                        ) : (
-                            "Đăng sản phẩm"
-                        )}
+                        item
+                            ? (isLoading ? "Đang cập nhật..." : "Cập nhật sản phẩm")
+                            : (isLoading ? "Đang đăng..." : "Đăng sản phẩm")
+                    }
                 />
-
             </div>
 
             {alert && (

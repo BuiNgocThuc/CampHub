@@ -29,6 +29,7 @@ const defineMetadata = () => {
         depositAmount: Number,
         status: String,
         mediaUrls: Array,
+        rejectionReason: String,
     });
 
     // DTOs
@@ -45,11 +46,11 @@ const defineMetadata = () => {
         depositAmount: Number,
         status: String,
         mediaUrls: Array,
+        rejectionReason: String,
     });
 
     PojosMetadataMap.create<ItemCreationRequest>("ItemCreationRequest", {
         name: String,
-        ownerId: String,
         categoryId: String,
         description: String,
         pricePerDay: Number,
@@ -101,10 +102,6 @@ createMap<Item, ItemCreationRequest>(
     forMember(
         (d) => d.pricePerDay,
         mapFrom((s) => s.price)
-    ),
-    forMember(
-        (d) => d.ownerId,
-        mapFrom((s) => s.ownerId)
     ),
     forMember(
         (d) => d.categoryId,

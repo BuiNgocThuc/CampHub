@@ -9,11 +9,14 @@ export const createItem = async (
     item: Item
 ): Promise<Item> => {
     const request = mapItem.toCreateDto(item);
+    console.log(request);
+    
     try {
         const response = await api.post<ApiResponse<ItemResponse>>(
             "/items",
             request
         );
+        console.log(response.data.result);
         
         return mapItem.fromResponse(response.data.result);
     } catch (error) {
@@ -54,6 +57,7 @@ export const updateItem = async (
     try {
         const request = mapItem.toUpdateDto(item);
         const response = await api.put<ApiResponse<ItemResponse>>(`/items/${item.id}`, request);
+        console.log(response.data.result);
         return mapItem.fromResponse(response.data.result);
     } catch (error) {
         throw error;
@@ -84,11 +88,13 @@ export const deleteItem = async (id: string): Promise<ApiResponse<void>> => {
 };
 
 // Admin approve/reject item
-export const approveItem = async (id: string, isApproved: boolean): Promise<Item> => {
+export const approveItem = async (id: string, isApproved: boolean, rejectionReason?: string): Promise<Item> => {
     const response = await api.put<ApiResponse<ItemResponse>>(
         `/items/approve/${id}`,
-        null,
-        { params: { isApproved } }
+        {
+            approved: isApproved,
+            rejectionReason: rejectionReason || null,
+        }
     );
     return mapItem.fromResponse(response.data.result);
 };
@@ -109,5 +115,7 @@ export const getMyItems = async (
     const response = await api.get<ApiResponse<ItemResponse[]>>("/items/my", {
         params: { status },
     });
+    console.log(response.data.result);
+    
     return response.data.result.map(mapItem.fromResponse);
 };

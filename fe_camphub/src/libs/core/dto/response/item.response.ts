@@ -17,4 +17,5 @@ export interface ItemResponse {
     depositAmount: number;
     status: ItemStatus;
     mediaUrls: MediaResource[];
+    rejectionReason?: string; // Lý do từ chối (nếu có)
 }

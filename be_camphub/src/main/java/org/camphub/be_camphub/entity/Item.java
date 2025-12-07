@@ -50,6 +50,9 @@ public class Item {
     @CollectionTable(name = "item_media_urls", joinColumns = @JoinColumn(name = "item_id"))
     List<MediaResource> mediaUrls;
 
+    @Column(name = "rejection_reason", columnDefinition = "text")
+    String rejectionReason;
+
     @Enumerated(EnumType.STRING)
     ItemStatus status = ItemStatus.AVAILABLE;
 

@@ -97,6 +97,7 @@ export default function ItemDetailPage() {
                         depositAmount={item.depositAmount}
                         itemName={item.name}
                         itemImage={images[0]}
+                        maxQuantity={item.quantity}
                     />
                 </div>
             </div>

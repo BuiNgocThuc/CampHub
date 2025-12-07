@@ -104,7 +104,7 @@ public class BookingServiceImpl implements BookingService {
             }
 
             // compute rental days
-            long days = ChronoUnit.DAYS.between(biReq.getStartDate(), biReq.getEndDate()) + 1;
+            long days = ChronoUnit.DAYS.between(biReq.getStartDate(), biReq.getEndDate());
             if (days <= 0) throw new AppException(ErrorCode.INVALID_RENTAL_DATES);
 
             int quantity = Optional.ofNullable(biReq.getQuantity()).orElse(cartItem.getQuantity());
@@ -116,8 +116,11 @@ public class BookingServiceImpl implements BookingService {
                     .multiply(BigDecimal.valueOf(quantity))
                     .multiply(BigDecimal.valueOf(days));
 
+            // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
+            BigDecimal depositTotal = BigDecimal.valueOf(depositAmount).multiply(BigDecimal.valueOf(quantity));
+
             totalAmount = totalAmount.add(subtotal);
-            totalDeposit = totalDeposit.add(BigDecimal.valueOf(depositAmount));
+            totalDeposit = totalDeposit.add(depositTotal);
         }
 
         // calculate required amount to pay
@@ -127,6 +130,7 @@ public class BookingServiceImpl implements BookingService {
         Account lessee =
                 accountRepository.findById(lesseeId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        log.info("Lessee {} balance: {}, required: {}", lesseeId, lessee.getCoinBalance(), required);
         if (BigDecimal.valueOf(lessee.getCoinBalance()).compareTo(required) < 0) {
             throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
         }
@@ -249,7 +253,9 @@ public class BookingServiceImpl implements BookingService {
             BigDecimal rental_prices = BigDecimal.valueOf(booking.getPricePerDay())
                     .multiply(BigDecimal.valueOf(booking.getQuantity()))
                     .multiply(days);
-            BigDecimal deposit = BigDecimal.valueOf(booking.getDepositAmount());
+            // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
+            BigDecimal deposit =
+                    BigDecimal.valueOf(booking.getDepositAmount()).multiply(BigDecimal.valueOf(booking.getQuantity()));
             BigDecimal refundTotal = rental_prices.add(deposit);
 
             Account systemWallet = getSystemWallet();
@@ -509,7 +515,8 @@ public class BookingServiceImpl implements BookingService {
 
         long days = ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate()) + 1;
         double rentalFee = booking.getPricePerDay() * booking.getQuantity() * days;
-        double deposit = booking.getDepositAmount();
+        // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
+        double deposit = booking.getDepositAmount() * booking.getQuantity();
         double refundDeposit = deposit;
 
         // Xử lý trễ hạn
@@ -654,7 +661,8 @@ public class BookingServiceImpl implements BookingService {
         // Tính toán số tiền cần chuyển cho chủ thuê
         long days = ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate()) + 1;
         double rentalFee = booking.getPricePerDay() * booking.getQuantity() * days;
-        double deposit = booking.getDepositAmount();
+        // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
+        double deposit = booking.getDepositAmount() * booking.getQuantity();
         double totalAmount = rentalFee + deposit;
 
         Account lessee = accountRepository

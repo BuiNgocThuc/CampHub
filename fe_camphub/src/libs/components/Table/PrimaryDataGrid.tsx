@@ -63,6 +63,16 @@ export default function PrimaryDataGrid<T extends GridValidRowModel>({
                             alignItems: "center",
                             justifyContent: "center",
                         },
+                        "& .MuiTablePagination-root": {
+                            justifyContent: "flex-start !important",
+                        },
+                        "& .MuiTablePagination-toolbar": {
+                            padding: "0",
+                            marginTop: "10px",
+                        },
+                        "& .MuiTablePagination-spacer": {
+                            flex: "0 0 auto !important",
+                        },
                     }}
                     disableColumnResize
                     disableColumnMenu

@@ -16,9 +16,10 @@ interface DisputeModalProps {
   open: boolean;
   onClose: () => void;
   booking: Booking;
+  onSuccess?: () => void;
 }
 
-export default function DisputeModal({ open, onClose, booking }: DisputeModalProps) {
+export default function DisputeModal({ open, onClose, booking, onSuccess }: DisputeModalProps) {
   const queryClient = useQueryClient();
   const { uploads, uploadFile } = useCloudinaryUpload();
 
@@ -35,10 +36,14 @@ export default function DisputeModal({ open, onClose, booking }: DisputeModalPro
   const disputeMut = useMutation({
     mutationFn: createDispute,
     onSuccess: () => {
-      toast.success("Đã gửi khiếu nại thành công");
       queryClient.invalidateQueries({ queryKey: ["lessorBookings"] });
       queryClient.invalidateQueries({ queryKey: ["myRentals"] });
+      queryClient.invalidateQueries({ queryKey: ["myDisputes"] });
       handleClose();
+      // Gọi callback để hiển thị alert ở parent component
+      if (onSuccess) {
+        onSuccess();
+      }
     },
     onError: (error: any) => {
       const msg = error?.response?.data?.message || "Không thể gửi khiếu nại";
@@ -260,7 +265,7 @@ export default function DisputeModal({ open, onClose, booking }: DisputeModalPro
             content={disputeMut.isPending ? "Đang gửi khiếu nại..." : "Gửi khiếu nại"}
             onClick={handleSubmit}
             disabled={disputeMut.isPending || isUploading || uploadingCount > 0}
-            icon={disputeMut.isPending || isUploading ? <CircularProgress size={18} /> : undefined}
+            icon={disputeMut.isPending ? <CircularProgress size={18} /> : undefined}
             className="bg-red-600 hover:bg-red-700"
           />
         </Box>

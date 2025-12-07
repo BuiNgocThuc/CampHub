@@ -5,13 +5,15 @@ import { BookingCreationRequest, LesseeReturnRequest, OwnerConfirmationRequest }
 import { bookingMap } from "../core/mapping";
 
 
-// Thanh toán - người thuê chọn sản phẩm từ giỏ hàng - mỗi sản phẩm tạo một booking
+// Thanh toán -
 export const checkout = async (request: BookingCreationRequest): Promise<Booking[]> => {
     try {
+        console.log(request);
         const response = await api.post<ApiResponse<BookingResponse[]>>(
             "/bookings/checkout",
             request
         );
+        console.log(response.data.result);
 
         return response.data.result.map(bookingMap.fromResponse);
     } catch (error) {

@@ -30,4 +30,5 @@ public class ItemResponse {
     BigDecimal depositAmount;
     String status;
     List<MediaResourceResponse> mediaUrls;
+    String rejectionReason; // Lý do từ chối (nếu có)
 }

@@ -22,7 +22,7 @@ export interface LesseeReturnRequest {
 
 export interface OwnerConfirmationRequest {
     bookingId: string;      // UUID
-    isAccept: boolean;
+    isAccepted: boolean;
     deliveryNote?: string;
     packagingMediaUrls?: MediaResource[]; // Cloudinary URLs
 }

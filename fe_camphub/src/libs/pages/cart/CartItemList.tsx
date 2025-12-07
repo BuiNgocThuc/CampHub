@@ -1,15 +1,38 @@
 // app/cart/CartItemList.tsx
 "use client";
 
-import { Trash2, Minus, Plus, ShoppingBag } from "lucide-react";
+import { Trash2, Minus, Plus, ShoppingBag, CheckSquare } from "lucide-react";
 import { useCartStore } from "@/libs/stores/cart.store";
 import { format, addDays } from "date-fns";
-import { AppImage } from "@/libs/components"; //
+import { AppImage } from "@/libs/components";
+import { CartItem } from "@/libs/core/types";
 
-export default function CartItemList() {
+interface CartItemListProps {
+  selectedItems: Set<string>;
+  onToggleSelect: (itemId: string) => void;
+  onSelectAll: () => void;
+}
+
+export default function CartItemList({
+  selectedItems,
+  onToggleSelect,
+  onSelectAll,
+}: CartItemListProps) {
   const { items, updateRentalDays, updateQuantity, removeFromCart, isLoading } = useCartStore();
   const tomorrow = addDays(new Date(), 1);
   const formatDate = (date: Date) => format(date, "dd/MM/yyyy");
+
+  //  tính tổng tiền 
+  const calculateItemTotal = (item: CartItem) => {
+    const itemRentalTotal = item.price * item.quantity * item.rentalDays;
+    const itemDepositTotal = item.depositAmount * item.quantity;
+    const itemGrandTotal = itemRentalTotal + itemDepositTotal;
+    return {
+      rentalTotal: itemRentalTotal,
+      depositTotal: itemDepositTotal,
+      grandTotal: itemGrandTotal,
+    };
+  };
 
   const handleDaysChange = async (id: string, days: number) => {
     const clamped = Math.max(1, Math.min(30, days));
@@ -35,26 +58,57 @@ export default function CartItemList() {
     );
   }
 
+  const availableItems = items.filter((i) => i.isAvailable);
+  const allSelected = availableItems.length > 0 && availableItems.every((i) => selectedItems.has(i.id));
+
   return (
     <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white px-6 py-5">
-        <h3 className="text-2xl font-bold flex items-center gap-3">
-          <ShoppingBag size={28} />
-          Sản phẩm trong giỏ hàng ({items.length})
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-2xl font-bold flex items-center gap-3">
+            <ShoppingBag size={28} />
+            Sản phẩm trong giỏ hàng ({items.length})
+          </h3>
+          {availableItems.length > 0 && (
+            <button
+              onClick={onSelectAll}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-semibold"
+            >
+              <CheckSquare size={18} className={allSelected ? "text-green-300" : ""} />
+              {allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="divide-y divide-gray-200">
         {items.map((item) => {
           const startDate = tomorrow;
           const endDate = addDays(tomorrow, item.rentalDays);
+          const totals = calculateItemTotal(item);
+
+          const isSelected = selectedItems.has(item.id);
+          const canSelect = item.isAvailable;
 
           return (
             <div
               key={item.id}
-              className="p-6 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/30 transition-all duration-300 flex flex-col md:flex-row gap-6 group"
+              className={`p-6 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/30 transition-all duration-300 flex flex-col md:flex-row gap-6 group ${
+                isSelected ? "border-l-4 border-green-600" : ""
+              }`}
             >
+              {/* Checkbox */}
+              <div className="flex items-start pt-2">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(item.id)}
+                  disabled={!canSelect}
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                />
+              </div>
+
               {/* Ảnh sản phẩm + Trạng thái */}
               <div className="flex-shrink-0">
                 <div className="relative w-32 h-32 rounded-2xl overflow-hidden shadow-xl ring-4 ring-white">
@@ -175,9 +229,11 @@ export default function CartItemList() {
               <div className="text-right space-y-4">
                 <div>
                   <p className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-700">
-                    {item.subtotal.toLocaleString("vi-VN")}₫
+                    {totals.grandTotal.toLocaleString("vi-VN")}₫
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Tổng tiền thuê</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {totals.rentalTotal.toLocaleString("vi-VN")}₫ thuê + {totals.depositTotal.toLocaleString("vi-VN")}₫ cọc
+                  </p>
                 </div>
 
                 <button

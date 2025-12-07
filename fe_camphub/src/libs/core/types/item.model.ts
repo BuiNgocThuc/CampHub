@@ -17,4 +17,5 @@ export interface Item {
     depositAmount: number;
     status: ItemStatus;
     mediaUrls: MediaResource[];
+    rejectionReason?: string;
 }

@@ -17,4 +17,6 @@ public interface DisputeService {
     List<DisputeResponse> getAllDisputes();
 
     DisputeResponse getDisputeById(UUID disputeId);
+
+    List<DisputeResponse> getDisputesByReporterId(UUID reporterId);
 }

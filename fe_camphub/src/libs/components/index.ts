@@ -16,6 +16,7 @@ export { default as AdminSidebar } from "./Sidebar/Sidebar";
 export { default as PrimaryTable } from "./Table/PrimaryTable";
 export { default as PrimaryDataGrid } from "./Table/PrimaryDataGrid";
 export { default as PrimaryModal } from "./Modal/PrimaryModal";
+export { default as PrimaryConfirmation } from "./Modal/PrimaryConfirmation";
 export { default as ChatModal } from "./Chat/ChatModal";
 export { default as GlobalChatButton } from "./Chat/GlobalChat";
 export { default as MediaPreview } from "./Media/MediaPreview";

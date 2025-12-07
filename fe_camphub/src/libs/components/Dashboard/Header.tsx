@@ -20,25 +20,20 @@ export default function Header() {
   const cartCount = useCartStore((s) => s.count);
   const fetchCartCount = useCartStore((s) => s.fetchCartCount);
 
-  // Fetch user info khi chưa có user
   useEffect(() => {
     if (!user) {
       fetchMyInfo();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]); // Chỉ phụ thuộc vào user.id - khi id thay đổi (undefined -> có giá trị hoặc ngược lại)
+  }, [user?.id]);
 
-  // Fetch cart count khi user đã login (chỉ chạy khi user.id thay đổi từ undefined -> có giá trị)
   useEffect(() => {
     if (user?.id) {
       fetchCartCount();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]); // Chỉ phụ thuộc vào user.id
+  }, [user?.id]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: xử lý tìm kiếm (router.push(`/search?q=${encodeURIComponent(query)}`) ...)
     if (!query) return;
     router.push(`/search?q=${encodeURIComponent(query)}`);
   };
@@ -48,26 +43,17 @@ export default function Header() {
   return (
     <header className="w-full bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex items-center gap-4">
-        {/* Left: Logo */}
+        {/* Logo */}
         <div
           className="flex items-center gap-3 cursor-pointer min-w-[160px]"
           onClick={() => router.push("/CampHub")}
         >
-          <div className="relative w-10 h-10">
-            <Image
-              src="/img/logo-left-side-bar.png"
-              alt="CampHub Logo"
-              fill
-              style={{ objectFit: "contain" }}
-              priority
-            />
-          </div>
           <span className="hidden sm:inline text-lg font-semibold text-blue-600">
             CampHub
           </span>
         </div>
 
-        {/* Center: Search (desktop) */}
+        {/* Search */}
         <div className="flex-1 hidden md:flex items-center">
           <form
             onSubmit={handleSubmit}
@@ -107,7 +93,7 @@ export default function Header() {
           </button>
         </div>
 
-        {/* Right: Icons */}
+        {/* Icons */}
         <div className="flex items-center gap-3">
           {/* Cart */}
           <div
@@ -179,12 +165,6 @@ export default function Header() {
                 Tài khoản của tôi
               </button>
 
-              <button
-                onClick={() => router.push("/rentals")}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
-              >
-                Đơn thuê
-              </button>
 
               <button
                 onClick={() => {

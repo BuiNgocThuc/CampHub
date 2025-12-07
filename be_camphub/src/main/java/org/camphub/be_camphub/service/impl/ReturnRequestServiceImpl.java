@@ -203,7 +203,8 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         // Refund amount = full rental price + deposit
         long days = ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate()) + 1;
         double rentalFee = booking.getPricePerDay() * booking.getQuantity() * days;
-        double deposit = Optional.ofNullable(booking.getDepositAmount()).orElse(0.0);
+        // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
+        double deposit = Optional.ofNullable(booking.getDepositAmount()).orElse(0.0) * booking.getQuantity();
 
         double refundAmount = rentalFee + deposit;
 

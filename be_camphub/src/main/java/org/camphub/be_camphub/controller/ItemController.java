@@ -3,6 +3,7 @@ package org.camphub.be_camphub.controller;
 import java.util.List;
 import java.util.UUID;
 
+import org.camphub.be_camphub.dto.request.Item.ItemApproveRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemCreationRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemPatchRequest;
 import org.camphub.be_camphub.dto.request.Item.ItemUpdateRequest;
@@ -93,11 +94,11 @@ public class ItemController {
     // Admin approve/reject item
     @PutMapping("/approve/{id}")
     public ApiResponse<ItemResponse> approveItem(
-            @PathVariable UUID id, @RequestParam boolean isApproved, @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable UUID id, @RequestBody ItemApproveRequest request, @AuthenticationPrincipal Jwt jwt) {
         UUID adminId = UUID.fromString(jwt.getClaim("userId"));
         return ApiResponse.<ItemResponse>builder()
-                .message(isApproved ? "Item approved successfully" : "Item rejected successfully")
-                .result(itemService.approveItem(adminId, id, isApproved))
+                .message(request.isApproved() ? "Item approved successfully" : "Item rejected successfully")
+                .result(itemService.approveItem(adminId, id, request.isApproved(), request.getRejectionReason()))
                 .build();
     }
 

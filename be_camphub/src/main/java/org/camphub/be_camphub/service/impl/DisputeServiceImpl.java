@@ -33,7 +33,6 @@ public class DisputeServiceImpl implements DisputeService {
     BookingRepository bookingRepository;
     DamageTypeRepository damageTypeRepository;
     ItemRepository itemRepository;
-    ItemLogsRepository itemLogRepository;
     ReturnRequestRepository returnRequestRepository;
     DisputeMapper disputeMapper;
     AccountRepository accountRepository;
@@ -45,30 +44,27 @@ public class DisputeServiceImpl implements DisputeService {
     @Transactional
     public DisputeResponse createDispute(UUID lessorId, DisputeCreationRequest request) {
 
-        // 1. Load booking
+        // Load booking
         Booking booking = bookingRepository
                 .findById(request.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
         if (!booking.getLessorId().equals(lessorId)) throw new AppException(ErrorCode.UNAUTHORIZED);
 
-        // 3. Đóng các ReturnRequest đang mở (PENDING / WAITING ...)
+        // Đóng các ReturnRequest đang mở (PENDING / WAITING ...)
         closeOpenReturnRequest(booking);
 
-        // 4. Cập nhật booking
+        // Cập nhật booking
         booking.setStatus(BookingStatus.DISPUTE_PENDING_REVIEW);
         bookingRepository.save(booking);
 
-        // 5. Tạo dispute bằng mapper (chuẩn nhất)
         Dispute dispute = disputeMapper.creationRequestToEntity(request);
-        dispute.setId(UUID.randomUUID());
         dispute.setReporterId(lessorId);
         dispute.setDefenderId(booking.getLesseeId());
         dispute.setBookingId(booking.getId());
 
         disputeRepository.save(dispute);
 
-        // 6. Ban item tạm thời
         itemRepository.findById(booking.getItemId()).ifPresent(item -> {
             item.setStatus(ItemStatus.BANNED);
             itemRepository.save(item);
@@ -84,7 +80,7 @@ public class DisputeServiceImpl implements DisputeService {
                 .referenceId(booking.getId())
                 .build());
 
-        // 7. Build response
+        // Build response
         return enrichDisputeResponse(dispute);
     }
 
@@ -124,7 +120,8 @@ public class DisputeServiceImpl implements DisputeService {
                 .orElseThrow(() -> new AppException(ErrorCode.DAMAGE_TYPE_NOT_FOUND));
 
         // 4. Compute compensation amount (based on deposit * damageRate)
-        double deposit = Optional.ofNullable(booking.getDepositAmount()).orElse(0.0);
+        // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
+        double deposit = Optional.ofNullable(booking.getDepositAmount()).orElse(0.0) * booking.getQuantity();
         double rate = Optional.ofNullable(damageType)
                 .map(DamageType::getCompensationRate)
                 .orElse(0.0);
@@ -167,7 +164,7 @@ public class DisputeServiceImpl implements DisputeService {
             booking.setStatus(BookingStatus.COMPENSATION_COMPLETED);
             bookingRepository.save(booking);
 
-            //  Giảm trust_score của khách thuê (lessee)
+            // Giảm trust_score của khách thuê (lessee)
             double penalty;
             if (rate < 0.1) penalty = 2.0;
             else if (rate < 0.3) penalty = 5.0;
@@ -254,6 +251,13 @@ public class DisputeServiceImpl implements DisputeService {
                 .findById(disputeId)
                 .map(this::enrichDisputeResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.DISPUTE_NOT_FOUND));
+    }
+
+    @Override
+    public List<DisputeResponse> getDisputesByReporterId(UUID reporterId) {
+        return disputeRepository.findByReporterIdOrderByCreatedAtDesc(reporterId).stream()
+                .map(this::enrichDisputeResponse)
+                .toList();
     }
 
     private void closeOpenReturnRequest(Booking booking) {

@@ -7,10 +7,10 @@ interface AlertProps {
   content: string;
   type: "success" | "error" | "warning" | "info";
   onClose: () => void;
-  duration?: number; // Duration in milliseconds
+  duration: number; // Duration in milliseconds
 }
 
-const Alert: React.FC<AlertProps> = ({ content, type, onClose, duration = 2000 }) => {
+const Alert: React.FC<AlertProps> = ({ content, type, onClose, duration }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -25,7 +25,7 @@ const Alert: React.FC<AlertProps> = ({ content, type, onClose, duration = 2000 }
         position: "fixed",
         top: "20px",
         right: "20px",
-        zIndex: 1000,
+        zIndex: 1500,
         transform: "translateX(100%)",
         animation: "slideIn 0.3s forwards",
       }}

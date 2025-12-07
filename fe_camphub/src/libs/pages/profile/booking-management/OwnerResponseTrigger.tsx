@@ -5,7 +5,12 @@ import { PrimaryButton } from "@/libs/components";
 import OwnerResponseModal from "./OwnerResponseModal";
 import { Booking } from "@/libs/core/types";
 
-export default function OwnerResponseTrigger({ booking }: { booking: Booking }) {
+interface OwnerResponseTriggerProps {
+    booking: Booking;
+    onSuccess?: (isAccept: boolean) => void;
+}
+
+export default function OwnerResponseTrigger({ booking, onSuccess }: OwnerResponseTriggerProps) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -22,6 +27,7 @@ export default function OwnerResponseTrigger({ booking }: { booking: Booking }) 
                 bookingId={booking.id}
                 itemName={booking.itemName || "Không rõ"}
                 lesseeName={booking.lesseeName || "Khách vãng lai"}
+                onSuccess={onSuccess}
             />
         </>
     );

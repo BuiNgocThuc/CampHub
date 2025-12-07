@@ -12,6 +12,7 @@ import { getAccountById } from "@/libs/api";
 import { PrimaryAlert } from "@/libs/components";
 import { useMyItems } from "@/libs/hooks";
 import RentalOrders from "./RentalOrders";
+import MyDisputes from "./MyDisputes";
 
 
 export default function ProfilePage() {
@@ -104,6 +105,7 @@ export default function ProfilePage() {
         )}
         {activeTab === "rental-orders" && <RentalOrders />}
         {activeTab === "history" && <RentalHistory />}
+        {activeTab === "disputes" && <MyDisputes />}
         {activeTab === "coin" && (
           <CampHubCoin
             balance={account.coinBalance}

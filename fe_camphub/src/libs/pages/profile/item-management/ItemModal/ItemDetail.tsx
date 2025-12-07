@@ -2,6 +2,9 @@
 import Image from "next/image";
 import { Play, FileVideo } from "lucide-react";
 import { Item } from "@/libs/core/types";
+import { useQuery } from "@tanstack/react-query";
+import { getReviewsByItemId } from "@/libs/api/review-api";
+import ReviewList from "@/libs/pages/items/item-detail/ReviewList";
 
 interface ItemDetailProps {
     item: Item;
@@ -11,8 +14,38 @@ export default function ItemDetail({ item }: ItemDetailProps) {
     const images = item.mediaUrls.filter(m => m.type === "IMAGE");
     const videos = item.mediaUrls.filter(m => m.type === "VIDEO");
 
+    // Lấy đánh giá của sản phẩm
+    const { data: reviews = [] } = useQuery({
+        queryKey: ["reviews", item.id],
+        queryFn: () => getReviewsByItemId(item.id),
+        enabled: !!item.id,
+    });
+
     return (
         <div className="space-y-8">
+            {/* Hiển thị lý do từ chối nếu có */}
+            {item.rejectionReason && item.status === "REJECTED" && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3 flex-1">
+                            <h3 className="text-sm font-semibold text-red-800 mb-1">
+                                Sản phẩm đã bị từ chối
+                            </h3>
+                            <p className="text-sm text-red-700">
+                                <strong>Lý do:</strong> {item.rejectionReason}
+                            </p>
+                            <p className="text-xs text-red-600 mt-2">
+                                Vui lòng chỉnh sửa sản phẩm theo lý do trên và gửi lại để được duyệt.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Ảnh + Video */}
             <div>
                 <h4 className="font-semibold text-lg mb-4">Hình ảnh & Video</h4>
@@ -89,9 +122,9 @@ export default function ItemDetail({ item }: ItemDetailProps) {
                         <div className="flex justify-between py-2">
                             <span className="text-gray-500">Trạng thái</span>
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === "AVAILABLE" ? "bg-green-100 text-green-700" :
-                                    item.status === "PENDING_APPROVAL" ? "bg-yellow-100 text-yellow-700" :
-                                        item.status === "REJECTED" ? "bg-red-100 text-red-700" :
-                                            "bg-gray-100 text-gray-600"
+                                item.status === "PENDING_APPROVAL" ? "bg-yellow-100 text-yellow-700" :
+                                    item.status === "REJECTED" ? "bg-red-100 text-red-700" :
+                                        "bg-gray-100 text-gray-600"
                                 }`}>
                                 {item.status === "AVAILABLE" ? "Đang hiển thị" :
                                     item.status === "PENDING_APPROVAL" ? "Chờ duyệt" :
@@ -107,6 +140,11 @@ export default function ItemDetail({ item }: ItemDetailProps) {
                         {item.description || "Chưa có mô tả"}
                     </div>
                 </div>
+            </div>
+
+            {/* Đánh giá từ người thuê */}
+            <div className="mt-8">
+                <ReviewList reviews={reviews} />
             </div>
         </div>
     );

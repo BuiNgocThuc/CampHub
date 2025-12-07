@@ -40,6 +40,7 @@ export default function PrimaryTable<T extends { id: string | number }>({
                                 key={String(col.field)}
                                 className="font-semibold text-gray-700"
                                 style={{ width: col.width }}
+                                align="center"
                             >
                                 {col.headerName}
                             </TableCell>
@@ -55,7 +56,7 @@ export default function PrimaryTable<T extends { id: string | number }>({
                             className="cursor-pointer transition-colors"
                         >
                             {columns.map((col) => (
-                                <TableCell key={String(col.field)}>
+                                <TableCell key={String(col.field)} align="center">
                                     {col.render
                                         ? col.render(row, index)
                                         : (row as any)[col.field]}

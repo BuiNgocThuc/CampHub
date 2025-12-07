@@ -64,7 +64,7 @@ public class ItemServiceImpl implements ItemService {
         UUID referenceId = item.getId();
         notificationService.notifyAllAdmins(NotificationCreationRequest.builder()
                 .senderId(ownerId)
-                .type(NotificationType.BOOKING_CREATED) // Tạm dùng type này, có thể thêm type mới sau
+                .type(NotificationType.ITEM_PENDING_APPROVAL)
                 .title("Sản phẩm mới chờ duyệt")
                 .content("Có sản phẩm \"" + itemName + "\" chờ duyệt.")
                 .referenceType(ReferenceType.ITEM)
@@ -122,6 +122,12 @@ public class ItemServiceImpl implements ItemService {
         Item item = getOwnedItem(itemId, ownerId);
 
         ItemStatus prevStatus = item.getStatus();
+
+        // Xóa mediaUrls cũ trước khi update
+        if (item.getMediaUrls() != null) {
+            item.getMediaUrls().clear();
+        }
+
         itemMapper.updateRequestToEntity(item, request);
 
         item.setStatus(ItemStatus.PENDING_APPROVAL);
@@ -146,6 +152,14 @@ public class ItemServiceImpl implements ItemService {
         Item item = getOwnedItem(itemId, ownerId);
 
         ItemStatus prevStatus = item.getStatus();
+
+        // Nếu request có mediaUrls, xóa mediaUrls cũ trước khi patch
+        if (request.getMediaUrls() != null && !request.getMediaUrls().isEmpty()) {
+            if (item.getMediaUrls() != null) {
+                item.getMediaUrls().clear();
+            }
+        }
+
         itemMapper.patchRequestToEntity(item, request);
 
         item.setStatus(ItemStatus.PENDING_APPROVAL);
@@ -189,11 +203,19 @@ public class ItemServiceImpl implements ItemService {
 
     // ----------------- ADMIN APPROVE -----------------
     @Override
-    public ItemResponse approveItem(UUID adminId, UUID itemId, boolean approved) {
+    public ItemResponse approveItem(UUID adminId, UUID itemId, boolean approved, String rejectionReason) {
         Item item = getItemOrThrow(itemId);
 
         ItemStatus prevStatus = item.getStatus();
         item.setStatus(approved ? ItemStatus.AVAILABLE : ItemStatus.REJECTED);
+
+        // Lưu lý do từ chối nếu có, xóa nếu approve
+        if (approved) {
+            item.setRejectionReason(null); // Xóa lý do từ chối khi approve
+        } else {
+            item.setRejectionReason(rejectionReason); // Lưu lý do từ chối
+        }
+
         item.setUpdatedAt(LocalDateTime.now());
         itemRepository.save(item);
 
@@ -208,15 +230,19 @@ public class ItemServiceImpl implements ItemService {
 
         // Thông báo cho owner khi admin approve/reject
         String itemName = item.getName();
+        String notificationContent = approved
+                ? "Sản phẩm \"" + itemName + "\" của bạn đã được duyệt và hiện đang hiển thị."
+                : "Sản phẩm \"" + itemName + "\" của bạn đã bị từ chối."
+                        + (rejectionReason != null && !rejectionReason.trim().isEmpty()
+                                ? " Lý do: " + rejectionReason
+                                : "");
+
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(item.getOwnerId())
                 .senderId(adminId)
-                .type(approved ? NotificationType.BOOKING_CREATED : NotificationType.BOOKING_CANCELLED)
+                .type(approved ? NotificationType.ITEM_APPROVED : NotificationType.ITEM_REJECTED)
                 .title(approved ? "Sản phẩm đã được duyệt" : "Sản phẩm bị từ chối")
-                .content(
-                        approved
-                                ? "Sản phẩm \"" + itemName + "\" của bạn đã được duyệt và hiện đang hiển thị."
-                                : "Sản phẩm \"" + itemName + "\" của bạn đã bị từ chối.")
+                .content(notificationContent)
                 .referenceType(ReferenceType.ITEM)
                 .referenceId(itemId)
                 .build());

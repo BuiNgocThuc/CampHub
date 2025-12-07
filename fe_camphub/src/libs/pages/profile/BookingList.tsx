@@ -1,4 +1,3 @@
-// components/booking/BookingList.tsx
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Package, User, Calendar, Clock, CheckCircle2, Truck, RotateCcw, AlertCircle, MessageSquare, XCircle } from "lucide-react";

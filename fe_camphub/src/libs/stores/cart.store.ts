@@ -31,7 +31,8 @@ interface CartStore {
         rentalDays: number,
         price: number,
         itemName: string,
-        itemImage: string
+        itemImage: string,
+        quantity?: number
     ) => Promise<void>;
 
     // Cập nhật số ngày thuê
@@ -77,13 +78,13 @@ export const useCartStore = create<CartStore>((set, get) => ({
         }
     },
 
-    addToCart: async (itemId, rentalDays, price, itemName, itemImage) => {
+    addToCart: async (itemId, rentalDays, price, itemName, itemImage, quantity = 1) => {
         set({ isLoading: true });
         try {
             // Gọi API thật - backend sẽ xử lý logic (thêm mới hoặc update nếu đã có)
             const newItem = await addItemToCart({
                 itemId,
-                quantity: 1,
+                quantity: quantity,
                 rentalDays,
                 price,
             });

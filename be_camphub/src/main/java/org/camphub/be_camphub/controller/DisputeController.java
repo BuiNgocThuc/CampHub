@@ -59,4 +59,21 @@ public class DisputeController {
                 .result(disputeService.getAllDisputes())
                 .build();
     }
+
+    @GetMapping("/my-disputes")
+    public ApiResponse<List<DisputeResponse>> getMyDisputes(@AuthenticationPrincipal Jwt jwt) {
+        UUID reporterId = UUID.fromString(jwt.getClaim("userId"));
+        return ApiResponse.<List<DisputeResponse>>builder()
+                .message("My disputes fetched successfully")
+                .result(disputeService.getDisputesByReporterId(reporterId))
+                .build();
+    }
+
+    @GetMapping("/{disputeId}")
+    public ApiResponse<DisputeResponse> getDisputeById(@PathVariable UUID disputeId) {
+        return ApiResponse.<DisputeResponse>builder()
+                .message("Dispute fetched successfully")
+                .result(disputeService.getDisputeById(disputeId))
+                .build();
+    }
 }

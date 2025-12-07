@@ -1,3 +1,4 @@
+import { log } from 'console';
 // dispute-api.ts
 import { api } from "@/libs/configuration";
 import { Dispute } from "../core/types";
@@ -8,10 +9,12 @@ import { DisputeCreationRequest, AdminReviewDisputeRequest } from "../core/dto/r
 // -------------------- CREATE DISPUTE --------------------
 export const createDispute = async (request: DisputeCreationRequest): Promise<Dispute> => {
     try {
+        console.log("request", request);
         const response = await api.post<ApiResponse<DisputeResponse>>(
             "/disputes/create",
             request
         );
+        console.log("response", response.data);
         // ResponseDTO → Model
         return disputeMap.fromResponse(response.data.result);
     } catch (error) {
@@ -52,5 +55,11 @@ export const getDisputeById = async (disputeId: string): Promise<Dispute> => {
 // get all disputes
 export const getAllDisputes = async (): Promise<Dispute[]> => {
     const response = await api.get<ApiResponse<DisputeResponse[]>>("/disputes");
+    return response.data.result.map(disputeMap.fromResponse);
+};
+
+// get my disputes (by reporterId from JWT)
+export const getMyDisputes = async (): Promise<Dispute[]> => {
+    const response = await api.get<ApiResponse<DisputeResponse[]>>("/disputes/my-disputes");
     return response.data.result.map(disputeMap.fromResponse);
 };

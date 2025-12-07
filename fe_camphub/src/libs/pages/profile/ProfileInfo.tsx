@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { PrimaryButton, CustomizedButton, PrimaryTextField } from "@/libs/components";
+import { PrimaryButton, CustomizedButton, PrimaryTextField, PrimaryModal, OutlineButton } from "@/libs/components";
 import { Account } from "@/libs/core/types";
 import { updateMyAccount, changeMyPassword } from "@/libs/api/account-api";
 import { toast } from "sonner";
+import { Box } from "@mui/material";
 
 
 interface ProfileInfoProps {
@@ -17,6 +18,7 @@ export default function ProfileInfo({ account }: ProfileInfoProps) {
   const [editedAccount, setEditedAccount] = useState<Account>(account);
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [openPasswordModal, setOpenPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -73,22 +75,12 @@ export default function ProfileInfo({ account }: ProfileInfoProps) {
       await changeMyPassword(currentPassword, newPassword);
       toast.success("Đổi mật khẩu thành công");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setOpenPasswordModal(false);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Đổi mật khẩu thất bại");
     } finally {
       setChangingPassword(false);
     }
-  };
-
-  // Format ngày giờ đẹp
-  const formatDate = (isoString: string) => {
-    return new Date(isoString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   return (
@@ -184,51 +176,6 @@ export default function ProfileInfo({ account }: ProfileInfoProps) {
         />
       </div>
 
-      {/* Đổi mật khẩu */}
-      <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
-        <h3 className="text-lg font-semibold mb-4">Đổi mật khẩu</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <PrimaryTextField
-            label="Mật khẩu hiện tại"
-            value={passwordForm.currentPassword}
-            onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-            type="password"
-          />
-          <PrimaryTextField
-            label="Mật khẩu mới"
-            value={passwordForm.newPassword}
-            onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-            type="password"
-          />
-          <PrimaryTextField
-            label="Xác nhận mật khẩu mới"
-            value={passwordForm.confirmPassword}
-            onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-            type="password"
-          />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <PrimaryButton
-            content={changingPassword ? "Đang đổi..." : "Đổi mật khẩu"}
-            onClick={handleChangePassword}
-            disabled={changingPassword}
-          />
-        </div>
-      </div>
-
-      {/* Thông tin chỉ xem */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl">
-        <PrimaryTextField
-          label="Ngày tạo tài khoản"
-          value={formatDate(editedAccount.createdAt)}
-          disabled
-        />
-        <PrimaryTextField
-          label="Cập nhật gần nhất"
-          value={formatDate(editedAccount.updatedAt)}
-          disabled
-        />
-      </div>
 
       {/* Nút hành động */}
       <div className="mt-10 flex justify-end gap-4">
@@ -247,12 +194,68 @@ export default function ProfileInfo({ account }: ProfileInfoProps) {
             />
           </>
         ) : (
-          <PrimaryButton
-            content="Chỉnh sửa thông tin"
-            onClick={() => setEditMode(true)}
-          />
+          <>
+            <PrimaryButton
+              content="Chỉnh sửa thông tin"
+              onClick={() => setEditMode(true)}
+            />
+            <PrimaryButton
+              content="Đổi mật khẩu"
+              onClick={() => setOpenPasswordModal(true)}
+            />
+          </>
         )}
       </div>
+
+      {/* Modal đổi mật khẩu */}
+      <PrimaryModal
+        open={openPasswordModal}
+        onClose={() => {
+          if (!changingPassword) {
+            setOpenPasswordModal(false);
+            setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+          }
+        }}
+        title="Đổi mật khẩu"
+        maxWidth="sm"
+      >
+        <Box className="grid grid-cols-1 gap-4 mt-2">
+          <PrimaryTextField
+            label="Mật khẩu hiện tại"
+            type="password"
+            value={passwordForm.currentPassword}
+            onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+          />
+          <PrimaryTextField
+            label="Mật khẩu mới"
+            type="password"
+            value={passwordForm.newPassword}
+            onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+          />
+          <PrimaryTextField
+            label="Xác nhận mật khẩu mới"
+            type="password"
+            value={passwordForm.confirmPassword}
+            onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+          />
+        </Box>
+        <Box display="flex" justifyContent="flex-end" gap={1.5} mt={3}>
+          <OutlineButton
+            content="Hủy"
+            onClick={() => {
+              if (changingPassword) return;
+              setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+              setOpenPasswordModal(false);
+            }}
+            disabled={changingPassword}
+          />
+          <PrimaryButton
+            content={changingPassword ? "Đang đổi..." : "Xác nhận"}
+            onClick={handleChangePassword}
+            disabled={changingPassword}
+          />
+        </Box>
+      </PrimaryModal>
     </div>
   );
 }

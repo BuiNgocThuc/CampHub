@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { CustomizedButton, Tabs, TabsList, TabsTrigger, PrimaryButton } from "@/libs/components";
+import { CustomizedButton, Tabs, TabsList, TabsTrigger, PrimaryButton, PrimaryAlert } from "@/libs/components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBookingsByLessor, lessorConfirmReturnForReturnRequest } from "@/libs/api";
 import { MessageSquare } from "lucide-react";
@@ -39,6 +39,15 @@ export default function RentalOrders() {
     const [activeTab, setActiveTab] = useState<Tab>("Tất cả");
     const queryClient = useQueryClient();
     const [selectedDisputeBooking, setSelectedDisputeBooking] = useState<Booking | null>(null);
+    const [alert, setAlert] = useState<{
+        visible: boolean;
+        content: string;
+        type: "success" | "error" | "warning" | "info";
+    }>({
+        visible: false,
+        content: "",
+        type: "success",
+    });
 
     const { data: bookings = [], isLoading } = useQuery({
         queryKey: ["lessorBookings"],
@@ -71,9 +80,25 @@ export default function RentalOrders() {
         return bookings.filter(b => statusToTab[b.status] === activeTab);
     }, [bookings, activeTab]);
 
+    const handleOwnerResponseSuccess = (isAccept: boolean) => {
+        setAlert({
+            visible: true,
+            content: isAccept ? "Đã chấp nhận đơn thuê thành công!" : "Đã từ chối đơn thuê!",
+            type: "success",
+        });
+    };
+
+    const handleDisputeSuccess = () => {
+        setAlert({
+            visible: true,
+            content: "Gửi khiếu nại thành công",
+            type: "success",
+        });
+    };
+
     const renderActions = (booking: Booking) => {
         if (booking.status === "PENDING_CONFIRM") {
-            return <OwnerResponseTrigger booking={booking} />;
+            return <OwnerResponseTrigger booking={booking} onSuccess={handleOwnerResponseSuccess} />;
         }
         if (["RETURNED_PENDING_CHECK", "RETURN_REFUND_REQUESTED"].includes(booking.status)) {
             return (
@@ -88,7 +113,7 @@ export default function RentalOrders() {
                         content="Khiếu nại"
                         icon={<MessageSquare size={16} />}
                         color="orange"
-                        className="hover:bg-orange-50"
+                        className="active:opacity-50 transition-opacity duration-200"
                         onClick={() => setSelectedDisputeBooking(booking)}
                     />
                 </div>
@@ -103,36 +128,48 @@ export default function RentalOrders() {
     if (isLoading) return <div className="py-20 text-center">Đang tải đơn cho thuê...</div>;
 
     return (
-        <div>
-            <h2 className="text-2xl font-bold mb-8">Đơn cho thuê của tôi</h2>
-
-            <Tabs value={activeTab} onValueChange={v => setActiveTab(v as Tab)}>
-                <TabsList className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm mb-8">
-                    {tabs.map(tab => {
-                        const count = tab === "Tất cả" ? bookings.length : bookings.filter(b => statusToTab[b.status] === tab).length;
-                        return (
-                            <TabsTrigger
-                                key={tab}
-                                value={tab}
-                                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 px-4 text-sm font-semibold whitespace-nowrap"
-                            >
-                                {tab} <span className="ml-2 px-2 py-0.5 bg-gray-300 rounded-full text-xs">{count}</span>
-                            </TabsTrigger>
-                        );
-                    })}
-                </TabsList>
-            </Tabs>
-
-            <BookingList bookings={filteredBookings} role="lessor" renderActions={renderActions} />
-
-            {selectedDisputeBooking && (
-                <DisputeModal
-                    open={!!selectedDisputeBooking}
-                    onClose={() => setSelectedDisputeBooking(null)}
-                    booking={selectedDisputeBooking}
+        <>
+            {alert.visible && (
+                <PrimaryAlert
+                    content={alert.content}
+                    type={alert.type}
+                    onClose={() => setAlert({ ...alert, visible: false })}
+                    duration={3000}
                 />
             )}
-        </div>
+
+            <div>
+                <h2 className="text-2xl font-bold mb-8">Đơn cho thuê của tôi</h2>
+
+                <Tabs value={activeTab} onValueChange={v => setActiveTab(v as Tab)}>
+                    <TabsList className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm mb-8">
+                        {tabs.map(tab => {
+                            const count = tab === "Tất cả" ? bookings.length : bookings.filter(b => statusToTab[b.status] === tab).length;
+                            return (
+                                <TabsTrigger
+                                    key={tab}
+                                    value={tab}
+                                    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 px-4 text-sm font-semibold whitespace-nowrap"
+                                >
+                                    {tab} <span className="ml-2 px-2 py-0.5 bg-gray-300 rounded-full text-xs">{count}</span>
+                                </TabsTrigger>
+                            );
+                        })}
+                    </TabsList>
+                </Tabs>
+
+                <BookingList bookings={filteredBookings} role="lessor" renderActions={renderActions} />
+
+                {selectedDisputeBooking && (
+                    <DisputeModal
+                        open={!!selectedDisputeBooking}
+                        onClose={() => setSelectedDisputeBooking(null)}
+                        booking={selectedDisputeBooking}
+                        onSuccess={handleDisputeSuccess}
+                    />
+                )}
+            </div>
+        </>
     );
 }
 
