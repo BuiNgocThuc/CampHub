@@ -103,4 +103,29 @@ public class ReturnRequestController {
                 .result(returnRequestService.getAllReturnRequests())
                 .build();
     }
+
+    /**
+     * Lấy chi tiết yêu cầu trả hàng theo ID
+     */
+    @GetMapping("/{requestId}")
+    public ApiResponse<ReturnReqResponse> getReturnRequestById(@PathVariable UUID requestId) {
+        return ApiResponse.<ReturnReqResponse>builder()
+                .message("Fetch return request successfully")
+                .result(returnRequestService.getReturnRequestById(requestId))
+                .build();
+    }
+
+    /**
+     * Lấy chi tiết yêu cầu trả hàng theo booking (cho chủ/khách)
+     */
+    @GetMapping("/by-booking/{bookingId}")
+    public ApiResponse<ReturnReqResponse> getReturnRequestByBooking(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID bookingId) {
+        UUID requesterId = UUID.fromString(jwt.getClaim("userId"));
+        log.info("Fetching return request for bookingId: {} by requesterId: {}", bookingId, requesterId);
+        return ApiResponse.<ReturnReqResponse>builder()
+                .message("Fetch return request by booking successfully")
+                .result(returnRequestService.getReturnRequestByBooking(bookingId, requesterId))
+                .build();
+    }
 }

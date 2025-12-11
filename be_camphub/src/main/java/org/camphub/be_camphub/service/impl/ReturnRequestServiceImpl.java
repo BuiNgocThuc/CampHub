@@ -114,6 +114,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .currentStatus(ItemStatus.RETURN_PENDING_CHECK)
                 .note(request.getNote())
                 .evidenceUrls(mediaUtils.fromRequest(request.getPackingMediaUrls()))
+                .createdAt(LocalDateTime.now())
                 .build());
 
         // set item trạng thái đang chờ kiểm tra
@@ -175,6 +176,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .previousStatus(ItemStatus.RETURN_PENDING_CHECK)
                 .currentStatus(ItemStatus.AVAILABLE)
                 .note("Lessor confirmed returned item")
+                .createdAt(LocalDateTime.now())
                 .build());
 
         // thông báo đến admin về yêu cầu hoàn tiền cần xử lý
@@ -236,6 +238,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         transactionBookingRepository.save(TransactionBooking.builder()
                 .bookingId(booking.getId())
                 .transactionId(tx.getId())
+                .createdAt(LocalDateTime.now())
                 .build());
 
         // update return request
@@ -316,6 +319,29 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         return returnRequestRepository.findAll().stream()
                 .map(this::enrichReturnRequestResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public ReturnReqResponse getReturnRequestById(UUID requestId) {
+        ReturnRequest rr = returnRequestRepository
+                .findById(requestId)
+                .orElseThrow(() -> new AppException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
+        return enrichReturnRequestResponse(rr);
+    }
+
+    @Override
+    public ReturnReqResponse getReturnRequestByBooking(UUID bookingId, UUID requesterId) {
+        Booking booking =
+                bookingRepository.findById(bookingId).orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+
+        if (!booking.getLesseeId().equals(requesterId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        ReturnRequest rr = returnRequestRepository
+                .findByBookingId(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
+        return enrichReturnRequestResponse(rr);
     }
 
     @Override

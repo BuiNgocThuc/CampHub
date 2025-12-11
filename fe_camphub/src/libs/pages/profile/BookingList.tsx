@@ -1,13 +1,15 @@
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Package, User, Calendar, Clock, CheckCircle2, Truck, RotateCcw, AlertCircle, MessageSquare, XCircle } from "lucide-react";
+import { Package, User, Calendar, Clock, CheckCircle2, Truck, RotateCcw, AlertCircle, MessageSquare, XCircle, Eye } from "lucide-react";
 import { Booking } from "@/libs/core/types";
 import { BookingStatus } from "@/libs/core/constants";
+import PrimaryButton from "@/libs/components/Button/PrimaryButton";
 
 interface BookingListProps {
     bookings: Booking[];
     role: "lessee" | "lessor";
     renderActions?: (booking: Booking) => React.ReactNode;
+    onViewReturnRequest?: (bookingId: string) => void;
 }
 
 const statusConfig: Record<BookingStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -15,7 +17,7 @@ const statusConfig: Record<BookingStatus, { label: string; color: string; icon: 
     PAID_REJECTED: { label: "Bị từ chối", color: "bg-red-100 text-red-800", icon: <XCircle className="w-4 h-4" /> },
     WAITING_DELIVERY: { label: "Chờ giao hàng", color: "bg-blue-100 text-blue-800", icon: <Truck className="w-4 h-4" /> },
     IN_USE: { label: "Đang thuê", color: "bg-green-100 text-green-800", icon: <Package className="w-4 h-4" /> },
-    DUE_FOR_RETURN: { label: "Sắp đến hạn trả", color: "bg-orange-100 text-orange-800", icon: <Calendar className="w-4 h-4" /> },
+    DUE_FOR_RETURN: { label: "Đến hạn trả", color: "bg-orange-100 text-orange-800", icon: <Calendar className="w-4 h-4" /> },
     RETURNED_PENDING_CHECK: { label: "Chờ kiểm tra", color: "bg-purple-100 text-purple-800", icon: <RotateCcw className="w-4 h-4" /> },
     RETURN_REFUND_REQUESTED: { label: "Yêu cầu hoàn tiền", color: "bg-red-100 text-red-800", icon: <AlertCircle className="w-4 h-4" /> },
     RETURN_REFUND_PROCESSING: { label: "Đang xử lý hoàn tiền", color: "bg-indigo-100 text-indigo-800", icon: <Clock className="w-4 h-4" /> },
@@ -31,7 +33,7 @@ const statusConfig: Record<BookingStatus, { label: string; color: string; icon: 
 
 const formatDate = (d: string) => format(new Date(d), "dd/MM/yyyy", { locale: vi });
 
-export default function BookingList({ bookings, role, renderActions }: BookingListProps) {
+export default function BookingList({ bookings, role, renderActions, onViewReturnRequest }: BookingListProps) {
     if (bookings.length === 0) {
         return (
             <div className="text-center py-16 bg-gray-50 rounded-xl">
@@ -59,7 +61,7 @@ export default function BookingList({ bookings, role, renderActions }: BookingLi
                                     <span className="font-medium">{isLessee ? booking.lessorName : booking.lesseeName}</span>
                                 </p>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right flex flex-col items-end gap-2">
                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
                                     {statusInfo.icon}
                                     {statusInfo.label}
@@ -101,7 +103,18 @@ export default function BookingList({ bookings, role, renderActions }: BookingLi
                         )}
 
                         {/* Hành động */}
-                        {renderActions && <div className="mt-6 pt-5 border-t">{renderActions(booking)}</div>}
+                        <div className="mt-6 pt-5 border-t flex flex-wrap gap-3 justify-end">
+                            {renderActions && renderActions(booking)}
+                            {(booking.status === BookingStatus.RETURN_REFUND_REQUESTED ||
+                                booking.status === BookingStatus.RETURN_REFUND_PROCESSING) && (
+                                    <PrimaryButton
+                                        content="Xem chi tiết"
+                                        onClick={() => onViewReturnRequest?.(booking.id)}
+                                        icon={<Eye size={16} />}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    />
+                                )}
+                        </div>
 
                         {/* Footer */}
                         <div className="mt-5 text-xs text-gray-500">

@@ -158,6 +158,7 @@ public class DisputeServiceImpl implements DisputeService {
             transactionBookingRepository.save(TransactionBooking.builder()
                     .transactionId(compTx.getId())
                     .bookingId(booking.getId())
+                    .createdAt(LocalDateTime.now())
                     .build());
 
             // Update booking status (đánh dấu dispute đã được bồi thường)

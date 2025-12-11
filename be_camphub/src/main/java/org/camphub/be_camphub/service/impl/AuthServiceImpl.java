@@ -1,5 +1,6 @@
 package org.camphub.be_camphub.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.camphub.be_camphub.Utils.SecurityUtils;
@@ -102,7 +103,10 @@ public class AuthServiceImpl implements AuthService {
         Account account =
                 accountRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         Cart cart = cartRepository.findByAccountId(userId).orElseGet(() -> {
-            Cart newCart = Cart.builder().accountId(userId).build();
+            Cart newCart = Cart.builder()
+                    .accountId(userId)
+                    .createdAt(LocalDateTime.now())
+                    .build();
             return cartRepository.save(newCart);
         });
 

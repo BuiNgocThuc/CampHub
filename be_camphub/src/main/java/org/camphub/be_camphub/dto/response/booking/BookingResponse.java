@@ -29,4 +29,5 @@ public class BookingResponse {
     String note;
     String status;
     String createdAt;
+    Boolean hasReviewed;
 }

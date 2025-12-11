@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Box, Typography, RadioGroup, FormControlLabel, Radio, CircularProgress } from "@mui/material";
-import { AlertCircle, Upload } from "lucide-react";
+import { AlertCircle, Upload, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -16,9 +16,10 @@ interface ReturnRequestModalProps {
   open: boolean;
   onClose: () => void;
   booking: Booking;
+  onSuccess?: (message: string) => void;
 }
 
-export default function ReturnRequestModal({ open, onClose, booking }: ReturnRequestModalProps) {
+export default function ReturnRequestModal({ open, onClose, booking, onSuccess }: ReturnRequestModalProps) {
   const queryClient = useQueryClient();
   const { uploads, uploadFile } = useCloudinaryUpload();
 
@@ -30,7 +31,8 @@ export default function ReturnRequestModal({ open, onClose, booking }: ReturnReq
   const mutation = useMutation({
     mutationFn: createReturnRequest,
     onSuccess: () => {
-      toast.success("Đã gửi yêu cầu trả hàng / hoàn tiền");
+      onSuccess?.("Đã gửi yêu cầu trả hàng / hoàn tiền");
+      if (!onSuccess) toast.success("Đã gửi yêu cầu trả hàng / hoàn tiền");
       queryClient.invalidateQueries({ queryKey: ["myRentals"] });
       queryClient.invalidateQueries({ queryKey: ["lessorBookings"] });
       queryClient.invalidateQueries({ queryKey: ["pendingReturnRequests"] });
@@ -77,6 +79,10 @@ export default function ReturnRequestModal({ open, onClose, booking }: ReturnReq
       setIsUploading(false);
       e.target.value = "";
     }
+  };
+
+  const handleRemoveEvidence = (idx: number) => {
+    setEvidences(prev => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = () => {
@@ -197,6 +203,49 @@ export default function ReturnRequestModal({ open, onClose, booking }: ReturnReq
               )}
             </Box>
           </label>
+
+          {/* Preview evidences */}
+          {evidences.length > 0 && (
+            <Box
+              sx={{
+                mt: 2,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                gap: 1.5,
+              }}
+            >
+              {evidences.map((ev, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    position: "relative",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 2,
+                    overflow: "hidden",
+                    backgroundColor: "#f9fafb",
+                  }}
+                >
+                  {ev.type === "VIDEO" ? (
+                    <video
+                      src={ev.url}
+                      controls
+                      style={{ width: "100%", height: 120, objectFit: "cover" }}
+                    />
+                  ) : (
+                    <img
+                      src={ev.url}
+                      alt="evidence"
+                      style={{ width: "100%", height: 120, objectFit: "cover" }}
+                    />
+                  )}
+                  <X
+                    onClick={() => handleRemoveEvidence(idx)}
+                    className="absolute top-2 right-2 bg-white/80 hover:bg-white text-red-600 rounded-full px-2 py-1 text-xs shadow"
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
         </Box>
 
         {/* Ghi chú thêm */}
@@ -224,7 +273,7 @@ export default function ReturnRequestModal({ open, onClose, booking }: ReturnReq
             content={mutation.isPending ? "Đang gửi yêu cầu..." : "Gửi yêu cầu trả hàng"}
             onClick={handleSubmit}
             disabled={mutation.isPending || isUploading || uploadingCount > 0}
-            icon={mutation.isPending || isUploading ? <CircularProgress size={18} /> : undefined}
+            icon={mutation.isPending ? <CircularProgress size={18} /> : undefined}
           />
         </Box>
       </Box>

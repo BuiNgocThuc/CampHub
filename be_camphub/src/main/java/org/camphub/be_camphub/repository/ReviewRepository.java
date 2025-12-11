@@ -14,4 +14,6 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
     List<Review> findByBookingId(UUID bookingId);
 
     List<Review> findAllByItemIdOrderByCreatedAtDesc(UUID itemId);
+
+    boolean existsByBookingIdAndReviewerId(UUID bookingId, UUID reviewerId);
 }

@@ -1,3 +1,4 @@
+
 // returnRequestApi.ts
 import { api } from "@/libs/configuration";
 import { ApiResponse, ReturnReqResponse } from "../core/dto/response";
@@ -78,3 +79,8 @@ export const getReturnRequestById = async (requestId: string): Promise<ReturnReq
     const response = await api.get<ApiResponse<ReturnReqResponse>>(`/return-requests/${requestId}`);
     return returnRequestMap.fromResponse(response.data.result);
 }
+
+export const getReturnRequestByBooking = async (bookingId: string): Promise<ReturnRequest> => {
+    const response = await api.get<ApiResponse<ReturnReqResponse>>(`/return-requests/by-booking/${bookingId}`);
+    return returnRequestMap.fromResponse(response.data.result);
+};

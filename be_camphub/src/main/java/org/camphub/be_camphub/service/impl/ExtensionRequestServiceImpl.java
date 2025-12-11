@@ -79,6 +79,7 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
                 .additionalFee(additionalFee)
                 .status(ExtensionStatus.PENDING)
                 .note(request.getNote())
+                .createdAt(LocalDateTime.now())
                 .build();
 
         ExtensionRequest saved = extensionRequestRepository.save(entity);
@@ -130,12 +131,14 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
                 .amount(ext.getAdditionalFee())
                 .type(TransactionType.EXTENSION_PAYMENT)
                 .status(TransactionStatus.SUCCESS)
+                .createdAt(LocalDateTime.now())
                 .build();
         Transaction savedTx = transactionRepository.save(tx);
 
         transactionBookingRepository.save(TransactionBooking.builder()
                 .transactionId(savedTx.getId())
                 .bookingId(booking.getId())
+                .createdAt(LocalDateTime.now())
                 .build());
 
         // Update booking & request

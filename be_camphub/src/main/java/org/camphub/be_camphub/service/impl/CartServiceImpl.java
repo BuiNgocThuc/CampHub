@@ -1,6 +1,7 @@
 package org.camphub.be_camphub.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,7 +38,10 @@ public class CartServiceImpl implements CartService {
     public CartItemResponse addItemToCart(UUID accountId, CartItemCreationRequest request) {
         // find cart id
         Cart cart = cartRepository.findByAccountId(accountId).orElseGet(() -> {
-            Cart newCart = Cart.builder().accountId(accountId).build();
+            Cart newCart = Cart.builder()
+                    .accountId(accountId)
+                    .createdAt(LocalDateTime.now())
+                    .build();
             return cartRepository.save(newCart);
         });
 

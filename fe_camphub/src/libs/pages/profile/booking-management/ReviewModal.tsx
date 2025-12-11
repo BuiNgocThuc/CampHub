@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Typography, CircularProgress } from "@mui/material";
-import { Star, Upload } from "lucide-react";
+import { Box, Typography, CircularProgress, IconButton } from "@mui/material";
+import { Star, Upload, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -16,14 +16,15 @@ interface ReviewModalProps {
   open: boolean;
   onClose: () => void;
   booking: Booking;
+  onSuccess?: () => void;
 }
 
-export default function ReviewModal({ open, onClose, booking }: ReviewModalProps) {
+export default function ReviewModal({ open, onClose, booking, onSuccess }: ReviewModalProps) {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const { uploads, uploadFile } = useCloudinaryUpload();
 
-  const [rating, setRating] = useState<number>(5);
+  const [rating, setRating] = useState<number>(0);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [comment, setComment] = useState("");
   const [media, setMedia] = useState<MediaResource[]>([]);
@@ -44,6 +45,7 @@ export default function ReviewModal({ open, onClose, booking }: ReviewModalProps
       queryClient.invalidateQueries({ queryKey: ["bookingReviews", booking.id] });
       queryClient.invalidateQueries({ queryKey: ["reviews", booking.itemId] });
       onClose();
+      onSuccess?.();
     },
     onError: (error: any) => {
       const msg = error?.response?.data?.message || "Không thể gửi đánh giá";
@@ -52,7 +54,7 @@ export default function ReviewModal({ open, onClose, booking }: ReviewModalProps
   });
 
   const handleClose = () => {
-    setRating(5);
+    setRating(0);
     setHoverRating(null);
     setComment("");
     setMedia([]);
@@ -107,13 +109,14 @@ export default function ReviewModal({ open, onClose, booking }: ReviewModalProps
       bookingId: booking.id,
       reviewerId: user.id,
       reviewedId: booking.lessorId,
+      itemId: booking.itemId,
       rating,
       content: comment || "",
       mediaUrls: media,
     });
   };
 
-  const isSubmitting = mutation.isPending || isUploading || loadingReviews;
+  const isSubmitting = mutation.isPending || loadingReviews;
   const displayRating = hoverRating ?? rating;
 
   return (
@@ -227,14 +230,29 @@ export default function ReviewModal({ open, onClose, booking }: ReviewModalProps
                 <Box
                   key={idx}
                   sx={{
-                    width: 80,
-                    height: 80,
+                    position: "relative",
+                    width: 90,
+                    height: 90,
                     borderRadius: 2,
                     overflow: "hidden",
                     border: "1px solid #e5e7eb",
                   }}
                 >
                   <img src={m.url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
+                  <IconButton
+                    size="small"
+                    onClick={() => setMedia(prev => prev.filter((_, i) => i !== idx))}
+                    sx={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      backgroundColor: "rgba(239,68,68,0.85)",
+                      color: "white",
+                      "&:hover": { backgroundColor: "rgba(220,38,38,1)" },
+                    }}
+                  >
+                    <X size={14} />
+                  </IconButton>
                 </Box>
               ))}
             </Box>
@@ -249,10 +267,14 @@ export default function ReviewModal({ open, onClose, booking }: ReviewModalProps
             onClick={handleClose}
           />
           <PrimaryButton
-            content={isSubmitting ? "Đang gửi đánh giá..." : "Gửi đánh giá"}
+            content={
+              mutation.isPending
+                ? "Đang gửi đánh giá..."
+                : "Gửi đánh giá"
+            }
             onClick={handleSubmit}
-            disabled={isSubmitting}
-            icon={isSubmitting ? <CircularProgress size={18} /> : undefined}
+            disabled={mutation.isPending || loadingReviews || isUploading}
+            icon={mutation.isPending ? <CircularProgress size={18} /> : undefined}
           />
         </Box>
       </Box>

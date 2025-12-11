@@ -7,18 +7,17 @@ import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PrimaryModal, PrimaryButton, CustomizedButton } from "@/libs/components";
 import { useCloudinaryUpload } from "@/libs/hooks";
-import type { Booking, MediaResource, ReturnRequest } from "@/libs/core/types";
-import { lesseeSubmitReturn, getPendingReturnRequests } from "@/libs/api/return-request-api";
-import { useQuery } from "@tanstack/react-query";
-import { ReturnRequestStatus } from "@/libs/core/constants";
+import type { Booking, MediaResource } from "@/libs/core/types";
+import { returnItem } from "@/libs/api/booking-api";
 
 interface ReturnItemModalProps {
   open: boolean;
   onClose: () => void;
   booking: Booking;
+  onSuccess?: (message: string) => void;
 }
 
-export default function ReturnItemModal({ open, onClose, booking }: ReturnItemModalProps) {
+export default function ReturnItemModal({ open, onClose, booking, onSuccess }: ReturnItemModalProps) {
   const queryClient = useQueryClient();
   const { uploads, uploadFile } = useCloudinaryUpload();
 
@@ -26,20 +25,10 @@ export default function ReturnItemModal({ open, onClose, booking }: ReturnItemMo
   const [media, setMedia] = useState<MediaResource[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  const { data: pendingRequests = [], isLoading } = useQuery<ReturnRequest[]>({
-    queryKey: ["pendingReturnRequestsForBooking", booking.id],
-    queryFn: async () => {
-      const all = await getPendingReturnRequests();
-      return all.filter(r => r.bookingId === booking.id && r.status === ReturnRequestStatus.PENDING);
-    },
-  });
-
-  const targetRequest = pendingRequests[0];
-
   const mutation = useMutation({
-    mutationFn: lesseeSubmitReturn,
+    mutationFn: returnItem,
     onSuccess: () => {
-      toast.success("Đã gửi thông tin đóng gói / trả đồ thành công");
+      onSuccess?.("Đã gửi thông tin đóng gói / trả đồ thành công");
       queryClient.invalidateQueries({ queryKey: ["myRentals"] });
       queryClient.invalidateQueries({ queryKey: ["lessorBookings"] });
       handleClose();
@@ -91,19 +80,15 @@ export default function ReturnItemModal({ open, onClose, booking }: ReturnItemMo
   };
 
   const handleSubmit = () => {
-    if (!targetRequest) {
-      toast.error("Không tìm thấy yêu cầu trả hàng đang chờ xử lý cho đơn này.");
-      return;
-    }
     if (media.length === 0) {
       toast.error("Vui lòng upload ít nhất 1 ảnh/video đóng gói");
       return;
     }
 
     mutation.mutate({
-      returnRequestId: targetRequest.id,
+      bookingId: booking.id,
       note,
-      packingMediaUrls: media,
+      mediaUrls: media,
     });
   };
 
@@ -237,10 +222,10 @@ export default function ReturnItemModal({ open, onClose, booking }: ReturnItemMo
             onClick={handleClose}
           />
           <PrimaryButton
-            content={isLoading || mutation.isPending ? "Đang gửi thông tin..." : "Xác nhận đã gửi đồ"}
+            content={mutation.isPending ? "Đang gửi thông tin..." : "Xác nhận đã gửi đồ"}
             onClick={handleSubmit}
-            disabled={isLoading || mutation.isPending || isUploading || uploadingCount > 0}
-            icon={mutation.isPending || isUploading ? <CircularProgress size={18} /> : undefined}
+            disabled={mutation.isPending || isUploading || uploadingCount > 0}
+            icon={mutation.isPending ? <CircularProgress size={18} /> : undefined}
           />
         </Box>
       </Box>

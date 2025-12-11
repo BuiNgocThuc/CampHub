@@ -22,5 +22,9 @@ public interface ReturnRequestService {
 
     List<ReturnReqResponse> getAllReturnRequests();
 
+    ReturnReqResponse getReturnRequestById(UUID requestId);
+
+    ReturnReqResponse getReturnRequestByBooking(UUID bookingId, UUID requesterId);
+
     void autoRefundUnprocessedRequests();
 }

@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import org.camphub.be_camphub.enums.ItemActionType;
 import org.camphub.be_camphub.enums.ItemStatus;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -20,6 +21,7 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@EntityListeners(AuditingEntityListener.class)
 public class ItemLog {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
