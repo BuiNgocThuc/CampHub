@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { PrimaryDataGrid, PrimaryModal, PrimarySelectField } from "@/libs/components";
+import { PrimaryDataGrid, PrimaryModal, PrimarySelectField, PrimaryAlert } from "@/libs/components";
 import { Chip, IconButton, Box, Typography, CircularProgress } from "@mui/material";
 import { Eye } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +33,7 @@ export default function ItemList() {
     const [openRejectModal, setOpenRejectModal] = useState(false);
     const [statusFilter, setStatusFilter] = useState<string>("");
     const [categoryFilter, setCategoryFilter] = useState<string>("");
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const queryClient = useQueryClient();
 
     const { data: categories = [], isLoading: loadingCategories } = useQuery<Category[]>({
@@ -61,9 +62,15 @@ export default function ItemList() {
                 lock: "Đã khóa sản phẩm thành công!",
                 unlock: "Đã mở khóa sản phẩm thành công!",
             };
-            toast.success(actionMessages[variables.action] || "Cập nhật trạng thái thành công!");
-            setOpenDetail(false);
+            const message = actionMessages[variables.action] || "Cập nhật trạng thái thành công!";
+            toast.success(message);
             setOpenRejectModal(false);
+            // Đóng modal trước
+            setOpenDetail(false);
+            // Sau đó mới hiển thị alert
+            setTimeout(() => {
+                setSuccessMessage(message);
+            }, 100);
         },
         onError: (error: any) => {
             const errorMessage = error?.response?.data?.message || error?.message || "Cập nhật thất bại!";
@@ -182,6 +189,14 @@ export default function ItemList() {
 
     return (
         <>
+            {successMessage && (
+                <PrimaryAlert
+                    content={successMessage}
+                    type="success"
+                    duration={2000}
+                    onClose={() => setSuccessMessage(null)}
+                />
+            )}
             <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 140px)" }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2} sx={{ flexShrink: 0 }}>
                     <Typography variant="h5" fontWeight="bold">
@@ -240,7 +255,10 @@ export default function ItemList() {
 
             <PrimaryModal
                 open={openDetail}
-                onClose={() => setOpenDetail(false)}
+                onClose={() => {
+                    setOpenDetail(false);
+                    setSuccessMessage(null); // Reset success message khi đóng modal
+                }}
                 title={selectedItem ? `Chi tiết: ${selectedItem.name}` : "Chi tiết sản phẩm"}
             >
                 {selectedItem && (

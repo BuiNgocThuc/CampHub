@@ -1,7 +1,6 @@
 package org.camphub.be_camphub.entity;
 
 import java.time.Instant;
-import java.util.UUID;
 
 import jakarta.persistence.Id;
 
@@ -24,8 +23,8 @@ public class ChatMessage {
     String id;
 
     String chatCode;
-    UUID senderId;
-    UUID receiverId;
+    String senderId;
+    String receiverId;
     String content;
     Instant timestamp;
     Boolean isRead;

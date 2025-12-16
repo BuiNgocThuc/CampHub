@@ -1,13 +1,26 @@
 import Link from "next/link";
-import { LayoutDashboard, ShieldCheck, Bell, Users, ShoppingBag } from "lucide-react";
+import {
+    Users,
+    Package,
+    CreditCard,
+    Undo2,
+    AlertTriangle,
+    Wrench,
+    ClipboardList,
+    CalendarClock,
+    LayoutDashboard,
+} from "lucide-react";
 
 export default function AdminDashboardPage() {
     const quickLinks = [
-        { href: "/admin/items", label: "Quản lý sản phẩm", icon: ShoppingBag, color: "bg-blue-50 text-blue-700 border-blue-200" },
-        { href: "/admin/bookings", label: "Quản lý đơn thuê", icon: LayoutDashboard, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-        { href: "/admin/return_requests", label: "Hoàn trả & hoàn tiền", icon: ShieldCheck, color: "bg-amber-50 text-amber-700 border-amber-200" },
-        { href: "/admin/notifications", label: "Thông báo hệ thống", icon: Bell, color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-        { href: "/admin/accounts", label: "Tài khoản & vai trò", icon: Users, color: "bg-slate-50 text-slate-700 border-slate-200" },
+        { href: "/admin/accounts", label: "Quản lý tài khoản", icon: Users, color: "bg-slate-50 text-slate-700 border-slate-200" },
+        { href: "/admin/items", label: "Quản lý sản phẩm", icon: Package, color: "bg-blue-50 text-blue-700 border-blue-200" },
+        { href: "/admin/transactions", label: "Quản lý giao dịch", icon: CreditCard, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+        { href: "/admin/bookings", label: "Quản lý đơn thuê", icon: ClipboardList, color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+        { href: "/admin/extension-requests", label: "Quản lý gia hạn thuê", icon: CalendarClock, color: "bg-orange-50 text-orange-700 border-orange-200" },
+        { href: "/admin/return-requests", label: "Trả đồ / Hoàn tiền", icon: Undo2, color: "bg-amber-50 text-amber-700 border-amber-200" },
+        { href: "/admin/disputes", label: "Quản lý khiếu nại", icon: AlertTriangle, color: "bg-red-50 text-red-700 border-red-200" },
+        { href: "/admin/damage-types", label: "Quản lý loại hư tổn", icon: Wrench, color: "bg-purple-50 text-purple-700 border-purple-200" },
     ];
 
     return (

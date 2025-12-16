@@ -69,11 +69,12 @@ public class DisputeServiceImpl implements DisputeService {
             item.setStatus(ItemStatus.BANNED);
             itemRepository.save(item);
         });
+        // ghi vào item log
 
         // thông báo đến tất cả admin có khiếu nại mới cần xử lý
         notificationService.notifyAllAdmins(NotificationCreationRequest.builder()
                 .senderId(lessorId)
-                .type(NotificationType.DAMAGE_REPORTED)
+                .type(NotificationType.DISPUTE_CREATED)
                 .title("Khiếu nại mới cần xử lý")
                 .content("Có khiếu nại mới cho đơn " + booking.getId())
                 .referenceType(ReferenceType.BOOKING)
@@ -189,7 +190,7 @@ public class DisputeServiceImpl implements DisputeService {
             notificationService.create(NotificationCreationRequest.builder()
                     .receiverId(lessor.getId())
                     .senderId(adminId)
-                    .type(NotificationType.DAMAGE_REPORTED)
+                    .type(NotificationType.DISPUTE_RESOLVED_ACCEPTED)
                     .title("Kết quả xử lý khiếu nại")
                     .content("Admin đã chấp nhận khiếu nại và bồi thường " + compAmount + " coin.")
                     .referenceType(ReferenceType.BOOKING)
@@ -199,7 +200,7 @@ public class DisputeServiceImpl implements DisputeService {
             notificationService.create(NotificationCreationRequest.builder()
                     .receiverId(lessee.getId())
                     .senderId(adminId)
-                    .type(NotificationType.DAMAGE_REPORTED)
+                    .type(NotificationType.DISPUTE_RESOLVED_ACCEPTED)
                     .title("Kết quả xử lý khiếu nại")
                     .content("Admin đã chấp nhận khiếu nại liên quan đến đơn " + booking.getId() + ".")
                     .referenceType(ReferenceType.BOOKING)
@@ -214,19 +215,27 @@ public class DisputeServiceImpl implements DisputeService {
             booking.setStatus(BookingStatus.RETURN_REFUND_PROCESSING);
             bookingRepository.save(booking);
 
-            // Thông báo kết quả tranh chấp bị từ chối
+            // Thông báo kết quả tranh chấp bị từ chối cho cả lessor và lessee
             notificationService.create(NotificationCreationRequest.builder()
                     .receiverId(lessor.getId())
                     .senderId(adminId)
-                    .type(NotificationType.DAMAGE_REPORTED)
+                    .type(NotificationType.DISPUTE_RESOLVED_REJECTED)
+                    .title("Kết quả xử lý khiếu nại")
+                    .content("Admin đã từ chối khiếu nại liên quan đến đơn " + booking.getId() + ".")
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(lessee.getId())
+                    .senderId(adminId)
+                    .type(NotificationType.DISPUTE_RESOLVED_REJECTED)
                     .title("Kết quả xử lý khiếu nại")
                     .content("Admin đã từ chối khiếu nại liên quan đến đơn " + booking.getId() + ".")
                     .referenceType(ReferenceType.BOOKING)
                     .referenceId(booking.getId())
                     .build());
         }
-
-        // thông báo kết quả đến chủ thuê khiếu nại
 
         disputeRepository.save(dispute);
         return enrichDisputeResponse(dispute);

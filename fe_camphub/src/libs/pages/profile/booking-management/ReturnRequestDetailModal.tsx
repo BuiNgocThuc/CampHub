@@ -8,6 +8,7 @@ import { Image as ImageIcon, Video, AlertCircle } from "lucide-react";
 import { PrimaryModal } from "@/libs/components";
 import { getReturnRequestByBooking } from "@/libs/api/return-request-api";
 import { ReturnRequestStatus, ReasonReturnType } from "@/libs/core/constants";
+import { ReturnRequest } from "@/libs/core/types";
 
 interface ReturnRequestDetailModalProps {
   open: boolean;
@@ -36,10 +37,14 @@ const statusColor: Record<ReturnRequestStatus, string> = {
 };
 
 export default function ReturnRequestDetailModal({ open, bookingId, onClose }: ReturnRequestDetailModalProps) {
-  const { data, isLoading, isError } = useQuery({
-    enabled: open && !!bookingId,
+  const isEnabled = open && !!bookingId;
+
+  const { data, isLoading, isError, error } = useQuery<ReturnRequest>({
+    enabled: isEnabled,
     queryKey: ["returnRequestDetail", bookingId],
     queryFn: () => getReturnRequestByBooking(bookingId!),
+    staleTime: 0,
+    retry: false,
   });
 
   const content = useMemo(() => {
@@ -53,19 +58,33 @@ export default function ReturnRequestDetailModal({ open, bookingId, onClose }: R
     }
     if (isError || !data) {
       return (
-        <div className="flex items-center gap-2 text-sm text-red-600">
-          <AlertCircle size={18} />
-          <span>Không thể tải chi tiết yêu cầu hoàn tiền.</span>
+        <div className="flex flex-col gap-2 text-sm text-red-600">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={18} />
+            <span>Không thể tải chi tiết yêu cầu hoàn tiền.</span>
+          </div>
+          {error && (
+            <Typography variant="caption" color="error">
+              {String(error)}
+            </Typography>
+          )}
         </div>
       );
     }
+    if (!data) return null;
+
+    const rawStatus = data.status as unknown;
+    const normalizedStatus = typeof rawStatus === 'string'
+      ? rawStatus.toUpperCase()
+      : String(rawStatus);
+    const statusKey = normalizedStatus as unknown as ReturnRequestStatus;
 
     return (
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Chip
-            label={statusLabel[data.status] ?? data.status}
-            color={statusColor[data.status] as any}
+            label={statusLabel[statusKey] ?? normalizedStatus}
+            color={(statusColor[statusKey] ?? "default") as any}
             size="small"
           />
           <Typography variant="body2" color="text.secondary">

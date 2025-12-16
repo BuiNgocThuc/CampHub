@@ -44,9 +44,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
     ExtensionRequestMapper mapper;
     NotificationService notificationService;
 
-    // ========================================================================
-    // CREATE EXTENSION REQUEST
-    // ========================================================================
     @Override
     @Transactional
     public ExtensionReqResponse createExtensionRequest(UUID lesseeId, ExtensionReqCreationRequest request) {
@@ -88,9 +85,10 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(booking.getLessorId())
                 .senderId(lesseeId)
-                .type(NotificationType.BOOKING_CREATED)
+                .type(NotificationType.EXTENSION_REQUEST_CREATED)
                 .title("Yêu cầu gia hạn đơn thuê")
-                .content("Khách thuê yêu cầu gia hạn đơn " + booking.getId())
+                .content("Khách thuê yêu cầu gia hạn đơn " + booking.getId() + " thêm " + request.getAdditionalDays()
+                        + " ngày.")
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -98,9 +96,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         return toEnrichedResponse(saved);
     }
 
-    // ========================================================================
-    // APPROVE (LESSOR)
-    // ========================================================================
     @Override
     @Transactional
     public ExtensionReqResponse approveExtensionRequest(UUID lessorId, ExtensionResponseRequest request) {
@@ -153,9 +148,10 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(lessee.getId())
                 .senderId(lessorId)
-                .type(NotificationType.BOOKING_CREATED)
+                .type(NotificationType.EXTENSION_REQUEST_APPROVED)
                 .title("Yêu cầu gia hạn đã được chấp nhận")
-                .content("Chủ đồ đã chấp nhận gia hạn đơn " + booking.getId())
+                .content("Chủ đồ đã chấp nhận gia hạn đơn " + booking.getId() + ". Phí gia hạn: "
+                        + ext.getAdditionalFee() + " coin.")
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -163,9 +159,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         return toEnrichedResponse(ext);
     }
 
-    // ========================================================================
-    // REJECT (LESSOR)
-    // ========================================================================
     @Override
     @Transactional
     public ExtensionReqResponse rejectExtensionRequest(UUID lessorId, ExtensionResponseRequest request) {
@@ -183,9 +176,10 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(ext.getLesseeId())
                 .senderId(lessorId)
-                .type(NotificationType.BOOKING_CANCELLED)
+                .type(NotificationType.EXTENSION_REQUEST_REJECTED)
                 .title("Yêu cầu gia hạn đã bị từ chối")
-                .content("Chủ đồ đã từ chối gia hạn đơn " + booking.getId())
+                .content("Chủ đồ đã từ chối gia hạn đơn " + booking.getId()
+                        + (request.getNote() != null ? ". Lý do: " + request.getNote() : "."))
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -193,9 +187,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         return toEnrichedResponse(ext);
     }
 
-    // ========================================================================
-    // CANCEL (LESSEE)
-    // ========================================================================
     @Override
     @Transactional
     public ExtensionReqResponse cancelExtensionRequest(UUID lesseeId, UUID requestId) {
@@ -210,9 +201,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         return toEnrichedResponse(ext);
     }
 
-    // ========================================================================
-    // AUTO EXPIRE (CRON)
-    // ========================================================================
     @Override
     @Scheduled(cron = "0 0 * * * *") // Mỗi giờ
     @Transactional
@@ -227,9 +215,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         extensionRequestRepository.saveAllAndFlush(expired);
     }
 
-    // ========================================================================
-    // ADMIN QUERIES (dùng trong Admin Controller)
-    // ========================================================================
     @Override
     public List<ExtensionReqResponse> getAllExtensionRequestsFiltered(
             String status, UUID bookingId, UUID lesseeId, UUID lessorId) {
@@ -247,9 +232,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         return toEnrichedResponse(ext);
     }
 
-    // ========================================================================
-    // PRIVATE HELPERS
-    // ========================================================================
     private ExtensionReqResponse toEnrichedResponse(ExtensionRequest ext) {
         ExtensionReqResponse res = mapper.entityToResponse(ext);
 

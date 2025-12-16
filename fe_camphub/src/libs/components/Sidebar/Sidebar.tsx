@@ -18,8 +18,6 @@ import SidebarItem from "./SidebarItem";
 import { useAuthStore } from "@/libs/stores";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { getNotificationsByReceiver } from "@/libs/api/notification-api";
-import { Notification } from "@/libs/core/types";
 
 const menuItems = [
     { label: "Quản lý tài khoản", icon: Users, href: "/admin/accounts" },

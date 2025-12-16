@@ -269,6 +269,22 @@ public class ItemServiceImpl implements ItemService {
                 locked ? "Admin locked item" : "Admin unlocked item",
                 item.getMediaUrls() != null ? new ArrayList<>(item.getMediaUrls()) : List.of());
 
+        // Thông báo cho owner khi admin khóa/mở khóa sản phẩm
+        String itemName = item.getName();
+        String notificationContent = locked
+                ? "Sản phẩm \"" + itemName + "\" của bạn đã bị khóa bởi admin."
+                : "Sản phẩm \"" + itemName + "\" của bạn đã được mở khóa và hiện đang hiển thị.";
+
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(item.getOwnerId())
+                .senderId(adminId)
+                .type(locked ? NotificationType.ITEM_BANNED : NotificationType.ITEM_UNBANNED)
+                .title(locked ? "Sản phẩm bị khóa" : "Sản phẩm được mở khóa")
+                .content(notificationContent)
+                .referenceType(ReferenceType.ITEM)
+                .referenceId(itemId)
+                .build());
+
         return itemMapper.entityToResponse(item);
     }
 

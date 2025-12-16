@@ -3,7 +3,6 @@ package org.camphub.be_camphub.entity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import jakarta.persistence.Id;
 
@@ -26,7 +25,7 @@ public class ChatRoom {
     String id;
 
     String chatCode;
-    List<UUID> participantIds;
+    List<String> participantIds;
     String lastMessage;
     Instant lastTimestamp;
     Map<String, Integer> unreadMessageCounts;

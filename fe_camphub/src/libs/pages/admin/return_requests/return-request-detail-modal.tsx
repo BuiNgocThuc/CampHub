@@ -30,12 +30,23 @@ const reasonLabels: Record<ReasonReturnType, string> = {
 interface ReturnRequestDetailModalProps {
     request: ReturnRequest;
     onClose: () => void;
+    onResult?: (message: string, type?: "success" | "error") => void;
 }
 
-export default function ReturnRequestDetailModal({ request, onClose }: ReturnRequestDetailModalProps) {
+export default function ReturnRequestDetailModal({ request, onClose, onResult }: ReturnRequestDetailModalProps) {
     const queryClient = useQueryClient();
     const [adminNote, setAdminNote] = useState("");
     const [pendingAction, setPendingAction] = useState<"APPROVE" | "REJECT" | null>(null);
+
+    // Normalize status coming from backend (can be enum number or string)
+    const rawStatus = request.status as unknown;
+    const normalizedStatus =
+        typeof rawStatus === "string" ? rawStatus.toUpperCase() : (rawStatus as ReturnRequestStatus);
+    const isActionable =
+        normalizedStatus === ReturnRequestStatus.PENDING ||
+        normalizedStatus === ReturnRequestStatus.PROCESSING ||
+        normalizedStatus === "PENDING" ||
+        normalizedStatus === "PROCESSING";
 
     const decisionMutation = useMutation({
         mutationFn: (action: "APPROVE" | "REJECT") => {
@@ -54,11 +65,17 @@ export default function ReturnRequestDetailModal({ request, onClose }: ReturnReq
                     : "từ chối yêu cầu";
 
             toast.success(`Đã ${actionText} thành công!`);
+            onResult?.(
+                updatedRequest.status === ReturnRequestStatus.APPROVED
+                    ? "Đã chấp nhận hoàn tiền"
+                    : "Đã từ chối yêu cầu hoàn tiền",
+                "success"
+            );
 
             // Cập nhật lại cache
             queryClient.invalidateQueries({ queryKey: ["ReturnRequests"] });
             queryClient.invalidateQueries({ queryKey: ["returnRequest", request.id] });
-            
+
             // Đóng modal sau khi thành công
             onClose();
         },
@@ -69,8 +86,6 @@ export default function ReturnRequestDetailModal({ request, onClose }: ReturnReq
             setPendingAction(null);
         },
     });
-
-    const isPending = request.status === ReturnRequestStatus.PENDING;
 
     return (
         <Box>
@@ -87,13 +102,19 @@ export default function ReturnRequestDetailModal({ request, onClose }: ReturnReq
                         value={
                             <Chip
                                 label={
-                                    isPending
+                                    isActionable
                                         ? "Chờ xử lý"
-                                        : request.status === ReturnRequestStatus.APPROVED
-                                        ? "Đã hoàn tiền"
-                                        : "Bị từ chối"
+                                        : normalizedStatus === ReturnRequestStatus.APPROVED || normalizedStatus === "APPROVED"
+                                            ? "Đã hoàn tiền"
+                                            : "Bị từ chối"
                                 }
-                                color={isPending ? "warning" : request.status === ReturnRequestStatus.APPROVED ? "success" : "error"}
+                                color={
+                                    isActionable
+                                        ? "warning"
+                                        : normalizedStatus === ReturnRequestStatus.APPROVED || normalizedStatus === "APPROVED"
+                                            ? "success"
+                                            : "error"
+                                }
                                 size="small"
                             />
                         }
@@ -142,7 +163,7 @@ export default function ReturnRequestDetailModal({ request, onClose }: ReturnReq
                 <Divider />
 
                 {/* Xử lý admin */}
-                {isPending && (
+                {isActionable && (
                     <Box>
                         <Alert severity="info" sx={{ mb: 3 }}>
                             Vui lòng kiểm tra kỹ minh chứng và lý do trước khi quyết định.
@@ -176,13 +197,14 @@ export default function ReturnRequestDetailModal({ request, onClose }: ReturnReq
                                     decisionMutation.mutate("REJECT");
                                 }}
                                 disabled={!!pendingAction}
+                                color="#ef4444"
                                 icon={pendingAction === "REJECT" ? <CircularProgress size={20} color="inherit" /> : undefined}
                             />
                         </Stack>
                     </Box>
                 )}
 
-                {!isPending && request.adminNote && (
+                {!isActionable && request.adminNote && (
                     <Alert severity={request.status === ReturnRequestStatus.APPROVED ? "success" : "error"}>
                         <strong>Kết quả xử lý:</strong> {request.status === ReturnRequestStatus.APPROVED ? "Đã hoàn tiền" : "Từ chối"}
                         <Typography mt={1}>
@@ -196,9 +218,11 @@ export default function ReturnRequestDetailModal({ request, onClose }: ReturnReq
 }
 
 const GridRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <Box display="flex" justifyContent="space-between" py={1}>
+    <Box display="flex" justifyContent="space-between" py={1} alignItems="center">
         <Typography color="text.secondary">{label}:</Typography>
-        <Typography fontWeight="medium">{value}</Typography>
+        <Typography fontWeight="medium" component="div">
+            {value}
+        </Typography>
     </Box>
 );
 

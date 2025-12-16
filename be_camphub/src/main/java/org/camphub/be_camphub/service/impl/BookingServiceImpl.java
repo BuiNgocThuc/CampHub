@@ -1,7 +1,6 @@
 package org.camphub.be_camphub.service.impl;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -153,6 +152,17 @@ public class BookingServiceImpl implements BookingService {
                 .build();
         transactionRepository.save(tx);
 
+        // thông báo cho khách thuê về thanh toán thành công
+        notificationService.create(NotificationCreationRequest.builder()
+                .receiverId(lesseeId)
+                .senderId(systemWallet.getId())
+                .type(NotificationType.RENTAL_PAYMENT_SUCCESS)
+                .title("Thanh toán tiền thuê thành công")
+                .content("Bạn đã thanh toán " + required.doubleValue() + " coin cho đơn thuê.")
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(null) // Multiple bookings, no single reference
+                .build());
+
         // create bookings one by one for each cart item
         List<BookingResponse> responses = new ArrayList<>();
         for (BookingItemRequest biReq : request.getItems()) {
@@ -174,12 +184,20 @@ public class BookingServiceImpl implements BookingService {
                     .build();
 
             // Subtract the quantity if the product is still available
+            int remainingQty = item.getQuantity() - booking.getQuantity();
+            if (remainingQty < 0) {
+                throw new AppException(ErrorCode.INSUFFICIENT_ITEM_QUANTITY);
+            }
+
+            item.setQuantity(remainingQty);
 
             // update status for item
-            if (item.getQuantity() - booking.getQuantity() > 0) {
-                item.setQuantity(item.getQuantity() - booking.getQuantity());
-            } else {
+            if (remainingQty == 0) {
+                // out of stock
                 item.setStatus(ItemStatus.RENTED_PENDING_CONFIRM);
+            } else {
+                // available (> 0)
+                item.setStatus(ItemStatus.AVAILABLE);
             }
             itemRepository.save(item);
 
@@ -293,6 +311,7 @@ public class BookingServiceImpl implements BookingService {
             booking.setStatus(BookingStatus.PAID_REJECTED);
             bookingRepository.save(booking);
 
+            item.setQuantity(item.getQuantity() + booking.getQuantity());
             item.setStatus(ItemStatus.BANNED);
             itemRepository.save(item);
 
@@ -315,7 +334,7 @@ public class BookingServiceImpl implements BookingService {
             notificationService.create(NotificationCreationRequest.builder()
                     .receiverId(booking.getLesseeId())
                     .senderId(lessorId)
-                    .type(NotificationType.BOOKING_CANCELLED)
+                    .type(NotificationType.BOOKING_REJECTED)
                     .title("Đơn thuê đã bị từ chối")
                     .content("Chủ đồ đã từ chối đơn thuê cho sản phẩm \"" + item.getName() + "\".")
                     .referenceType(ReferenceType.BOOKING)
@@ -496,6 +515,8 @@ public class BookingServiceImpl implements BookingService {
                 .findById(booking.getItemId())
                 .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
 
+        // restock returned quantity
+        item.setQuantity(item.getQuantity() + booking.getQuantity());
         item.setStatus(ItemStatus.AVAILABLE);
         itemRepository.save(item);
 
@@ -503,19 +524,20 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void processRefundAndReturn(UUID bookingId) {
         Booking booking =
                 bookingRepository.findById(bookingId).orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
         if (booking.getStatus() != BookingStatus.WAITING_REFUND) {
-            throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
+            // Nếu không phải WAITING_REFUND thì bỏ qua (có thể do job khác đã chạy)
+            return;
         }
 
         // tính số ngày trễ
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate returnedTime = booking.getUpdatedAt().toLocalDate();
         LocalDate endDate = booking.getEndDate();
-        long daysLate = ChronoUnit.DAYS.between(endDate.atStartOfDay(), now);
+        long daysLate = ChronoUnit.DAYS.between(endDate, returnedTime);
 
         Account system = accountRepository
                 .findSystemWallet()
@@ -527,22 +549,21 @@ public class BookingServiceImpl implements BookingService {
                 .findById(booking.getLesseeId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        long days = ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate()) + 1;
+        long days = ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate());
         double rentalFee = booking.getPricePerDay() * booking.getQuantity() * days;
         // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
         double deposit = booking.getDepositAmount() * booking.getQuantity();
         double refundDeposit = deposit;
 
+        double penalty = 0;
         // Xử lý trễ hạn
         if (daysLate > 0 && daysLate < 4) {
-            double penaltyRate =
-                    switch ((int) daysLate) {
-                        case 1 -> 0.10; // 10% for 1 day late
-                        case 2 -> 0.25; // 25% for 2 days late
-                        case 3 -> 0.50; // 50% for 3 days late
-                        default -> 0.0;
-                    };
-            double penalty = deposit * penaltyRate;
+            double penaltyRate;
+            if (daysLate == 1) penaltyRate = 0.10; // 10%
+            else if (daysLate == 2) penaltyRate = 0.25; // 25%
+            else penaltyRate = 0.50; // 50%
+            penalty = deposit * penaltyRate;
+            if (penalty > deposit) penalty = deposit;
             refundDeposit = deposit - penalty;
 
             log.info(
@@ -553,14 +574,20 @@ public class BookingServiceImpl implements BookingService {
             log.warn("Booking {} trả sau hơn 3 ngày — sẽ không hoàn cọc (đã xử lý ở forfeited flow)", bookingId);
             return;
         }
+        double totalPayout = rentalFee + refundDeposit;
+        if (system.getCoinBalance() < totalPayout) {
+            throw new AppException(ErrorCode.SYSTEM_WALLET_INSUFFICIENT);
+        }
 
         // system -> lessor (pay rental fee)
         lessor.setCoinBalance(lessor.getCoinBalance() + rentalFee);
         system.setCoinBalance(system.getCoinBalance() - rentalFee);
 
         // system -> lessee (refund deposit)
-        lessee.setCoinBalance(lessee.getCoinBalance() + refundDeposit);
-        system.setCoinBalance(system.getCoinBalance() - refundDeposit);
+        if (refundDeposit > 0) {
+            lessee.setCoinBalance(lessee.getCoinBalance() + refundDeposit);
+            system.setCoinBalance(system.getCoinBalance() - refundDeposit);
+        }
 
         // update accounts after transactions
         accountRepository.saveAll(List.of(system, lessor, lessee));
@@ -575,30 +602,55 @@ public class BookingServiceImpl implements BookingService {
                 .createdAt(LocalDateTime.now())
                 .build());
 
-        Transaction refundDepositTx = transactionRepository.save(Transaction.builder()
-                .fromAccountId(system.getId())
-                .toAccountId(lessee.getId())
-                .amount(deposit)
-                .type(TransactionType.REFUND_DEPOSIT)
-                .status(TransactionStatus.SUCCESS)
-                .createdAt(LocalDateTime.now())
-                .build());
-
-        // record transaction-booking links
         transactionBookingRepository.save(TransactionBooking.builder()
                 .bookingId(booking.getId())
                 .transactionId(rentalPayoutTx.getId())
                 .createdAt(LocalDateTime.now())
                 .build());
 
-        transactionBookingRepository.save(TransactionBooking.builder()
-                .transactionId(refundDepositTx.getId())
-                .bookingId(booking.getId())
-                .createdAt(LocalDateTime.now())
-                .build());
+        if (refundDeposit > 0) {
+            Transaction refundDepositTx = transactionRepository.save(Transaction.builder()
+                    .fromAccountId(system.getId())
+                    .toAccountId(lessee.getId())
+                    .amount(refundDeposit) // [FIXED] Ghi đúng số tiền thực tế hoàn
+                    .type(TransactionType.REFUND_DEPOSIT)
+                    .status(TransactionStatus.SUCCESS)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+
+            transactionBookingRepository.save(TransactionBooking.builder()
+                    .transactionId(refundDepositTx.getId())
+                    .bookingId(booking.getId())
+                    .createdAt(LocalDateTime.now())
+                    .build());
+        }
 
         booking.setStatus(BookingStatus.COMPLETED);
+        booking.setUpdatedAt(LocalDateTime.now());
         bookingRepository.save(booking);
+
+        Item item = itemRepository.findById(booking.getItemId()).orElse(null);
+        if (item != null && item.getStatus() != ItemStatus.AVAILABLE) {
+            item.setStatus(ItemStatus.AVAILABLE);
+            itemRepository.save(item);
+        }
+    }
+
+    @Scheduled(fixedRate = 3600000)
+    public void scheduleRefundScanning() {
+        log.info("--- Bắt đầu Job quét đơn hàng chờ hoàn tiền (WAITING_REFUND) ---");
+
+        // Tìm tất cả đơn đang chờ hoàn tiền
+        List<Booking> bookings = bookingRepository.findAllByStatus(BookingStatus.WAITING_REFUND);
+
+        for (Booking booking : bookings) {
+            try {
+                processRefundAndReturn(booking.getId());
+            } catch (Exception e) {
+                log.error("Lỗi xử lý hoàn tiền booking {}: {}", booking.getId(), e.getMessage());
+            }
+        }
+        log.info("--- Kết thúc Job quét ---");
     }
 
     @Override
@@ -613,71 +665,64 @@ public class BookingServiceImpl implements BookingService {
         // Đến hạn trả đồ -> DUE_FOR_RETURN
         List<Booking> inUseBookings = bookingRepository.findByStatus(BookingStatus.IN_USE);
         for (Booking booking : inUseBookings) {
-            String itemName = itemRepository
-                    .findById(booking.getItemId())
-                    .map(Item::getName)
-                    .orElse("sản phẩm");
-            if (booking.getEndDate().isAfter(today)) {
+            if (!booking.getEndDate().isAfter(today)) {
                 booking.setStatus(BookingStatus.DUE_FOR_RETURN);
                 booking.setUpdatedAt(now);
-                log.info("Booking {} chuyển sang DUE_FOR_RETURN", booking.getId());
                 toUpdate.add(booking);
-            }
 
-            // thông báo cho người thuê về việc sắp đến hạn trả đồ
-            notificationService.create(NotificationCreationRequest.builder()
-                    .receiverId(booking.getLesseeId())
-                    .senderId(booking.getLessorId())
-                    .type(NotificationType.BOOKING_CREATED) // reuse booking notification category
-                    .title("Sắp đến hạn trả đồ")
-                    .content("Đơn thuê \"" + itemName + "\" sắp đến hạn trả. Vui lòng chuẩn bị gửi trả.")
-                    .referenceType(ReferenceType.BOOKING)
-                    .referenceId(booking.getId())
-                    .build());
+                String itemName = itemRepository
+                        .findById(booking.getItemId())
+                        .map(Item::getName)
+                        .orElse("sản phẩm");
+
+                notificationService.create(NotificationCreationRequest.builder()
+                        .receiverId(booking.getLesseeId())
+                        .senderId(booking.getLessorId())
+                        .type(NotificationType.BOOKING_CREATED)
+                        .title("Đến hạn trả đồ")
+                        .content("Đơn thuê \"" + itemName + "\" đã đến hạn trả hôm nay. Vui lòng gửi trả sớm.")
+                        .referenceType(ReferenceType.BOOKING)
+                        .referenceId(booking.getId())
+                        .build());
+            }
         }
 
         // Sau 24h kể từ DUE_FOR_RETURN -> LATE_RETURN
         List<Booking> dueBookings = bookingRepository.findByStatus(BookingStatus.DUE_FOR_RETURN);
         for (Booking booking : dueBookings) {
-            String itemName = itemRepository
-                    .findById(booking.getItemId())
-                    .map(Item::getName)
-                    .orElse("sản phẩm");
-            Duration sinceDue = Duration.between(booking.getUpdatedAt(), now);
-            if (sinceDue.toHours() >= 24) {
+            // Nếu hôm nay đã trễ hơn ngày hẹn trả 1 ngày trở lên
+            if (today.isAfter(booking.getEndDate().plusDays(1))) {
                 booking.setStatus(BookingStatus.LATE_RETURN);
                 booking.setUpdatedAt(now);
-                log.info("Booking {} chuyển sang LATE_RETURN", booking.getId());
                 toUpdate.add(booking);
-            }
 
-            // thông báo cho người thuê về việc đã trễ hạn trả đồ
-            notificationService.create(NotificationCreationRequest.builder()
-                    .receiverId(booking.getLesseeId())
-                    .senderId(booking.getLessorId())
-                    .type(NotificationType.BOOKING_CREATED) // reuse booking notification category
-                    .title("Đã trễ hạn trả đồ")
-                    .content("Đơn thuê \"" + itemName + "\" đã trễ hạn trả. Vui lòng trả sớm để tránh phạt.")
-                    .referenceType(ReferenceType.BOOKING)
-                    .referenceId(booking.getId())
-                    .build());
+                String itemName = itemRepository
+                        .findById(booking.getItemId())
+                        .map(Item::getName)
+                        .orElse("sản phẩm");
+
+                notificationService.create(NotificationCreationRequest.builder()
+                        .receiverId(booking.getLesseeId())
+                        .senderId(booking.getLessorId())
+                        .type(NotificationType.BOOKING_CREATED)
+                        .title("Đã trễ hạn trả đồ")
+                        .content("Đơn thuê \"" + itemName + "\" đã quá hạn trả. Bạn sẽ bị tính phí phạt.")
+                        .referenceType(ReferenceType.BOOKING)
+                        .referenceId(booking.getId())
+                        .build());
+            }
         }
 
         // Sau 72h kể từ LATE_RETURN -> OVERDUE
         List<Booking> lateBookings = bookingRepository.findByStatus(BookingStatus.LATE_RETURN);
         for (Booking booking : lateBookings) {
-            Duration sinceLate = Duration.between(booking.getUpdatedAt(), now);
-            if (sinceLate.toHours() >= 72) {
-                booking.setStatus(BookingStatus.OVERDUE);
-                booking.setUpdatedAt(now);
-                log.info("Booking {} chuyển sang OVERDUE", booking.getId());
-                toUpdate.add(booking);
+            if (today.isAfter(booking.getEndDate().plusDays(3))) {
+                handleUnreturnedBooking(booking);
             }
         }
 
         if (!toUpdate.isEmpty()) {
             bookingRepository.saveAll(toUpdate);
-            log.info("Đã cập nhật {} booking", toUpdate.size());
         }
     }
 
@@ -699,7 +744,14 @@ public class BookingServiceImpl implements BookingService {
         Item item = itemRepository
                 .findById(booking.getItemId())
                 .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
-        item.setStatus(ItemStatus.MISSING);
+
+        if (item.getQuantity() > 0) {
+            // Nếu kho vẫn còn hàng -> Đánh dấu AVAILABLE
+            item.setStatus(ItemStatus.AVAILABLE);
+        } else {
+            // Nếu kho đã về 0 -> Đánh dấu MISSING (Hết hàng do mất)
+            item.setStatus(ItemStatus.MISSING);
+        }
 
         // Tính toán số tiền cần chuyển cho chủ thuê
         long days = ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate()) + 1;

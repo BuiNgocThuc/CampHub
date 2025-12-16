@@ -32,6 +32,8 @@ public enum ErrorCode {
     ITEM_NOT_AVAILABLE(4004, "Item is not available for rent", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_ITEM_QUANTITY(4005, "Insufficient item quantity", HttpStatus.BAD_REQUEST),
     SYSTEM_WALLET_NOT_FOUND(5001, "System wallet not found", HttpStatus.NOT_FOUND),
+    SYSTEM_WALLET_INSUFFICIENT(
+            5002, "System wallet has insufficient balance for this operation", HttpStatus.BAD_REQUEST),
     INVALID_RENTAL_DATES(6001, "Invalid rental dates", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_BALANCE(6002, "Insufficient balance", HttpStatus.BAD_REQUEST),
     BOOKING_NOT_FOUND(6003, "Booking not found", HttpStatus.NOT_FOUND),

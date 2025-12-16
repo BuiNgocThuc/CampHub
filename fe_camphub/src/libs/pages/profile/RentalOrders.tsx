@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { CustomizedButton, Tabs, TabsList, TabsTrigger, PrimaryButton, PrimaryAlert } from "@/libs/components";
+import { useState, useMemo, useEffect } from "react";
+import { CustomizedButton, Tabs, TabsList, TabsTrigger, PrimaryButton, PrimaryAlert, PrimaryPagination } from "@/libs/components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBookingsByLessor, lessorConfirmReturnForReturnRequest } from "@/libs/api";
 import { MessageSquare } from "lucide-react";
@@ -9,6 +9,7 @@ import BookingList from "./BookingList";
 import { Booking, ExtensionRequest } from "@/libs/core/types";
 import OwnerResponseTrigger from "./booking-management/OwnerResponseTrigger";
 import DisputeModal from "./booking-management/DisputeModal";
+import ReturnRequestDetailModal from "./booking-management/ReturnRequestDetailModal";
 import { BookingStatus, ExtensionStatus } from "@/libs/core/constants";
 import { toast } from "sonner";
 import { approveExtensionRequest, getAllExtensionRequests, rejectExtensionRequest } from "@/libs/api/extension-request-api";
@@ -37,8 +38,11 @@ const statusToTab: Record<BookingStatus, Tab> = {
 
 export default function RentalOrders() {
     const [activeTab, setActiveTab] = useState<Tab>("Tất cả");
+    const [currentPage, setCurrentPage] = useState(1);
     const queryClient = useQueryClient();
+    const itemsPerPage = 3;
     const [selectedDisputeBooking, setSelectedDisputeBooking] = useState<Booking | null>(null);
+    const [viewReturnRequestBookingId, setViewReturnRequestBookingId] = useState<string | null>(null);
     const [alert, setAlert] = useState<{
         visible: boolean;
         content: string;
@@ -79,6 +83,18 @@ export default function RentalOrders() {
         if (activeTab === "Tất cả") return bookings;
         return bookings.filter(b => statusToTab[b.status] === activeTab);
     }, [bookings, activeTab]);
+
+    // Reset to page 1 when tab changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab]);
+
+    const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+    const paginatedBookings = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredBookings.slice(startIndex, endIndex);
+    }, [filteredBookings, currentPage, itemsPerPage]);
 
     const handleOwnerResponseSuccess = (isAccept: boolean) => {
         setAlert({
@@ -158,7 +174,23 @@ export default function RentalOrders() {
                     </TabsList>
                 </Tabs>
 
-                <BookingList bookings={filteredBookings} role="lessor" renderActions={renderActions} />
+                <BookingList
+                    bookings={paginatedBookings}
+                    role="lessor"
+                    renderActions={renderActions}
+                    onViewReturnRequest={(bookingId) => {
+                        console.log("🟢 [RentalOrders] onViewReturnRequest called with bookingId:", bookingId);
+                        setViewReturnRequestBookingId(bookingId);
+                    }}
+                />
+
+                {filteredBookings.length > 0 && (
+                    <PrimaryPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                    />
+                )}
 
                 {selectedDisputeBooking && (
                     <DisputeModal
@@ -168,6 +200,12 @@ export default function RentalOrders() {
                         onSuccess={handleDisputeSuccess}
                     />
                 )}
+
+                <ReturnRequestDetailModal
+                    open={!!viewReturnRequestBookingId}
+                    bookingId={viewReturnRequestBookingId}
+                    onClose={() => setViewReturnRequestBookingId(null)}
+                />
             </div>
         </>
     );

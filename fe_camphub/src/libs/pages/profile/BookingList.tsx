@@ -105,15 +105,23 @@ export default function BookingList({ bookings, role, renderActions, onViewRetur
                         {/* Hành động */}
                         <div className="mt-6 pt-5 border-t flex flex-wrap gap-3 justify-end">
                             {renderActions && renderActions(booking)}
-                            {(booking.status === BookingStatus.RETURN_REFUND_REQUESTED ||
-                                booking.status === BookingStatus.RETURN_REFUND_PROCESSING) && (
+                            {(() => {
+                                const normalizedStatus = String(booking.status).toUpperCase();
+                                const shouldShowButton =
+                                    normalizedStatus === BookingStatus.RETURN_REFUND_REQUESTED ||
+                                    normalizedStatus === BookingStatus.RETURN_REFUND_PROCESSING;
+
+                                return shouldShowButton ? (
                                     <PrimaryButton
                                         content="Xem chi tiết"
-                                        onClick={() => onViewReturnRequest?.(booking.id)}
+                                        onClick={() => {
+                                            onViewReturnRequest?.(booking.id);
+                                        }}
                                         icon={<Eye size={16} />}
                                         className="bg-blue-600 hover:bg-blue-700"
                                     />
-                                )}
+                                ) : null;
+                            })()}
                         </div>
 
                         {/* Footer */}

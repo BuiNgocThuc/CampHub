@@ -27,23 +27,37 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class ChatServiceImpl implements ChatService {
+
+    // Mongo Repositories (Đã sửa Entity dùng String ID)
     ChatMessageRepository chatMessageRepository;
     ChatRoomRepository chatRoomRepository;
 
+    // Mappers
     ChatMessageMapper chatMessageMapper;
     ChatRoomMapper chatRoomMapper;
 
+    // Postgres Repository (Vẫn dùng UUID)
     AccountRepository accountRepository;
 
     @Override
     public ChatMessageResponse sendMessage(ChatMessageRequest request) {
-        String chatCode = getOrCreateChatCode(request.getSenderId(), request.getReceiverId());
+        // 1. Chuyển đổi UUID từ Request sang String để lưu vào MongoDB
+        String senderIdStr = request.getSenderId().toString();
+        String receiverIdStr = request.getReceiverId().toString();
 
-        log.info("[Service] Using chatCode: {}", chatCode);
+        // 2. Tìm hoặc tạo ChatCode (Dùng String)
+        String chatCode = getOrCreateChatCode(senderIdStr, receiverIdStr);
+        log.info("[Service] Sending message in room: {}", chatCode);
+
+        // 3. Map Entity và ép kiểu ID sang String
+        // (Lưu ý: Nếu mapper chưa config, phải set thủ công để đảm bảo)
         ChatMessage message = chatMessageMapper.toEntity(request, chatCode);
+        message.setSenderId(senderIdStr);
+        message.setReceiverId(receiverIdStr);
 
         chatMessageRepository.save(message);
 
+        // 4. Cập nhật thông tin phòng chat (Last message, Unread count)
         ChatRoom room = chatRoomRepository
                 .findByChatCode(chatCode)
                 .orElseThrow(() -> new AppException(ErrorCode.CHAT_ROOM_NOT_FOUND));
@@ -54,8 +68,9 @@ public class ChatServiceImpl implements ChatService {
         if (room.getUnreadMessageCounts() == null) {
             room.setUnreadMessageCounts(new HashMap<>());
         }
-        String receiverKey = request.getReceiverId().toString();
-        room.getUnreadMessageCounts().merge(receiverKey, 1, Integer::sum);
+
+        // Tăng số tin nhắn chưa đọc cho người nhận (Key là String)
+        room.getUnreadMessageCounts().merge(receiverIdStr, 1, Integer::sum);
 
         chatRoomRepository.save(room);
 
@@ -64,33 +79,47 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<ChatMessageResponse> getMessages(String chatCode) {
+        // ChatCode là String nên query trực tiếp
         List<ChatMessage> messages = chatMessageRepository.findByChatCodeOrderByTimestampAsc(chatCode);
         return messages.stream().map(chatMessageMapper::toResponse).toList();
     }
 
     @Override
-    public List<ChatRoomResponse> getRoomsByUserId(UUID userId) {
+    public List<ChatRoomResponse> getRoomsByUserId(String userId) {
+        // 1. Input đã là String -> Query trực tiếp MongoDB
+        // Tìm tất cả phòng mà userId này tham gia
         List<ChatRoom> rooms = chatRoomRepository.findByParticipantIdsContaining(userId).stream()
                 .sorted(Comparator.comparing(ChatRoom::getLastTimestamp).reversed())
                 .toList();
 
-        // mapping username and avatarUrl
+        // 2. Mapping thông tin User (Username, Avatar) từ PostgreSQL
         return rooms.stream()
                 .map(room -> {
-                    UUID receiverId = room.getParticipantIds().stream()
-                            .filter(id -> !id.equals(userId))
+                    // Tìm ID của người "kia" trong danh sách tham gia
+                    String receiverIdStr = room.getParticipantIds().stream()
+                            .filter(id -> !id.equals(userId)) // So sánh String
                             .findFirst()
                             .orElse(null);
 
-                    String receiverUsername = null;
+                    String receiverUsername = "Unknown";
                     String avatarUrl = null;
 
-                    if (receiverId != null) {
-                        Account accountOpt = accountRepository
-                                .findById(receiverId)
-                                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-                        receiverUsername = accountOpt.getUsername();
-                        avatarUrl = accountOpt.getAvatar();
+                    if (receiverIdStr != null) {
+                        try {
+                            // CHUYỂN ĐỔI QUAN TRỌNG: String (Mongo) -> UUID (Postgres)
+                            UUID receiverUUID = UUID.fromString(receiverIdStr);
+
+                            Account accountOpt = accountRepository
+                                    .findById(receiverUUID)
+                                    .orElse(null); // Nếu không tìm thấy user thì để null/mặc định
+
+                            if (accountOpt != null) {
+                                receiverUsername = accountOpt.getUsername();
+                                avatarUrl = accountOpt.getAvatar();
+                            }
+                        } catch (IllegalArgumentException e) {
+                            log.error("Invalid UUID string found in MongoDB: {}", receiverIdStr);
+                        }
                     }
 
                     return chatRoomMapper.toChatRoomResponse(room, receiverUsername, avatarUrl);
@@ -98,27 +127,34 @@ public class ChatServiceImpl implements ChatService {
                 .toList();
     }
 
-    // Tìm hoặc tạo chat code
-    private String getOrCreateChatCode(UUID user1, UUID user2) {
-        List<UUID> participantIds = List.of(user1, user2);
+    // --- HELPER METHODS ---
+
+    private String getOrCreateChatCode(String user1Id, String user2Id) {
+        List<String> participantIds = List.of(user1Id, user2Id);
+
+        // Query MongoDB với List<String>
         Optional<ChatRoom> existingRoom = chatRoomRepository.findByParticipantIdsContainsAll(participantIds);
 
         if (existingRoom.isPresent()) {
             return existingRoom.get().getChatCode();
         }
 
-        String chatCode = generateChatCode(user1.toString(), user2.toString());
+        // Nếu chưa có, tạo mới
+        String chatCode = generateChatCode(user1Id, user2Id);
+
         ChatRoom room = ChatRoom.builder()
                 .chatCode(chatCode)
                 .participantIds(participantIds)
-                .unreadMessageCounts(Map.of(user1.toString(), 0, user2.toString(), 0))
+                .unreadMessageCounts(Map.of(user1Id, 0, user2Id, 0))
                 .build();
         chatRoomRepository.save(room);
 
         return chatCode;
     }
 
+    // Logic tạo code dựa trên so sánh chuỗi String (Lexicographical comparison)
+    // Đảm bảo "A" vs "B" luôn ra "A_B" dù input theo thứ tự nào
     private String generateChatCode(String a, String b) {
-        return a.compareTo(b) < 0 ? a + "_" + b : b + "_" + a; // example: "user1_user2"
+        return a.compareTo(b) < 0 ? a + "_" + b : b + "_" + a;
     }
 }

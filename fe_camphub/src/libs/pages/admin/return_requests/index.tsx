@@ -11,7 +11,7 @@ import {
     CircularProgress,
 } from "@mui/material";
 import { Eye } from "lucide-react";
-import { PrimaryDataGrid, PrimaryModal } from "@/libs/components";
+import { PrimaryAlert, PrimaryDataGrid, PrimaryModal } from "@/libs/components";
 import { useQuery } from "@tanstack/react-query";
 import { getReturnRequests } from "@/libs/api";
 import { ReturnRequest } from "@/libs/core/types";
@@ -41,6 +41,12 @@ const statusConfig: Record<string, { label: string; color: "warning" | "success"
 export default function ReturnRequestList() {
     const [selectedRequest, setSelectedRequest] = useState<ReturnRequest | null>(null);
     const [openModal, setOpenModal] = useState(false);
+    const [alert, setAlert] = useState<{ visible: boolean; content: string; type: "success" | "error" | "warning" | "info"; duration?: number }>({
+        visible: false,
+        content: "",
+        type: "success",
+        duration: 3000,
+    });
 
     const { data: requests = [], isLoading } = useQuery({
         queryKey: ["ReturnRequests"],
@@ -155,6 +161,14 @@ export default function ReturnRequestList() {
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
+            {alert.visible && (
+                <PrimaryAlert
+                    content={alert.content}
+                    type={alert.type}
+                    duration={alert.duration ?? 3000}
+                    onClose={() => setAlert(prev => ({ ...prev, visible: false }))}
+                />
+            )}
             <Box className="bg-white rounded-2xl shadow-lg p-6" sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 60px)" }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} sx={{ flexShrink: 0 }}>
                     <Typography variant="h5" fontWeight="bold">
@@ -197,6 +211,9 @@ export default function ReturnRequestList() {
                 {selectedRequest && (
                     <ReturnRequestDetailModal
                         request={selectedRequest}
+                        onResult={(message) => {
+                            setAlert({ visible: true, content: message, type: "success", duration: 3000 });
+                        }}
                         onClose={() => {
                             setOpenModal(false);
                             setSelectedRequest(null);

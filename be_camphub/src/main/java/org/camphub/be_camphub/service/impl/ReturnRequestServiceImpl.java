@@ -70,13 +70,34 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         booking.setStatus(BookingStatus.RETURN_REFUND_REQUESTED);
         bookingRepository.save(booking);
 
+        // ghi vào item log
+        itemLogRepository.save(ItemLog.builder()
+                .itemId(booking.getItemId())
+                .accountId(lesseeId)
+                .action(ItemActionType.RETURN)
+                .previousStatus(ItemStatus.RENTED)
+                .currentStatus(ItemStatus.RENTED)
+                .note(request.getReason().toString())
+                .createdAt(LocalDateTime.now())
+                .build());
+
         // thông báo chủ thuê có yêu cầu hoàn trả
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(booking.getLessorId())
                 .senderId(lesseeId)
-                .type(NotificationType.BOOKING_RETURNED)
+                .type(NotificationType.RETURN_REQUEST_CREATED)
                 .title("Yêu cầu hoàn trả/hoàn tiền mới")
                 .content("Khách thuê đã tạo yêu cầu hoàn trả cho đơn " + booking.getId())
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
+
+        // thông báo cho tất cả admin có yêu cầu hoàn tiền mới cần xem xét
+        notificationService.notifyAllAdmins(NotificationCreationRequest.builder()
+                .senderId(lesseeId)
+                .type(NotificationType.RETURN_REQUEST_PENDING)
+                .title("Yêu cầu hoàn tiền mới cần xem xét")
+                .content("Có yêu cầu hoàn tiền mới cho đơn " + booking.getId())
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -166,6 +187,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         // item về AVAILABLE
         itemRepository.findById(booking.getItemId()).ifPresent(item -> {
             item.setStatus(ItemStatus.AVAILABLE);
+            item.setQuantity(item.getQuantity() + booking.getQuantity());
             itemRepository.save(item);
         });
 
@@ -180,6 +202,15 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .build());
 
         // thông báo đến admin về yêu cầu hoàn tiền cần xử lý
+        notificationService.notifyAllAdmins(NotificationCreationRequest.builder()
+                .senderId(lessorId)
+                .type(NotificationType.RETURN_REQUEST_PENDING)
+                .title("Yêu cầu hoàn tiền cần xử lý")
+                .content("Chủ đồ đã xác nhận nhận lại hàng, yêu cầu hoàn tiền cho đơn " + booking.getId()
+                        + " cần xử lý.")
+                .referenceType(ReferenceType.BOOKING)
+                .referenceId(booking.getId())
+                .build());
 
         return enrichReturnRequestResponse(rr);
     }
@@ -277,14 +308,22 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         returnRequestRepository.save(rr);
 
         // thông báo cho hai bên về kết quả xử lý hoàn tiền
+        NotificationType lesseeNotificationType = request.getIsApproved()
+                ? NotificationType.RETURN_REQUEST_APPROVED
+                : NotificationType.RETURN_REQUEST_REJECTED;
+        NotificationType lessorNotificationType = request.getIsApproved()
+                ? NotificationType.RETURN_REQUEST_APPROVED
+                : NotificationType.RETURN_REQUEST_REJECTED;
+
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(rr.getLesseeId())
                 .senderId(adminId)
-                .type(NotificationType.DEPOSIT_REFUNDED)
+                .type(lesseeNotificationType)
                 .title("Kết quả xử lý hoàn tiền")
                 .content(
                         request.getIsApproved()
-                                ? "Yêu cầu hoàn tiền của bạn đã được chấp nhận."
+                                ? "Yêu cầu hoàn tiền của bạn đã được chấp nhận. Số tiền hoàn: " + refundAmount
+                                        + " coin."
                                 : "Yêu cầu hoàn tiền của bạn đã bị từ chối.")
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
@@ -293,7 +332,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(rr.getLessorId())
                 .senderId(adminId)
-                .type(NotificationType.DEPOSIT_REFUNDED)
+                .type(lessorNotificationType)
                 .title("Kết quả xử lý hoàn tiền")
                 .content(
                         request.getIsApproved()
@@ -302,6 +341,19 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
+
+        // Thông báo hoàn cọc riêng nếu được approve
+        if (request.getIsApproved()) {
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(rr.getLesseeId())
+                    .senderId(adminId)
+                    .type(NotificationType.DEPOSIT_REFUNDED)
+                    .title("Hoàn cọc thành công")
+                    .content("Bạn đã nhận được " + refundAmount + " coin (bao gồm tiền thuê và tiền cọc).")
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+        }
 
         return enrichReturnRequestResponse(rr);
     }
@@ -316,7 +368,19 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Override
     public List<ReturnReqResponse> getAllReturnRequests() {
         log.info("Fetching all return requests from database");
-        return returnRequestRepository.findAll().stream()
+        List<ReturnRequest> requests = returnRequestRepository.findAll();
+
+        Comparator<ReturnRequest> priorityComparator = Comparator.<ReturnRequest>comparingInt((ReturnRequest rr) -> {
+                    if (rr.getStatus() == ReturnRequestStatus.PROCESSING) return 0;
+                    if (rr.getStatus() == ReturnRequestStatus.PENDING) return 1;
+                    return 2;
+                })
+                // Ưu tiên PROCESSING lên đầu, sau đó PENDING, còn lại phía dưới
+                // Cùng nhóm thì mới nhất trước
+                .thenComparing(ReturnRequest::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+
+        return requests.stream()
+                .sorted(priorityComparator)
                 .map(this::enrichReturnRequestResponse)
                 .collect(Collectors.toList());
     }
@@ -334,7 +398,12 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         Booking booking =
                 bookingRepository.findById(bookingId).orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
-        if (!booking.getLesseeId().equals(requesterId)) {
+        log.error("Unauthorized access attempt by user {} for booking {}", requesterId, bookingId);
+        log.info("Booking lessee: {}, lessor: {}", booking.getLesseeId(), booking.getLessorId());
+
+        // Cho phép cả lessee (người thuê) và lessor (chủ đồ) xem return request
+        if (!booking.getLesseeId().equals(requesterId) && !booking.getLessorId().equals(requesterId)) {
+
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 

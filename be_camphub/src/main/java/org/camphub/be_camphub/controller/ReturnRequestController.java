@@ -76,7 +76,7 @@ public class ReturnRequestController {
     public ApiResponse<ReturnReqResponse> adminDecision(
             @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid AdminDecisionRequest request) {
         UUID adminId = UUID.fromString(jwt.getClaim("userId"));
-
+        log.info("Admin {} is making a decision on return request {}", adminId, request);
         return ApiResponse.<ReturnReqResponse>builder()
                 .message("Admin processed return request successfully")
                 .result(returnRequestService.adminDecision(adminId, request))

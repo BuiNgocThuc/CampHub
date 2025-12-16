@@ -69,7 +69,6 @@ export default function NotificationDropdown({
       try {
         setLoading(true);
         const data = await getNotificationsByReceiver();
-        // Sắp xếp theo thời gian mới nhất trước
         const sorted = data.sort((a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );

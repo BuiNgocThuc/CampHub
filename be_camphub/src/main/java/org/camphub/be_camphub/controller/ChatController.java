@@ -32,7 +32,7 @@ public class ChatController {
     @GetMapping("/chat-rooms")
     public ApiResponse<List<ChatRoomResponse>> getChatRooms(@RequestParam UUID userId) {
         log.info("Retrieved chat rooms for user {} before accessing service layer", userId);
-        List<ChatRoomResponse> rooms = chatService.getRoomsByUserId(userId);
+        List<ChatRoomResponse> rooms = chatService.getRoomsByUserId(userId.toString());
         log.info("Retrieved {} chat rooms for user {}", rooms.size(), userId);
         return ApiResponse.<List<ChatRoomResponse>>builder()
                 .result(rooms)

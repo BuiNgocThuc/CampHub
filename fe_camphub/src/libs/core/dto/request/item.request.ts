@@ -1,4 +1,3 @@
-import { ownerResponse } from './../../../api/booking-api';
 import { MediaResource } from "../../types";
 
 export interface ItemCreationRequest {

@@ -1,9 +1,9 @@
 // app/profile/RentalHistory.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Tabs, TabsList, TabsTrigger, PrimaryButton, CustomizedButton, PrimaryAlert, PrimaryConfirmation } from "@/libs/components";
+import { Tabs, TabsList, TabsTrigger, PrimaryButton, CustomizedButton, PrimaryAlert, PrimaryConfirmation, PrimaryPagination } from "@/libs/components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBookingsByLessee, confirmReceived } from "@/libs/api";
 import BookingList from "./BookingList";
@@ -41,8 +41,10 @@ const statusToTab: Record<BookingStatus, Tab> = {
 
 export default function RentalHistory() {
   const [activeTab, setActiveTab] = useState<Tab>("Tất cả");
+  const [currentPage, setCurrentPage] = useState(1);
   const [alert, setAlert] = useState<{ visible: boolean; content: string; type: "success" | "error"; duration?: number } | null>(null);
   const queryClient = useQueryClient();
+  const itemsPerPage = 3;
   const [selectedReturnBooking, setSelectedReturnBooking] = useState<Booking | null>(null);
   const [selectedReturnRequestBooking, setSelectedReturnRequestBooking] = useState<Booking | null>(null);
   const [selectedExtensionBooking, setSelectedExtensionBooking] = useState<Booking | null>(null);
@@ -76,6 +78,18 @@ export default function RentalHistory() {
     if (activeTab === "Tất cả") return bookings;
     return bookings.filter(b => statusToTab[b.status] === activeTab);
   }, [bookings, activeTab]);
+
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+  const paginatedBookings = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredBookings.slice(startIndex, endIndex);
+  }, [filteredBookings, currentPage, itemsPerPage]);
 
   const renderActions = (booking: Booking) => {
     // Khi đang chờ giao hàng: cho phép khách xác nhận đã nhận & gửi yêu cầu trả hàng
@@ -172,11 +186,19 @@ export default function RentalHistory() {
       </Tabs>
 
       <BookingList
-        bookings={filteredBookings}
+        bookings={paginatedBookings}
         role="lessee"
         renderActions={renderActions}
         onViewReturnRequest={bookingId => setViewReturnRequestBookingId(bookingId)}
       />
+
+      {filteredBookings.length > 0 && (
+        <PrimaryPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
 
       {selectedReturnBooking && (
         <ReturnItemModal

@@ -52,7 +52,9 @@ export const adminDecisionOnReturnRequest = async (
     request: AdminDecisionRequest
 ): Promise<ReturnRequest> => {
     try {
+        console.log(request);
         const response = await api.post<ApiResponse<ReturnReqResponse>>("/return-requests/admin/decision", request);
+        console.log(response);
         return returnRequestMap.fromResponse(response.data.result);
     } catch (error) {
         throw error;
@@ -81,6 +83,12 @@ export const getReturnRequestById = async (requestId: string): Promise<ReturnReq
 }
 
 export const getReturnRequestByBooking = async (bookingId: string): Promise<ReturnRequest> => {
-    const response = await api.get<ApiResponse<ReturnReqResponse>>(`/return-requests/by-booking/${bookingId}`);
-    return returnRequestMap.fromResponse(response.data.result);
+    try {
+        const url = `/return-requests/by-booking/${bookingId}`;
+        const response = await api.get<ApiResponse<ReturnReqResponse>>(url);
+        const mappedResult = returnRequestMap.fromResponse(response.data.result);
+        return mappedResult;
+    } catch (error: any) {
+        throw error;
+    }
 };

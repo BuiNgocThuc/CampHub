@@ -21,3 +21,4 @@ export { default as ChatModal } from "./Chat/ChatModal";
 export { default as GlobalChatButton } from "./Chat/GlobalChat";
 export { default as MediaPreview } from "./Media/MediaPreview";
 export { default as AppImage } from "./Media/AppImage";
+export { default as PrimaryPagination } from "./Pagination/PrimaryPagination";

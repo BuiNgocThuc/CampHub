@@ -1,22 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMyDisputes } from "@/libs/api/dispute-api";
 import { Dispute } from "@/libs/core/types";
 import { DisputeStatus, DisputeDecision } from "@/libs/core/constants";
 import { format } from "date-fns";
 import { AlertCircle, CheckCircle2, XCircle, Clock, Image as ImageIcon, Eye } from "lucide-react";
-import { AppImage, PrimaryButton } from "@/libs/components";
+import { AppImage, PrimaryButton, PrimaryPagination } from "@/libs/components";
 import DisputeDetailModal from "./booking-management/DisputeDetailModal";
 
 export default function MyDisputes() {
     const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
-    
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 3;
+
     const { data: disputes = [], isLoading } = useQuery({
         queryKey: ["myDisputes"],
         queryFn: getMyDisputes,
     });
+
+    const totalPages = Math.ceil(disputes.length / itemsPerPage);
+    const paginatedDisputes = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return disputes.slice(startIndex, endIndex);
+    }, [disputes, currentPage, itemsPerPage]);
 
     const getStatusBadge = (status: DisputeStatus, decision?: DisputeDecision) => {
         if (status === DisputeStatus.PENDING_REVIEW) {
@@ -70,9 +79,9 @@ export default function MyDisputes() {
     return (
         <div>
             <h2 className="text-2xl font-bold mb-6">Khiếu nại của tôi ({disputes.length})</h2>
-            
+
             <div className="space-y-4">
-                {disputes.map((dispute) => (
+                {paginatedDisputes.map((dispute) => (
                     <div
                         key={dispute.id}
                         className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
@@ -184,6 +193,14 @@ export default function MyDisputes() {
                     </div>
                 ))}
             </div>
+
+            {disputes.length > 0 && (
+                <PrimaryPagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                />
+            )}
 
             {selectedDisputeId && (
                 <DisputeDetailModal
