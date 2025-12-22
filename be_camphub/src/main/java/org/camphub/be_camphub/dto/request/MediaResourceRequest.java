@@ -13,4 +13,5 @@ import lombok.experimental.FieldDefaults;
 public class MediaResourceRequest {
     String url;
     MediaType type; // IMAGE hoặc VIDEO
+    String fileHash;
 }

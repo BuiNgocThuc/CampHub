@@ -37,7 +37,6 @@ public class PasswordMigrationRunner implements CommandLineRunner {
         for (Account account : accounts) {
             String hashedPassword = passwordEncoder.encode(NEW_PASSWORD);
             account.setPassword(hashedPassword);
-            // Log để kiểm tra (tắt đi khi chạy thật nếu không muốn spam console)
             log.info("Đã cập nhật mật khẩu cho user: {}", account.getUsername());
         }
 

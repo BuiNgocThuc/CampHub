@@ -16,6 +16,7 @@ public class MediaUtils {
                 .map(r -> MediaResource.builder()
                         .url(r.getUrl())
                         .type(r.getType())
+                        .fileHash(r.getFileHash())
                         .build())
                 .collect(Collectors.toList());
     }

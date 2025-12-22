@@ -1,4 +1,3 @@
-// app/admin/bookings/BookingList.tsx
 "use client";
 
 import { useState } from "react";

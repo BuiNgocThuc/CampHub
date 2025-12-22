@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PrimaryButton } from "@/libs/components";
+import { PrimaryButton, PrimaryAlert } from "@/libs/components";
 import { Coins } from "lucide-react";
 import { topUpAccount } from "@/libs/api/account-api";
 import { toast } from "sonner";
@@ -19,6 +19,10 @@ export default function CampHubCoin({
 }: CampHubCoinProps) {
   const [amount, setAmount] = useState<number | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successAlert, setSuccessAlert] = useState<{ visible: boolean; content: string }>({
+    visible: false,
+    content: "",
+  });
 
   if (isLoading) return <div>Đang tải số dư...</div>;
 
@@ -34,7 +38,10 @@ export default function CampHubCoin({
       const newBalance = response.result.newBalance;
 
       onTopUpSuccess?.(newBalance);
-      toast.success(`Nạp ${amount.toLocaleString("vi-VN")} xu thành công`);
+      setSuccessAlert({
+        visible: true,
+        content: `Nạp ${amount.toLocaleString("vi-VN")} xu thành công`,
+      });
       setAmount("");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Nạp xu thất bại, vui lòng thử lại");
@@ -45,6 +52,15 @@ export default function CampHubCoin({
 
   return (
     <div>
+      {successAlert.visible && (
+        <PrimaryAlert
+          content={successAlert.content}
+          type="success"
+          duration={3000}
+          onClose={() => setSuccessAlert({ visible: false, content: "" })}
+        />
+      )}
+
       <h2 className="text-xl font-semibold mb-6">CampHub Xu</h2>
 
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">

@@ -25,4 +25,7 @@ public class MediaResource {
 
     @Enumerated(EnumType.STRING)
     MediaType type; // IMAGE hoặc VIDEO
+
+    @Column(name = "file_hash", length = 64) // hash SHA-256
+    String fileHash;
 }

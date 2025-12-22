@@ -6,11 +6,12 @@ import { AlertCircle, Upload, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { PrimaryModal, PrimaryButton, CustomizedButton } from "@/libs/components";
+import { PrimaryModal, PrimaryButton, CustomizedButton, PrimaryAlert } from "@/libs/components";
 import { useCloudinaryUpload } from "@/libs/hooks";
-import { createReturnRequest } from "@/libs/api/return-request-api";
 import type { Booking, MediaResource } from "@/libs/core/types";
 import { ReasonReturnType } from "@/libs/core/constants";
+import { calculateFileHash } from "@/libs/utils";
+import { validateImageHash, createReturnRequest } from "@/libs/api";
 
 interface ReturnRequestModalProps {
   open: boolean;
@@ -27,6 +28,7 @@ export default function ReturnRequestModal({ open, onClose, booking, onSuccess }
   const [note, setNote] = useState("");
   const [evidences, setEvidences] = useState<MediaResource[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [oldImageAlert, setOldImageAlert] = useState<{ visible: boolean }>({ visible: false });
 
   const mutation = useMutation({
     mutationFn: createReturnRequest,
@@ -62,7 +64,21 @@ export default function ReturnRequestModal({ open, onClose, booking, onSuccess }
 
     try {
       setIsUploading(true);
+      let uploadedCount = 0;
       for (const file of files) {
+        // Chỉ hash và validate cho ảnh, không validate video
+        if (file.type.startsWith("image")) {
+          const fileHash = await calculateFileHash(file);
+          const isValid = await validateImageHash(fileHash, booking.itemId);
+
+          // Nếu hash đã tồn tại (ảnh cũ), hiển thị alert
+          if (isValid) {
+            setOldImageAlert({ visible: true });
+            continue; // Bỏ qua file này
+          }
+        }
+
+        // Upload file (ảnh mới hoặc video)
         const result = await uploadFile(file);
         setEvidences(prev => [
           ...prev,
@@ -71,9 +87,12 @@ export default function ReturnRequestModal({ open, onClose, booking, onSuccess }
             type: file.type.startsWith("video") ? "VIDEO" : "IMAGE",
           } as MediaResource,
         ]);
+        uploadedCount++;
       }
-      toast.success("Upload minh chứng thành công");
-    } catch {
+      if (uploadedCount > 0) {
+        toast.success("Upload minh chứng thành công");
+      }
+    } catch (err) {
       toast.error("Upload minh chứng thất bại, vui lòng thử lại");
     } finally {
       setIsUploading(false);
@@ -277,6 +296,15 @@ export default function ReturnRequestModal({ open, onClose, booking, onSuccess }
           />
         </Box>
       </Box>
+
+      {oldImageAlert.visible && (
+        <PrimaryAlert
+          content="Ảnh này đã được sử dụng trước đó. Vui lòng upload ảnh mới để làm minh chứng."
+          type="warning"
+          duration={3000}
+          onClose={() => setOldImageAlert({ visible: false })}
+        />
+      )}
     </PrimaryModal>
   );
 }

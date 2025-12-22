@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { PrimaryModal, PrimaryButton, CustomizedButton } from "@/libs/components";
+import { PrimaryModal, PrimaryButton, CustomizedButton, PrimaryAlert } from "@/libs/components";
 import { Box, Typography, IconButton, CircularProgress } from "@mui/material";
 import { AlertCircle, ImageIcon, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createDispute, getAllDamageTypes } from "@/libs/api";
+import { createDispute, getAllDamageTypes, validateImageHash } from "@/libs/api";
 import type { Booking, DamageType, MediaResource } from "@/libs/core/types";
 import { useCloudinaryUpload } from "@/libs/hooks";
 import PrimarySelectField from "@/libs/components/TextFields/PrimarySelectField";
 import PrimaryTextField from "@/libs/components/TextFields/PrimaryTextField";
+import { calculateFileHash } from "@/libs/utils";
 
 interface DisputeModalProps {
   open: boolean;
@@ -27,6 +28,7 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
   const [note, setNote] = useState("");
   const [evidences, setEvidences] = useState<MediaResource[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [oldImageAlert, setOldImageAlert] = useState<{ visible: boolean }>({ visible: false });
 
   const { data: damageTypes = [], isLoading: loadingDamageTypes } = useQuery<DamageType[]>({
     queryKey: ["damageTypes"],
@@ -69,7 +71,21 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
 
     try {
       setIsUploading(true);
+      let uploadedCount = 0;
       for (const file of files) {
+        // Chỉ hash và validate cho ảnh, không validate video
+        if (file.type.startsWith("image")) {
+          const fileHash = await calculateFileHash(file);
+          const isValid = await validateImageHash(fileHash, booking.itemId);
+
+          // Nếu hash đã tồn tại (ảnh cũ), hiển thị alert
+          if (isValid) {
+            setOldImageAlert({ visible: true });
+            continue; // Bỏ qua file này
+          }
+        }
+
+        // Upload file (ảnh mới hoặc video)
         const result = await uploadFile(file);
         setEvidences(prev => [
           ...prev,
@@ -78,8 +94,11 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
             type: file.type.startsWith("video") ? "VIDEO" : "IMAGE",
           } as MediaResource,
         ]);
+        uploadedCount++;
       }
-      toast.success("Upload minh chứng thành công");
+      if (uploadedCount > 0) {
+        toast.success("Upload minh chứng thành công");
+      }
     } catch (err) {
       toast.error("Upload minh chứng thất bại");
     } finally {
@@ -270,6 +289,15 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
           />
         </Box>
       </Box>
+
+      {oldImageAlert.visible && (
+        <PrimaryAlert
+          content="Ảnh này đã được sử dụng trước đó. Vui lòng upload ảnh mới để làm minh chứng."
+          type="warning"
+          duration={3000}
+          onClose={() => setOldImageAlert({ visible: false })}
+        />
+      )}
     </PrimaryModal>
   );
 }

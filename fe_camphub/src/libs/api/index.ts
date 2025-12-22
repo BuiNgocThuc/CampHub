@@ -42,3 +42,6 @@ export * from "./transaction-api";
 
 // 15. chat
 export * from "./chat-api";
+
+// 16. media
+export * from "./media-api";

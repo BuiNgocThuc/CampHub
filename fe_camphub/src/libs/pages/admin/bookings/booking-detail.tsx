@@ -1,4 +1,3 @@
-// app/admin/bookings/BookingDetail.tsx
 "use client";
 
 import { Box, Typography, Divider, Chip, Grid } from "@mui/material";
