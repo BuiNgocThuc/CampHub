@@ -158,7 +158,6 @@ export const useCartStore = create<CartStore>((set, get) => ({
                 throw new Error("Insufficient item quantity");
             }
 
-            // Gọi API để cập nhật số lượng
             const updated = await patchCartItem({ quantity }, cartItemId);
 
             // Dùng data từ API response (đã tính toán subtotal từ backend)

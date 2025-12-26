@@ -10,7 +10,8 @@ import { useCloudinaryUpload } from "@/libs/hooks";
 import type { Booking, MediaResource } from "@/libs/core/types";
 import { returnItem } from "@/libs/api/booking-api";
 import { validateImageHash } from "@/libs/api";
-import { calculateFileHash } from "@/libs/utils";
+import { calculateFileHash, isFileSizeValid, isFileTypeAllowed, uploadMedia } from "@/libs/utils";
+import { MediaType } from "@/libs/core/constants";
 
 interface ReturnItemModalProps {
   open: boolean;
@@ -19,14 +20,33 @@ interface ReturnItemModalProps {
   onSuccess?: (message: string) => void;
 }
 
+interface PendingFile {
+  file: File;
+  hash: string;
+  preview: string;
+  type: "IMAGE" | "VIDEO";
+}
+
 export default function ReturnItemModal({ open, onClose, booking, onSuccess }: ReturnItemModalProps) {
   const queryClient = useQueryClient();
-  const { uploads, uploadFile } = useCloudinaryUpload();
 
   const [note, setNote] = useState("");
-  const [media, setMedia] = useState<MediaResource[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [oldImageAlert, setOldImageAlert] = useState<{ visible: boolean }>({ visible: false });
+  const [alert, setAlert] = useState<{
+    content: string;
+    type: "success" | "error" | "warning" | "info";
+    duration: number;
+  } | null>(null);
+
+  const showAlert = (
+    content: string,
+    type: "success" | "error" | "warning" | "info",
+    duration = 2000
+  ) => {
+    setAlert({ content, type, duration });
+  };
 
   const mutation = useMutation({
     mutationFn: returnItem,
@@ -44,75 +64,114 @@ export default function ReturnItemModal({ open, onClose, booking, onSuccess }: R
 
   const handleClose = () => {
     setNote("");
-    setMedia([]);
+    setPendingFiles([]);
     onClose();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    const files = e.target.files;
+    if (!files) return;
 
-    if (media.length + files.length > 10) {
-      toast.error("Tối đa 10 ảnh/video đóng gói");
+    setIsUploading(true);
+    if (pendingFiles.length + files.length > 10) {
+      showAlert("Tối đa 10 ảnh/video", "error");
+      setIsUploading(false);
       return;
     }
 
-    try {
-      setIsUploading(true);
-      let uploadedCount = 0;
-      for (const file of files) {
-        // Chỉ hash và validate cho ảnh, không validate video
-        if (file.type.startsWith("image")) {
-          const fileHash = await calculateFileHash(file);
-          const isValid = await validateImageHash(fileHash, booking.itemId);
+    const newFiles: PendingFile[] = [];
 
-          // Nếu hash đã tồn tại (ảnh cũ), hiển thị alert
-          if (isValid) {
-            setOldImageAlert({ visible: true });
-            continue; // Bỏ qua file này
-          }
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
+      if (!isFileTypeAllowed(file)) {
+        showAlert(`File ${file.name} sai định dạng`, "error");
+        continue;
+      }
+      if (!isFileSizeValid(file, 10)) {
+        showAlert(`File ${file.name} quá lớn`, "error");
+        continue;
+      }
+
+      try {
+        const hash = await calculateFileHash(file);
+
+        const isDuplicateLocal = pendingFiles.some(f => f.hash === hash) || newFiles.some(f => f.hash === hash);
+        if (isDuplicateLocal) {
+          showAlert(`File ${file.name} đã chọn rồi`, "warning");
+          continue;
         }
 
-        // Upload file (ảnh mới hoặc video)
-        const result = await uploadFile(file);
-        setMedia(prev => [
-          ...prev,
-          {
-            url: result.url,
-            type: file.type.startsWith("video") ? "VIDEO" : "IMAGE",
-          } as MediaResource,
-        ]);
-        uploadedCount++;
-      }
-      if (uploadedCount > 0) {
-        toast.success("Upload minh chứng thành công");
-      }
-    } catch (err) {
-      toast.error("Upload minh chứng thất bại, vui lòng thử lại");
-    } finally {
-      setIsUploading(false);
-      e.target.value = "";
-    }
-  };
+        const isValid = await validateImageHash(booking.itemId, hash);
+        if (!isValid) {
+          showAlert(`Ảnh ${file.name} đã tồn tại trong lịch sử (trùng lặp)`, "error");
+          continue;
+        }
 
-  const removeMedia = (index: number) => {
-    setMedia(prev => prev.filter((_, i) => i !== index));
-  };
+        newFiles.push({
+          file,
+          hash,
+          preview: URL.createObjectURL(file),
+          type: file.type.startsWith("video") ? "VIDEO" : "IMAGE"
+        });
 
-  const handleSubmit = () => {
-    if (media.length === 0) {
-      toast.error("Vui lòng upload ít nhất 1 ảnh/video đóng gói");
-      return;
+      } catch (err) {
+        console.error(err);
+        toast.error("Lỗi xử lý file " + file.name);
+      }
+      finally {
+        setIsUploading(false);
+      }
     }
 
-    mutation.mutate({
-      bookingId: booking.id,
-      note,
-      mediaUrls: media,
+    if (newFiles.length > 0) {
+      setPendingFiles(prev => [...prev, ...newFiles]);
+    }
+    e.target.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    setPendingFiles(prev => {
+      const newFiles = [...prev];
+      URL.revokeObjectURL(newFiles[index].preview);
+      newFiles.splice(index, 1);
+      return newFiles;
     });
   };
 
-  const uploadingCount = Object.values(uploads).filter(u => u.uploading).length;
+  const handleSubmit = async () => {
+    if (pendingFiles.length === 0) {
+      showAlert("Vui lòng upload ảnh/video làm minh chứng trả hàng", "error");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const uploadedResources = await Promise.all(
+        pendingFiles.map(async (pf) => {
+          const result = await uploadMedia(pf.file);
+          return {
+            url: result.url,
+            type: result.type as MediaType,
+            fileHash: pf.hash,
+          };
+        })
+      );
+
+      await mutation.mutateAsync({
+        bookingId: booking.id,
+        note: note || undefined,
+        mediaUrls: uploadedResources,
+      });
+
+    } catch (error) {
+      console.error(error);
+      if (!mutation.isError) toast.error("Có lỗi xảy ra khi upload ảnh");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
 
   return (
     <PrimaryModal
@@ -154,7 +213,7 @@ export default function ReturnItemModal({ open, onClose, booking, onSuccess }: R
               accept="image/*,video/*"
               onChange={handleFileChange}
               style={{ display: "none" }}
-              disabled={isUploading || uploadingCount > 0}
+              disabled={isUploading}
             />
             <Box
               sx={{
@@ -167,7 +226,7 @@ export default function ReturnItemModal({ open, onClose, booking, onSuccess }: R
                 "&:hover": { bgcolor: "#dbeafe" },
               }}
             >
-              {isUploading || uploadingCount > 0 ? (
+              {isUploading ? (
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                   <CircularProgress size={28} />
                   <Typography variant="body2" color="text.secondary">
@@ -187,9 +246,9 @@ export default function ReturnItemModal({ open, onClose, booking, onSuccess }: R
         </Box>
 
         {/* Danh sách media */}
-        {media.length > 0 && (
+        {pendingFiles.length > 0 && (
           <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 1.5, mb: 3 }}>
-            {media.map((m, idx) => (
+            {pendingFiles.map((pf, idx) => (
               <Box
                 key={idx}
                 sx={{
@@ -199,14 +258,14 @@ export default function ReturnItemModal({ open, onClose, booking, onSuccess }: R
                   border: "1px solid #e5e7eb",
                 }}
               >
-                {m.type === "VIDEO" ? (
-                  <video src={m.url} controls className="w-full h-28 object-cover" />
+                {pf.type === "VIDEO" ? (
+                  <video src={pf.preview} controls style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <img src={m.url} alt="" className="w-full h-28 object-cover" />
+                  <img src={pf.preview} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 )}
                 <IconButton
                   size="small"
-                  onClick={() => removeMedia(idx)}
+                  onClick={() => removeFile(idx)}
                   sx={{
                     position: "absolute",
                     top: 4,
@@ -244,18 +303,18 @@ export default function ReturnItemModal({ open, onClose, booking, onSuccess }: R
           <PrimaryButton
             content={mutation.isPending ? "Đang gửi thông tin..." : "Xác nhận đã gửi đồ"}
             onClick={handleSubmit}
-            disabled={mutation.isPending || isUploading || uploadingCount > 0}
+            disabled={mutation.isPending || isSubmitting}
             icon={mutation.isPending ? <CircularProgress size={18} /> : undefined}
           />
         </Box>
       </Box>
 
-      {oldImageAlert.visible && (
+      {alert && (
         <PrimaryAlert
-          content="Ảnh này đã được sử dụng trước đó. Vui lòng upload ảnh mới để làm minh chứng."
-          type="warning"
-          duration={3000}
-          onClose={() => setOldImageAlert({ visible: false })}
+          content={alert.content}
+          type={alert.type}
+          duration={alert.duration}
+          onClose={() => setAlert(null)}
         />
       )}
     </PrimaryModal>

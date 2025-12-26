@@ -128,6 +128,16 @@ export default function OwnedItems({ items = [], loading = false }: OwnedItemsPr
       )
     },
     {
+      field: "quantity",
+      headerName: "Số lượng",
+      width: 180,
+      render: (i) => (
+        <div className="text-center">
+          <span className="font-semibold text-blue-600">{i.quantity.toLocaleString("vi-VN")}</span>
+        </div>
+      )
+    },
+    {
       field: "status",
       headerName: "Trạng thái",
       width: 200,

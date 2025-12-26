@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { getNotificationsByReceiver, markNotificationAsRead, deleteNotification } from "@/libs/api/notification-api";
 import { Notification } from "@/libs/core/types";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { getNotificationRoute } from "@/libs/utils/notification-routing";
+import { useAuthStore } from "@/libs/stores";
 
 interface NotificationDropdownProps {
   onClose: () => void;
@@ -59,9 +62,15 @@ export default function NotificationDropdown({
   onClose,
 }: NotificationDropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const user = useAuthStore((s) => s.user);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingAsRead, setMarkingAsRead] = useState<string | null>(null);
+
+  // Check if user is admin (if pathname starts with /admin, assume admin)
+  const isAdmin = pathname?.startsWith("/admin") ?? false;
 
   // Fetch notifications khi component mount
   useEffect(() => {
@@ -110,6 +119,20 @@ export default function NotificationDropdown({
       toast.error("Không thể đánh dấu đã đọc");
     } finally {
       setMarkingAsRead(null);
+    }
+  };
+
+  // Xử lý click vào notification để điều hướng
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.isRead) {
+      await handleMarkAsRead(notification.id);
+    }
+
+    const route = getNotificationRoute(notification, isAdmin);
+
+    if (route) {
+      onClose();
+      router.push(route);
     }
   };
 
@@ -182,9 +205,9 @@ export default function NotificationDropdown({
           notifications.map((noti) => (
             <li
               key={noti.id}
-              className={`px-4 py-3 hover:bg-gray-50 transition relative group ${!noti.isRead ? "bg-blue-50/50" : ""
+              className={`px-4 py-3 hover:bg-gray-50 transition relative group cursor-pointer ${!noti.isRead ? "bg-blue-50/50" : ""
                 }`}
-              onClick={() => !noti.isRead && handleMarkAsRead(noti.id)}
+              onClick={() => handleNotificationClick(noti)}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">

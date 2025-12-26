@@ -1,6 +1,6 @@
 import { MediaType } from "../core/constants";
 
-// src/services/cloudinary.service.ts
+// src/libs/services/cloudinary.service.ts
 export interface CloudinaryUploadResult {
     url: string;
     type: MediaType;

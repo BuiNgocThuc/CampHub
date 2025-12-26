@@ -4,8 +4,9 @@
 import { Trash2, Minus, Plus, ShoppingBag, CheckSquare } from "lucide-react";
 import { useCartStore } from "@/libs/stores/cart.store";
 import { format, addDays } from "date-fns";
-import { AppImage } from "@/libs/components";
+import { AppImage, PrimaryAlert } from "@/libs/components";
 import { CartItem } from "@/libs/core/types";
+import { useState } from "react";
 
 interface CartItemListProps {
   selectedItems: Set<string>;
@@ -22,6 +23,20 @@ export default function CartItemList({
   const tomorrow = addDays(new Date(), 1);
   const formatDate = (date: Date) => format(date, "dd/MM/yyyy");
 
+  const [alert, setAlert] = useState<{
+    content: string;
+    type: "success" | "error" | "warning" | "info";
+    duration: number;
+  } | null>(null);
+
+  const showAlert = (
+    content: string,
+    type: "success" | "error" | "warning" | "info",
+    duration = 2000
+  ) => {
+    setAlert({ content, type, duration });
+  };
+
   //  tính tổng tiền 
   const calculateItemTotal = (item: CartItem) => {
     const itemRentalTotal = item.price * item.quantity * item.rentalDays;
@@ -37,13 +52,18 @@ export default function CartItemList({
   const handleDaysChange = async (id: string, days: number) => {
     const clamped = Math.max(1, Math.min(30, days));
     if (clamped !== days) return;
-    await updateRentalDays(id, clamped);
+    await updateQuantity(id, clamped);
   };
 
   const handleQuantityChange = async (id: string, quantity: number) => {
-    const clamped = Math.max(1, quantity);
+    const clamped = Math.max(1, quantity); // chănk số lượng >= 1
     if (clamped !== quantity) return;
-    await updateQuantity(id, clamped);
+    try {
+      await updateQuantity(id, clamped);
+    } catch (error) {
+      showAlert("Số lượng đã đạt tối đa", "error");
+    }
+    
   };
 
   if (items.length === 0) {
@@ -82,7 +102,7 @@ export default function CartItemList({
         </div>
       </div>
 
-      <div className="divide-y divide-gray-200">
+      <div className="divide-y-0">
         {items.map((item) => {
           const startDate = tomorrow;
           const endDate = addDays(tomorrow, item.rentalDays);
@@ -94,9 +114,8 @@ export default function CartItemList({
           return (
             <div
               key={item.id}
-              className={`p-6 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/30 transition-all duration-300 flex flex-col md:flex-row gap-6 group ${
-                isSelected ? "border-l-4 border-green-600" : ""
-              }`}
+              className={`p-6 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/30 transition-all duration-300 flex flex-col md:flex-row gap-6 group border-b border-gray-200 last:border-b-0 ${isSelected ? "border-l-4 border-l-green-600" : ""
+                }`}
             >
               {/* Checkbox */}
               <div className="flex items-start pt-2">
@@ -249,6 +268,16 @@ export default function CartItemList({
           );
         })}
       </div>
+
+      {/* Alert */}
+      {alert && (
+        <PrimaryAlert
+          content={alert.content}
+          type={alert.type}
+          duration={alert.duration}
+          onClose={() => setAlert(null)}
+        />
+      )}
     </div>
   );
 }

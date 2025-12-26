@@ -5,15 +5,25 @@ import { PrimaryButton, CustomizedButton, PrimaryModal, PrimaryAlert } from "@/l
 import { TextField, Box, Typography, IconButton, CircularProgress } from "@mui/material";
 import { Upload, X, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { ownerResponse } from "@/libs/api";
+import { ownerResponse, validateImageHash } from "@/libs/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { OwnerConfirmationRequest } from "@/libs/core/dto/request";
 import { MediaType } from "@/libs/core/constants";
+import { calculateFileHash, isFileSizeValid, isFileTypeAllowed, uploadMedia } from "@/libs/utils";
+import { set } from "zod";
+
+interface PendingFile {
+    file: File;
+    hash: string;
+    preview: string;
+    type: "IMAGE" | "VIDEO";
+}
 
 interface OwnerResponseModalProps {
     open: boolean;
     onClose: () => void;
     bookingId: string;
+    itemId: string;
     itemName: string;
     lesseeName: string;
     onSuccess?: (isAccept: boolean) => void;
@@ -23,23 +33,28 @@ export default function OwnerResponseModal({
     open,
     onClose,
     bookingId,
+    itemId,
     itemName,
     lesseeName,
     onSuccess,
 }: OwnerResponseModalProps) {
     const [isAccept, setIsAccept] = useState<boolean | null>(null);
     const [note, setNote] = useState("");
-    const [files, setFiles] = useState<File[]>([]);
+    const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
     const [uploading, setUploading] = useState(false);
     const [alert, setAlert] = useState<{
-        visible: boolean;
         content: string;
         type: "success" | "error" | "warning" | "info";
-    }>({
-        visible: false,
-        content: "",
-        type: "error",
-    });
+        duration: number;
+    } | null>(null);
+
+    const showAlert = (
+        content: string,
+        type: "success" | "error" | "warning" | "info",
+        duration = 2000
+    ) => {
+        setAlert({ content, type, duration });
+    };
 
     const queryClient = useQueryClient();
     const mutation = useMutation({
@@ -60,62 +75,109 @@ export default function OwnerResponseModal({
     const handleClose = () => {
         setIsAccept(null);
         setNote("");
-        setFiles([]);
+        setPendingFiles([]);
         onClose();
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files) return;
-        const newFiles = Array.from(e.target.files);
-        if (files.length + newFiles.length > 6) {
-            toast.error("Chỉ được upload tối đa 6 ảnh/video");
-            return;
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        setUploading(true);
+        const selectedFiles = event.target.files;
+        if (!selectedFiles) return;
+
+        const newFiles: PendingFile[] = [];
+
+        for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
+
+            if (!isFileTypeAllowed(file)) {
+                showAlert(`File ${file.name} không đúng định dạng ảnh/video`, "error");
+                setUploading(false);
+                continue;
+            }
+            if (!isFileSizeValid(file, 10)) { // Max 10MB
+                showAlert(`File ${file.name} quá lớn (Max 10MB)`, "error");
+                setUploading(false);
+                continue;
+            }
+
+            try {
+                const hash = await calculateFileHash(file);
+
+                const isDuplicateLocal = pendingFiles.some(f => f.hash === hash) || newFiles.some(f => f.hash === hash);
+                if (isDuplicateLocal) {
+                    showAlert(`Ảnh ${file.name} đã được chọn rồi.`, "warning");
+                    setUploading(false);
+                    continue;
+                }
+
+                const isValid = await validateImageHash(itemId, hash);
+
+                if (!isValid) {
+                    showAlert(`Ảnh ${file.name} đã tồn tại trong lịch sử của sản phẩm này.`, "error");
+                    setUploading(false);
+                    continue; // Bỏ qua, không add vào list
+                }
+
+                newFiles.push({
+                    file,
+                    hash,
+                    preview: URL.createObjectURL(file),
+                    type: file.type.startsWith("video") ? "VIDEO" : "IMAGE"
+                });
+            } catch (error) {
+                console.error("Lỗi xử lý file:", error);
+                showAlert("Không thể xử lý file " + file.name, "error");
+            } finally {
+                setUploading(false);
+            }
         }
-        setFiles(prev => [...prev, ...newFiles]);
+
+        if (newFiles.length > 0) {
+            setPendingFiles(prev => [...prev, ...newFiles]);
+        }
+        event.target.value = "";
     };
 
     const removeFile = (index: number) => {
-        setFiles(prev => prev.filter((_, i) => i !== index));
+        setPendingFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async () => {
         if (isAccept === null) {
-            toast.error("Vui lòng chọn Đồng ý hoặc Từ chối");
+            showAlert("Vui lòng chọn Đồng ý hoặc Từ chối", "info");
             return;
         }
 
-        // Validation: Nếu đồng ý nhưng không có ảnh/video đóng gói
-        if (isAccept && files.length === 0) {
-            setAlert({
-                visible: true,
-                content: "Vui lòng upload ít nhất 1 ảnh/video đóng gói",
-                type: "error",
-            });
+        // Nếu đồng ý nhưng không có ảnh/video đóng gói
+        if (isAccept && pendingFiles.length === 0) {
+            showAlert("Vui lòng upload ít nhất 1 ảnh/video đóng gói", "error");
             return;
         }
 
-        // Validation: Nếu từ chối nhưng không có lý do
+        // Nếu từ chối nhưng không có lý do
         if (!isAccept && !note.trim()) {
-            setAlert({
-                visible: true,
-                content: "Vui lòng nhập lý do từ chối",
-                type: "error",
-            });
+            showAlert("Vui lòng nhập lý do từ chối", "error");
             return;
         }
 
         setUploading(true);
         try {
+            const uploadedResources = await Promise.all(
+                pendingFiles.map(async (pf) => {
+                    const result = await uploadMedia(pf.file);
+                    return {
+                        url: result.url,
+                        type: result.type as MediaType,
+                        fileHash: pf.hash,
+                    };
+                })
+            );
+
             const request: OwnerConfirmationRequest = {
                 bookingId,
                 isAccepted: isAccept,
                 deliveryNote: isAccept ? note : undefined,
-                packagingMediaUrls: isAccept
-                    ? files.map(file => ({
-                        url: URL.createObjectURL(file), // tạm thời
-                        type: file.type.startsWith("video") ? MediaType.VIDEO : MediaType.IMAGE,
-                    }))
-                    : undefined,
+                packagingMediaUrls: uploadedResources
             };
 
             await mutation.mutateAsync(request);
@@ -128,12 +190,13 @@ export default function OwnerResponseModal({
 
     return (
         <>
-            {alert.visible && (
+            {/* Alert */}
+            {alert && (
                 <PrimaryAlert
                     content={alert.content}
                     type={alert.type}
-                    onClose={() => setAlert({ ...alert, visible: false })}
-                    duration={3000}
+                    duration={alert.duration}
+                    onClose={() => setAlert(null)}
                 />
             )}
 
@@ -205,14 +268,14 @@ export default function OwnerResponseModal({
                                 </Box>
                             </label>
 
-                            {files.length > 0 && (
+                            {pendingFiles.length > 0 && (
                                 <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, mt: 3 }}>
-                                    {files.map((file, i) => (
+                                    {pendingFiles.map((pf, i) => (
                                         <Box key={i} sx={{ position: "relative" }}>
-                                            {file.type.startsWith("video") ? (
-                                                <video src={URL.createObjectURL(file)} controls className="w-full h-32 object-cover rounded-lg" />
+                                            {pf.type === "VIDEO" ? (
+                                                <video src={pf.preview} controls className="w-full h-32 object-cover rounded-lg" />
                                             ) : (
-                                                <img src={URL.createObjectURL(file)} alt="" className="w-full h-32 object-cover rounded-lg" />
+                                                <img src={pf.preview} alt="" className="w-full h-32 object-cover rounded-lg" />
                                             )}
                                             <IconButton
                                                 onClick={() => removeFile(i)}

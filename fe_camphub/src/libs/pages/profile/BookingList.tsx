@@ -28,7 +28,7 @@ const statusConfig: Record<BookingStatus, { label: string; color: string; icon: 
     LATE_RETURN: { label: "Trả trễ", color: "bg-red-100 text-red-800", icon: <AlertCircle className="w-4 h-4" /> },
     OVERDUE: { label: "Quá hạn", color: "bg-red-200 text-red-900", icon: <AlertCircle className="w-4 h-4" /> },
     DAMAGED_ITEM: { label: "Hỏng đồ", color: "bg-red-200 text-red-900", icon: <AlertCircle className="w-4 h-4" /> },
-    FORFEITED: { label: "Bị tịch thu", color: "bg-black text-white", icon: <AlertCircle className="w-4 h-4" /> },
+    FORFEITED: { label: "Mất đồ", color: "bg-black text-white", icon: <AlertCircle className="w-4 h-4" /> },
 };
 
 const formatDate = (d: string) => format(new Date(d), "dd/MM/yyyy", { locale: vi });

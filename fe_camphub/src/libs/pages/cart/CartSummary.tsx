@@ -3,12 +3,9 @@
 
 import { useState, useEffect } from "react";
 import { PrimaryButton } from "@/libs/components";
-import { useCartStore } from "@/libs/stores/cart.store";
-import { useAuthStore } from "@/libs/stores/auth.store";
+import { useAuthStore, useCartStore } from "@/libs/stores";
 import { useRouter } from "next/navigation";
-import { checkout } from "@/libs/api/booking-api";
-import { getAccountById } from "@/libs/api/account-api";
-import { removeCartItem } from "@/libs/api/cart-api";
+import { checkout, getAccountById, removeCartItem } from "@/libs/api";
 import { Account } from "@/libs/core/types";
 import { addDays, format } from "date-fns";
 import { vi } from "date-fns/locale";

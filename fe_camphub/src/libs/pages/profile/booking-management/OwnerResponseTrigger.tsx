@@ -25,6 +25,7 @@ export default function OwnerResponseTrigger({ booking, onSuccess }: OwnerRespon
                 open={open}
                 onClose={() => setOpen(false)}
                 bookingId={booking.id}
+                itemId={booking.itemId || ""}
                 itemName={booking.itemName || "Không rõ"}
                 lesseeName={booking.lesseeName || "Khách vãng lai"}
                 onSuccess={onSuccess}

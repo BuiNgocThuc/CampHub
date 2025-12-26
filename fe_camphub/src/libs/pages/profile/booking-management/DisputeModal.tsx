@@ -8,10 +8,17 @@ import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createDispute, getAllDamageTypes, validateImageHash } from "@/libs/api";
 import type { Booking, DamageType, MediaResource } from "@/libs/core/types";
-import { useCloudinaryUpload } from "@/libs/hooks";
-import PrimarySelectField from "@/libs/components/TextFields/PrimarySelectField";
-import PrimaryTextField from "@/libs/components/TextFields/PrimaryTextField";
-import { calculateFileHash } from "@/libs/utils";
+import {PrimarySelectField, PrimaryTextField} from "@/libs/components";
+
+import { calculateFileHash, isFileSizeValid, isFileTypeAllowed, uploadMedia } from "@/libs/utils";
+import { MediaType } from "@/libs/core/constants";
+
+interface PendingFile {
+  file: File;
+  hash: string;
+  preview: string;
+  type: "IMAGE" | "VIDEO";
+}
 
 interface DisputeModalProps {
   open: boolean;
@@ -22,13 +29,25 @@ interface DisputeModalProps {
 
 export default function DisputeModal({ open, onClose, booking, onSuccess }: DisputeModalProps) {
   const queryClient = useQueryClient();
-  const { uploads, uploadFile } = useCloudinaryUpload();
 
   const [damageTypeId, setDamageTypeId] = useState<string>("");
   const [note, setNote] = useState("");
-  const [evidences, setEvidences] = useState<MediaResource[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [oldImageAlert, setOldImageAlert] = useState<{ visible: boolean }>({ visible: false });
+  const [alert, setAlert] = useState<{
+        content: string;
+        type: "success" | "error" | "warning" | "info";
+        duration: number;
+    } | null>(null);
+
+    const showAlert = (
+        content: string,
+        type: "success" | "error" | "warning" | "info",
+        duration = 2000
+    ) => {
+        setAlert({ content, type, duration });
+    };
 
   const { data: damageTypes = [], isLoading: loadingDamageTypes } = useQuery<DamageType[]>({
     queryKey: ["damageTypes"],
@@ -56,81 +75,123 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
   const handleClose = () => {
     setDamageTypeId("");
     setNote("");
-    setEvidences([]);
+    setPendingFiles([]);
     onClose();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    setIsUploading(true);
+    const selectedFiles = e.target.files;
+    if (!selectedFiles) return;
 
-    if (evidences.length + files.length > 10) {
+    if (pendingFiles.length + selectedFiles.length > 10) {
       toast.error("Tối đa 10 hình ảnh/video minh chứng");
       return;
     }
 
-    try {
-      setIsUploading(true);
-      let uploadedCount = 0;
-      for (const file of files) {
-        // Chỉ hash và validate cho ảnh, không validate video
-        if (file.type.startsWith("image")) {
-          const fileHash = await calculateFileHash(file);
-          const isValid = await validateImageHash(fileHash, booking.itemId);
+    const newFiles: PendingFile[] = [];
 
-          // Nếu hash đã tồn tại (ảnh cũ), hiển thị alert
-          if (isValid) {
-            setOldImageAlert({ visible: true });
-            continue; // Bỏ qua file này
-          }
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+
+      if (!isFileTypeAllowed(file)) {
+        showAlert(`File ${file.name} không đúng định dạng`, "error");
+        setIsUploading(false);
+        continue;
+      }
+      if (!isFileSizeValid(file, 10)) {
+        showAlert(`File ${file.name} quá lớn (Max 10MB)`, "error");
+        setIsUploading(false);
+        continue;
+      }
+      
+      try {
+        const hash = await calculateFileHash(file);
+
+        // Check local duplicate
+        const isDuplicateLocal = pendingFiles.some(f => f.hash === hash) || newFiles.some(f => f.hash === hash);
+        if (isDuplicateLocal) {
+          showAlert(`File ${file.name} đã được chọn rồi`, "warning");
+          setIsUploading(false);
+          continue;
         }
 
-        // Upload file (ảnh mới hoặc video)
-        const result = await uploadFile(file);
-        setEvidences(prev => [
-          ...prev,
-          {
-            url: result.url,
-            type: file.type.startsWith("video") ? "VIDEO" : "IMAGE",
-          } as MediaResource,
-        ]);
-        uploadedCount++;
+        // Check server duplicate
+        const isValid = await validateImageHash(booking.itemId, hash);
+        if (!isValid) {
+          showAlert(`Ảnh ${file.name} đã tồn tại trong lịch sử của sản phẩm này`, "error");
+          setIsUploading(false);
+          continue;
+        }
+
+        newFiles.push({
+          file,
+          hash,
+          preview: URL.createObjectURL(file),
+          type: file.type.startsWith("video") ? "VIDEO" : "IMAGE"
+        });
+
+      } catch (error) {
+        console.error("File processing error:", error);
+        showAlert(`Không thể xử lý file ${file.name}`, "error");
+        setIsUploading(false);
+      } finally {
+        setIsUploading(false);
       }
-      if (uploadedCount > 0) {
-        toast.success("Upload minh chứng thành công");
-      }
-    } catch (err) {
-      toast.error("Upload minh chứng thất bại");
-    } finally {
-      setIsUploading(false);
-      // reset input
-      e.target.value = "";
     }
+
+    if (newFiles.length > 0) {
+      setPendingFiles(prev => [...prev, ...newFiles]);
+    }
+    e.target.value = "";
   };
 
   const removeEvidence = (index: number) => {
-    setEvidences(prev => prev.filter((_, i) => i !== index));
+    setPendingFiles(prev => {
+      const newFiles = [...prev];
+      URL.revokeObjectURL(newFiles[index].preview); // Giải phóng bộ nhớ
+      newFiles.splice(index, 1);
+      return newFiles;
+    });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!damageTypeId) {
       toast.error("Vui lòng chọn loại hư tổn");
       return;
     }
-    if (evidences.length === 0) {
+    if (pendingFiles.length === 0) {
       toast.error("Vui lòng upload ít nhất 1 hình ảnh/video minh chứng");
       return;
     }
 
-    disputeMut.mutate({
-      bookingId: booking.id,
-      damageTypeId,
-      note,
-      evidenceUrls: evidences,
-    });
-  };
+    setIsSubmitting(true);
+    try {
+      const uploadedResources = await Promise.all(
+        pendingFiles.map(async (pf) => {
+          const result = await uploadMedia(pf.file);
+          return {
+            url: result.url,
+            type: result.type as MediaType,
+            fileHash: pf.hash,
+          };
+        })
+      );
 
-  const uploadingCount = Object.values(uploads).filter(u => u.uploading).length;
+      await disputeMut.mutateAsync({
+        bookingId: booking.id,
+        damageTypeId,
+        note,
+        evidenceUrls: uploadedResources,
+      });
+      
+    } catch (error) {
+      console.error(error);
+      if (!disputeMut.isError) toast.error("Lỗi khi upload minh chứng, vui lòng thử lại");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <PrimaryModal
@@ -205,7 +266,7 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
               accept="image/*,video/*"
               onChange={handleFileChange}
               style={{ display: "none" }}
-              disabled={isUploading || uploadingCount > 0}
+              disabled={isSubmitting}
             />
             <Box
               sx={{
@@ -218,7 +279,7 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
                 "&:hover": { bgcolor: "#dbeafe" },
               }}
             >
-              {isUploading || uploadingCount > 0 ? (
+              {isUploading ? (
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                   <CircularProgress size={28} />
                   <Typography variant="body2" color="text.secondary">
@@ -236,7 +297,7 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
             </Box>
           </label>
 
-          {evidences.length === 0 && (
+          {pendingFiles.length === 0 && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 1.5, color: "#9ca3af", fontSize: 13 }}>
               <AlertCircle size={14} />
               <span>Nên cung cấp hình ảnh rõ ràng: trước & sau, bao bì, chi tiết hư hại...</span>
@@ -245,14 +306,14 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
         </Box>
 
         {/* Danh sách minh chứng đã upload */}
-        {evidences.length > 0 && (
+        {pendingFiles.length > 0 && (
           <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 1.5, mb: 2 }}>
-            {evidences.map((media, idx) => (
-              <Box key={idx} sx={{ position: "relative", borderRadius: 2, overflow: "hidden", border: "1px solid #e5e7eb" }}>
-                {media.type === "VIDEO" ? (
-                  <video src={media.url} controls className="w-full h-28 object-cover" />
+            {pendingFiles.map((pf, idx) => (
+              <Box key={idx} sx={{ position: "relative", borderRadius: 2, overflow: "hidden", border: "1px solid #e5e7eb", height: 112 }}>
+                {pf.type === "VIDEO" ? (
+                  <video src={pf.preview} controls className="w-full h-full object-cover" />
                 ) : (
-                  <img src={media.url} alt="" className="w-full h-28 object-cover" />
+                  <img src={pf.preview} alt="preview" className="w-full h-full object-cover" />
                 )}
                 <IconButton
                   size="small"
@@ -283,21 +344,22 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
           <PrimaryButton
             content={disputeMut.isPending ? "Đang gửi khiếu nại..." : "Gửi khiếu nại"}
             onClick={handleSubmit}
-            disabled={disputeMut.isPending || isUploading || uploadingCount > 0}
+            disabled={disputeMut.isPending || isSubmitting}
             icon={disputeMut.isPending ? <CircularProgress size={18} /> : undefined}
             className="bg-red-600 hover:bg-red-700"
           />
         </Box>
       </Box>
 
-      {oldImageAlert.visible && (
-        <PrimaryAlert
-          content="Ảnh này đã được sử dụng trước đó. Vui lòng upload ảnh mới để làm minh chứng."
-          type="warning"
-          duration={3000}
-          onClose={() => setOldImageAlert({ visible: false })}
-        />
-      )}
+       {/* Alert */}
+            {alert && (
+                <PrimaryAlert
+                    content={alert.content}
+                    type={alert.type}
+                    duration={alert.duration}
+                    onClose={() => setAlert(null)}
+                />
+            )}
     </PrimaryModal>
   );
 }
