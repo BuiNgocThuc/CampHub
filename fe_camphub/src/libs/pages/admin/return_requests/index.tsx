@@ -15,22 +15,22 @@ import { PrimaryAlert, PrimaryDataGrid, PrimaryModal } from "@/libs/components";
 import { useQuery } from "@tanstack/react-query";
 import { getReturnRequests } from "@/libs/api";
 import { ReturnRequest } from "@/libs/core/types";
-import { ReturnRequestStatus } from "@/libs/core/constants";
+import { ReasonReturnType, ReturnRequestStatus } from "@/libs/core/constants";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import ReturnRequestDetailModal from "./return-request-detail-modal";
 
-const statusConfig: Record<string, { label: string; color: "warning" | "success" | "error" }> = {
+const statusConfig: Record<string, { label: string; color: "warning" | "success" | "error" | "info" }> = {
     // numeric enum values
-    [ReturnRequestStatus.PENDING]: { label: "Chờ xác nhận", color: "warning" },
-    [ReturnRequestStatus.PROCESSING]: { label: "Chờ xử lý", color: "warning" },
+    [ReturnRequestStatus.PENDING]: { label: "Chờ nhận hàng", color: "warning" },
+    [ReturnRequestStatus.PROCESSING]: { label: "Chờ xử lý", color: "info" },
     [ReturnRequestStatus.APPROVED]: { label: "Đã hoàn tiền", color: "success" },
     [ReturnRequestStatus.REJECTED]: { label: "Bị từ chối", color: "error" },
     [ReturnRequestStatus.AUTO_REFUNDED]: { label: "Tự hoàn tiền (hết hạn)", color: "success" },
     [ReturnRequestStatus.RESOLVED]: { label: "Đã hoàn tất", color: "success" },
     [ReturnRequestStatus.CLOSED_BY_DISPUTE]: { label: "Đã chuyển sang khiếu nại", color: "warning" },
     // string values from API
-    PENDING: { label: "Chờ xác nhận", color: "warning" },
-    PROCESSING: { label: "Chờ xử lý", color: "warning" },
+    PENDING: { label: "Chờ nhận hàng", color: "warning" },
+    PROCESSING: { label: "Chờ xử lý", color: "info" },
     APPROVED: { label: "Đã hoàn tiền", color: "success" },
     REJECTED: { label: "Bị từ chối", color: "error" },
     AUTO_REFUNDED: { label: "Tự hoàn tiền (hết hạn)", color: "success" },

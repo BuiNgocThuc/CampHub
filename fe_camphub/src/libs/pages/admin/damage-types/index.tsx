@@ -1,4 +1,3 @@
-// app/admin/damage-types/DamageTypeManagement.tsx
 "use client";
 
 import { useState } from "react";
@@ -21,11 +20,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getAllDamageTypes,
     createDamageType,
+    updateDamageType,
     deleteDamageType,
 } from "@/libs/api/damage-type-api";
 import { DamageType } from "@/libs/core/types";
 import DamageTypeForm from "./damage-type-detail";
-import { toast } from "sonner";
 import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 export default function DamageTypeManagement() {
@@ -70,6 +69,21 @@ export default function DamageTypeManagement() {
         },
     });
 
+    const updateMutation = useMutation({
+        mutationFn: updateDamageType,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["damageTypes"] });
+            setOpenModal(false);
+            setSelected(null);
+            setIsCreate(false);
+            showAlert("Cập nhật loại hư tổn thành công!", "success");
+        },
+        onError: (error: any) => {
+            const errorMessage = error?.response?.data?.message || error?.message || "Cập nhật thất bại";
+            showAlert(errorMessage, "error");
+        },
+    });
+
     const deleteMutation = useMutation({
         mutationFn: deleteDamageType,
         onSuccess: () => {
@@ -108,7 +122,13 @@ export default function DamageTypeManagement() {
     };
 
     const handleSave = (data: DamageType) => {
-        createMutation.mutate(data);
+        if (isCreate) {
+            createMutation.mutate(data);
+        } else {
+            if (data.id) {
+                updateMutation.mutate(data);
+            }
+        }
     };
 
     const columns: GridColDef<DamageType>[] = [
@@ -118,8 +138,8 @@ export default function DamageTypeManagement() {
             width: 250,
             flex: 1.5,
             minWidth: 200,
-            align: "center",
-            headerAlign: "center",
+            align: "left",
+            headerAlign: "left",
             renderCell: (params: GridRenderCellParams<DamageType>) => (
                 <Typography fontSize="0.875rem" fontWeight="medium">
                     {params.row.name}
@@ -132,8 +152,8 @@ export default function DamageTypeManagement() {
             width: 400,
             flex: 2,
             minWidth: 300,
-            align: "center",
-            headerAlign: "center",
+            align: "left",
+            headerAlign: "left",
             renderCell: (params: GridRenderCellParams<DamageType>) => (
                 <Typography fontSize="0.875rem" color="text.secondary">
                     {params.row.description || "—"}
@@ -143,18 +163,20 @@ export default function DamageTypeManagement() {
         {
             field: "compensationRate",
             headerName: "Tỷ lệ bồi thường",
-            width: 180,
+            width: 150,
             flex: 1,
             minWidth: 150,
             align: "center",
             headerAlign: "center",
             renderCell: (params: GridRenderCellParams<DamageType>) => (
-                <Chip
-                    label={`${((params.row.compensationRate || 0) * 100).toFixed(0)}%`}
-                    color="primary"
-                    size="small"
-                    sx={{ fontWeight: "bold" }}
-                />
+                <Box width="100%" display="flex" justifyContent="center" alignItems="center">
+                    <Chip
+                        label={`${((params.row.compensationRate || 0) * 100).toFixed(0)}%`}
+                        color="primary"
+                        size="small"
+                        sx={{ fontWeight: "bold" }}
+                    />
+                </Box>
             ),
         },
         {

@@ -55,6 +55,8 @@ export const getDisputeById = async (disputeId: string): Promise<Dispute> => {
 // get all disputes
 export const getAllDisputes = async (): Promise<Dispute[]> => {
     const response = await api.get<ApiResponse<DisputeResponse[]>>("/disputes");
+    console.log(response.data.result);
+    
     return response.data.result.map(disputeMap.fromResponse);
 };
 

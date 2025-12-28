@@ -10,6 +10,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(name = "damage_types")
@@ -18,6 +19,7 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@EntityListeners(AuditingEntityListener.class)
 public class DamageType {
 
     @Id
@@ -32,6 +34,7 @@ public class DamageType {
     @Column(name = "compensation_rate")
     Double compensationRate;
 
+    @Builder.Default
     Boolean isDeleted = false;
 
     @CreatedDate

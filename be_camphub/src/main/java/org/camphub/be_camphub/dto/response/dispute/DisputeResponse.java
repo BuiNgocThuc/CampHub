@@ -26,7 +26,7 @@ public class DisputeResponse {
 
     String description;
     List<MediaResourceResponse> evidenceUrls;
-    String damageTypeName;
+    String damageTypeName; // tên loại thiệt hại
     String damageTypeId;
     Double compensationRate;
     String status;
