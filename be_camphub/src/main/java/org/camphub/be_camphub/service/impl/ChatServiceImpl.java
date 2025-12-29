@@ -132,7 +132,6 @@ public class ChatServiceImpl implements ChatService {
     private String getOrCreateChatCode(String user1Id, String user2Id) {
         List<String> participantIds = List.of(user1Id, user2Id);
 
-        // Query MongoDB với List<String>
         Optional<ChatRoom> existingRoom = chatRoomRepository.findByParticipantIdsContainsAll(participantIds);
 
         if (existingRoom.isPresent()) {
@@ -152,7 +151,6 @@ public class ChatServiceImpl implements ChatService {
         return chatCode;
     }
 
-    // Logic tạo code dựa trên so sánh chuỗi String (Lexicographical comparison)
     // Đảm bảo "A" vs "B" luôn ra "A_B" dù input theo thứ tự nào
     private String generateChatCode(String a, String b) {
         return a.compareTo(b) < 0 ? a + "_" + b : b + "_" + a;

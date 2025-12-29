@@ -36,7 +36,8 @@ public class Transaction {
     TransactionType type;
 
     @Enumerated(EnumType.STRING)
-    TransactionStatus status = TransactionStatus.PENDING;
+    @Builder.Default
+    TransactionStatus status = TransactionStatus.SUCCESS;
 
     @CreatedDate
     @Column(name = "created_at")

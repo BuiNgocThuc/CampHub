@@ -52,7 +52,7 @@ export default function CartItemList({
   const handleDaysChange = async (id: string, days: number) => {
     const clamped = Math.max(1, Math.min(30, days));
     if (clamped !== days) return;
-    await updateQuantity(id, clamped);
+    await updateRentalDays(id, clamped);
   };
 
   const handleQuantityChange = async (id: string, quantity: number) => {

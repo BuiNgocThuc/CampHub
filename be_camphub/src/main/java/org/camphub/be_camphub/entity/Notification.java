@@ -48,11 +48,12 @@ public class Notification {
     @Column(name = "reference_id")
     UUID referenceId;
 
+    @Builder.Default
     @Column(name = "is_read")
     Boolean isRead = false;
 
-    @Column(name = "is_broadcast")
     @Builder.Default
+    @Column(name = "is_broadcast")
     Boolean isBroadcast = false;
 
     @CreatedDate

@@ -47,6 +47,7 @@ public class Dispute {
     @Column(name = "damage_type_id")
     UUID damageTypeId;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     DisputeStatus status = DisputeStatus.PENDING_REVIEW;
 

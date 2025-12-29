@@ -1,20 +1,24 @@
-// src/libs/stores/useChatStore.ts
 import { create } from "zustand";
+
+interface ReceiverInfo {
+    id: string;
+    fullName: string;
+    avatar: string;
+}
 
 interface ChatStore {
     isOpen: boolean;
-    receiverId: string | null;
-    openChat: (receiverId: string) => void;
+    receiverInfo: ReceiverInfo | null;
+    openChat: (info: ReceiverInfo | null) => void;
     closeChat: () => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
     isOpen: false,
-    receiverId: null,
-    openChat: (receiverId) => {
-        console.log(receiverId);
-        set({ isOpen: true, receiverId }); // mở chat và lưu id người nhận
+    receiverInfo: null,
+    openChat: (info) => {
+        set({ isOpen: true, receiverInfo: info });
     },
     closeChat: () =>
-        set({ isOpen: false, receiverId: null }), // đóng chat
+        set({ isOpen: false, receiverInfo: null }),
 }));

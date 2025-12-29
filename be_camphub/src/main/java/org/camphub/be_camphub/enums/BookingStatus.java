@@ -13,8 +13,8 @@ public enum BookingStatus {
     COMPLETED, // hoàn thành
     DISPUTE_PENDING_REVIEW, // khiếu nại, chờ xử lý
     COMPENSATION_COMPLETED, // bồi thường hoàn thành
-    LATE_RETURN, // TRẢ MUỘN
-    OVERDUE, // QUÁ HẠN
-    DAMAGED_ITEM, // HÀNG BỊ HỎNG
-    FORFEITED, // TỊCH THU
+    LATE_RETURN, // trả muộn
+    OVERDUE, // quá hạn
+    DAMAGED_ITEM, // hàng trả bị hư hỏng
+    FORFEITED, // mất đồ
 }

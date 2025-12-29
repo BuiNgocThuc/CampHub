@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { CustomizedButton, Tabs, TabsList, TabsTrigger, PrimaryButton, PrimaryAlert, PrimaryPagination } from "@/libs/components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBookingsByLessor, lessorConfirmReturnForReturnRequest } from "@/libs/api";
+import { getBookingsByLessor, lessorConfirmReturn, lessorConfirmReturnForReturnRequest } from "@/libs/api";
 import { MessageSquare } from "lucide-react";
 import BookingList from "./BookingList";
 import { Booking, ExtensionRequest } from "@/libs/core/types";
@@ -13,6 +13,7 @@ import ReturnRequestDetailModal from "./booking-management/ReturnRequestDetailMo
 import { BookingStatus, ExtensionStatus } from "@/libs/core/constants";
 import { toast } from "sonner";
 import { approveExtensionRequest, getAllExtensionRequests, rejectExtensionRequest } from "@/libs/api/extension-request-api";
+import { LessorConfirmReturnRequest } from "@/libs/core/dto/request/return-request.request";
 
 const tabs = ["Tất cả", "Chờ xác nhận", "Đã từ chối", "Chờ giao hàng", "Đang cho thuê", "Chờ nhận lại đồ", "Hoàn thành", "Khiếu nại"] as const;
 type Tab = (typeof tabs)[number];
@@ -58,7 +59,7 @@ export default function RentalOrders() {
         queryFn: getBookingsByLessor,
     });
 
-    const confirmReturnMut = useMutation({
+    const confirmRefundReturnMut = useMutation({
         mutationFn: lessorConfirmReturnForReturnRequest,
         onSuccess: () => {
             toast.success("Đã xác nhận nhận lại hàng trả");
@@ -71,12 +72,29 @@ export default function RentalOrders() {
         },
     });
 
+    const confirmNormalReturnMut = useMutation({
+        mutationFn: lessorConfirmReturn,
+        onSuccess: () => {
+            toast.success("Đã xác nhận nhận lại đồ (Hoàn tất đơn thuê)");
+            queryClient.invalidateQueries({ queryKey: ["lessorBookings"] });
+        },
+        onError: (error: any) => {
+            const msg = error?.response?.data?.message || "Lỗi xác nhận";
+            toast.error(msg);
+        },
+    });
+
     const handleLessorConfirmReturn = (booking: Booking) => {
-        if (confirmReturnMut.isPending) return;
-        if (!window.confirm("Xác nhận bạn đã nhận lại đầy đủ đồ từ khách thuê cho đơn này?")) {
+        if (confirmRefundReturnMut.isPending || confirmNormalReturnMut.isPending) return;
+
+        if (!window.confirm("Xác nhận bạn đã nhận lại đầy đủ đồ từ khách thuê?")) {
             return;
         }
-        confirmReturnMut.mutate({ bookingId: booking.id });
+        if (booking.status === "RETURN_REFUND_REQUESTED") {
+            confirmRefundReturnMut.mutate({ bookingId: booking.id } as LessorConfirmReturnRequest); 
+        } else {
+            confirmNormalReturnMut.mutate(booking.id);
+        }
     };
 
     const filteredBookings = useMemo(() => {
@@ -117,13 +135,15 @@ export default function RentalOrders() {
             return <OwnerResponseTrigger booking={booking} onSuccess={handleOwnerResponseSuccess} />;
         }
         if (["RETURNED_PENDING_CHECK", "RETURN_REFUND_REQUESTED"].includes(booking.status)) {
+            const isProcessing = confirmRefundReturnMut.isPending || confirmNormalReturnMut.isPending;
+            
             return (
                 <div className="flex gap-3">
                     <PrimaryButton
-                        content={confirmReturnMut.isPending ? "Đang xác nhận..." : "Xác nhận đã nhận lại hàng"}
+                        content={isProcessing ? "Đang xử lý..." : "Xác nhận đã nhận lại hàng"}
                         className="bg-blue-600 hover:bg-blue-700"
                         onClick={() => handleLessorConfirmReturn(booking)}
-                        disabled={confirmReturnMut.isPending}
+                        disabled={isProcessing}
                     />
                     <CustomizedButton
                         content="Khiếu nại"

@@ -5,11 +5,11 @@ import ChatModal from "./ChatModal";
 import { useChatStore } from "@/libs/stores";
 
 export default function GlobalChatButton() {
-    const { isOpen, openChat, closeChat, receiverId } = useChatStore();
+    const { isOpen, openChat, closeChat } = useChatStore();
 
     const handleClick = () => {
         if (isOpen) closeChat();
-        else openChat("default"); // ví dụ mở chat mặc định (nếu bấm nút 💬)
+        else openChat(null);
     };
 
     return (
@@ -22,12 +22,7 @@ export default function GlobalChatButton() {
                 💬
             </button>
 
-            {isOpen && (
-                <ChatModal
-                    initialReceiverId={receiverId ?? "unknown"}
-                    onClose={closeChat}
-                />
-            )}
+            {isOpen && <ChatModal onClose={closeChat} />}
         </>
     );
 }

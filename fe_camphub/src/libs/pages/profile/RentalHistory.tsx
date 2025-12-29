@@ -110,7 +110,7 @@ export default function RentalHistory() {
     }
 
     // Khi đến hạn trả
-    if (booking.status === BookingStatus.DUE_FOR_RETURN) {
+    if (booking.status === BookingStatus.DUE_FOR_RETURN || booking.status === BookingStatus.LATE_RETURN) {
       return (
         <div className="flex flex-wrap gap-3 justify-end">
           <PrimaryButton

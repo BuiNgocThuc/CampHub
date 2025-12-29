@@ -1,12 +1,14 @@
 package org.camphub.be_camphub.service.impl;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.transaction.Transactional;
 
+import lombok.extern.slf4j.Slf4j;
 import org.camphub.be_camphub.dto.request.dispute.AdminReviewDisputeRequest;
 import org.camphub.be_camphub.dto.request.dispute.DisputeCreationRequest;
 import org.camphub.be_camphub.dto.request.notification.NotificationCreationRequest;
@@ -25,6 +27,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -52,7 +55,7 @@ public class DisputeServiceImpl implements DisputeService {
         if (!booking.getLessorId().equals(lessorId)) throw new AppException(ErrorCode.UNAUTHORIZED);
 
         // Đóng các ReturnRequest đang mở (PENDING / WAITING ...)
-        closeOpenReturnRequest(booking);
+        freezeReturnRequestIfAny(booking);
 
         // Cập nhật booking
         booking.setStatus(BookingStatus.DISPUTE_PENDING_REVIEW);
@@ -62,14 +65,9 @@ public class DisputeServiceImpl implements DisputeService {
         dispute.setReporterId(lessorId);
         dispute.setDefenderId(booking.getLesseeId());
         dispute.setBookingId(booking.getId());
+        dispute.setStatus(DisputeStatus.PENDING_REVIEW);
 
         disputeRepository.save(dispute);
-
-        itemRepository.findById(booking.getItemId()).ifPresent(item -> {
-            item.setStatus(ItemStatus.BANNED);
-            itemRepository.save(item);
-        });
-        // ghi vào item log
 
         // thông báo đến tất cả admin có khiếu nại mới cần xử lý
         notificationService.notifyAllAdmins(NotificationCreationRequest.builder()
@@ -88,7 +86,6 @@ public class DisputeServiceImpl implements DisputeService {
     @Override
     @Transactional
     public DisputeResponse adminReviewDispute(UUID adminId, AdminReviewDisputeRequest request) {
-        // 1. Load dispute + booking
         Dispute dispute = disputeRepository
                 .findById(request.getDisputeId())
                 .orElseThrow(() -> new AppException(ErrorCode.DISPUTE_NOT_FOUND));
@@ -97,13 +94,65 @@ public class DisputeServiceImpl implements DisputeService {
                 .findById(dispute.getBookingId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
-        // 2. Fill admin metadata
+        // Setup thông tin Admin xử lý
         dispute.setAdminId(adminId);
         dispute.setAdminNote(request.getAdminNote());
         dispute.setResolvedAt(LocalDateTime.now());
         dispute.setStatus(DisputeStatus.RESOLVED);
 
-        // 3. Load accounts
+        // Tính toán tổng tiền đang nằm ở ví hệ thống (System Wallet)
+        long days = ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate()) + 1;
+        double totalRentalFee = booking.getPricePerDay() * booking.getQuantity() * days;
+        double totalDeposit = Optional.ofNullable(booking.getDepositAmount()).orElse(0.0) * booking.getQuantity();
+
+        // Tính tiền Phạt (Compensation) từ Cọc
+        DamageType damageType = damageTypeRepository.findById(dispute.getDamageTypeId()).orElse(null);
+        double rate = (damageType != null) ? damageType.getCompensationRate() : 0.0;
+        double compensationAmount = 0.0;
+
+        if (Boolean.TRUE.equals(request.getIsApproved())) {
+            // Admin chấp nhận khiếu nại -> Có phạt
+            compensationAmount = Math.round(totalDeposit * rate * 100.0) / 100.0;
+            dispute.setAdminDecision(DisputeDecision.APPROVED);
+        } else {
+            // Admin từ chối -> Không phạt
+            dispute.setAdminDecision(DisputeDecision.REJECTED);
+        }
+        dispute.setCompensationAmount(compensationAmount);
+
+
+        // Tìm cả những cái đang bị CLOSED_BY_DISPUTE
+        Optional<ReturnRequest> returnReqOpt = returnRequestRepository
+                .findFirstByBookingIdAndStatusIn(booking.getId(),
+                        List.of(ReturnRequestStatus.CLOSED_BY_DISPUTE));
+
+        double lessorReceived = 0.0;
+        double lesseeReceived = 0.0;
+
+        // tiền phạt (lấy từ cọc đưa cho chủ)
+        lessorReceived += compensationAmount;
+
+        // tiền cọc dư (trả về khách)
+        double remainingDeposit = Math.max(0, totalDeposit - compensationAmount);
+        lesseeReceived += remainingDeposit;
+
+        // tiền thuê (phân nhánh)
+        if (returnReqOpt.isPresent()) {
+            // nếu có return request (chồng chéo return request + dispute)
+            lesseeReceived += totalRentalFee;
+
+            // Mở lại Return Request để Admin duyệt tiếp về mặt "Lý do" (Trust Score)
+            ReturnRequest rr = returnReqOpt.get();
+            rr.setStatus(ReturnRequestStatus.PROCESSING);
+            rr.setAdminNote("Dispute đã xong (Đã chia tiền). Vui lòng duyệt lý do trả hàng.");
+            returnRequestRepository.save(rr);
+
+        } else {
+            // không có return request (chỉ có dispute)
+            lessorReceived += totalRentalFee;
+        }
+
+        // Load accounts
         Account system = accountRepository
                 .findSystemWallet()
                 .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
@@ -116,128 +165,44 @@ public class DisputeServiceImpl implements DisputeService {
                 .findById(booking.getLesseeId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        DamageType damageType = damageTypeRepository
-                .findById(dispute.getDamageTypeId())
-                .orElseThrow(() -> new AppException(ErrorCode.DAMAGE_TYPE_NOT_FOUND));
 
-        // 4. Compute compensation amount (based on deposit * damageRate)
-        // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
-        double deposit = Optional.ofNullable(booking.getDepositAmount()).orElse(0.0) * booking.getQuantity();
-        double rate = Optional.ofNullable(damageType)
-                .map(DamageType::getCompensationRate)
-                .orElse(0.0);
-        double compAmount = Math.round(deposit * rate * 100.0) / 100.0;
-
-        if (Boolean.TRUE.equals(request.getIsApproved())) {
-            // Admin CHẤP NHẬN khiếu nại -> chuyển tiền bồi thường cho lessor
-            dispute.setAdminDecision(DisputeDecision.APPROVED);
-            dispute.setCompensationAmount(compAmount);
-
-            // Kiểm tra số dư hệ thống
-            if (system.getCoinBalance() < compAmount) {
-                throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
-            }
-
-            // Thực hiện chuyển tiền (system -> lessor)
-            system.setCoinBalance(system.getCoinBalance() - compAmount);
-            lessor.setCoinBalance(lessor.getCoinBalance() + compAmount);
-
-            accountRepository.saveAll(List.of(system, lessor));
-
-            // Ghi transaction: compensation payout
-            Transaction compTx = Transaction.builder()
-                    .fromAccountId(system.getId())
-                    .toAccountId(lessor.getId())
-                    .amount(compAmount)
-                    .type(TransactionType.COMPENSATION_PAYOUT)
-                    .status(TransactionStatus.SUCCESS)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            transactionRepository.save(compTx);
-
-            // Link transaction -> booking
-            transactionBookingRepository.save(TransactionBooking.builder()
-                    .transactionId(compTx.getId())
-                    .bookingId(booking.getId())
-                    .createdAt(LocalDateTime.now())
-                    .build());
-
-            // Update booking status (đánh dấu dispute đã được bồi thường)
-            booking.setStatus(BookingStatus.COMPENSATION_COMPLETED);
-            bookingRepository.save(booking);
-
-            // Giảm trust_score của khách thuê (lessee)
-            double penalty;
-            if (rate < 0.1) penalty = 2.0;
-            else if (rate < 0.3) penalty = 5.0;
-            else penalty = 10.0;
-
-            double newTrust = Math.max(0, lessee.getTrustScore() - penalty);
-            lessee.setTrustScore((int) newTrust);
-            accountRepository.save(lessee);
-
-            // Khóa sản phẩm
-            if (rate >= 0.3) {
-                Item item = itemRepository
-                        .findById(booking.getItemId())
-                        .orElseThrow(() -> new AppException(ErrorCode.ITEM_NOT_FOUND));
-
-                item.setStatus(ItemStatus.BANNED);
-                itemRepository.save(item);
-            }
-
-            // Thông báo kết quả tranh chấp cho lessor và lessee
-            notificationService.create(NotificationCreationRequest.builder()
-                    .receiverId(lessor.getId())
-                    .senderId(adminId)
-                    .type(NotificationType.DISPUTE_RESOLVED_ACCEPTED)
-                    .title("Kết quả xử lý khiếu nại")
-                    .content("Admin đã chấp nhận khiếu nại và bồi thường " + compAmount + " coin.")
-                    .referenceType(ReferenceType.BOOKING)
-                    .referenceId(booking.getId())
-                    .build());
-
-            notificationService.create(NotificationCreationRequest.builder()
-                    .receiverId(lessee.getId())
-                    .senderId(adminId)
-                    .type(NotificationType.DISPUTE_RESOLVED_ACCEPTED)
-                    .title("Kết quả xử lý khiếu nại")
-                    .content("Admin đã chấp nhận khiếu nại liên quan đến đơn " + booking.getId() + ".")
-                    .referenceType(ReferenceType.BOOKING)
-                    .referenceId(booking.getId())
-                    .build());
+        if (system.getCoinBalance() < (lessorReceived + lesseeReceived)) {
+            // Log error critical, nhưng vẫn save dispute state
+            log.error("System wallet error ID: {}", booking.getId());
+            throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
 
         } else {
-            // Admin TỪ CHỐI khiếu nại -> không chuyển tiền bồi thường
-            dispute.setAdminDecision(DisputeDecision.REJECTED);
-            dispute.setCompensationAmount(0.0);
+            // Trừ ví hệ thống
+            system.setCoinBalance(system.getCoinBalance() - (lessorReceived + lesseeReceived));
 
-            booking.setStatus(BookingStatus.RETURN_REFUND_PROCESSING);
-            bookingRepository.save(booking);
+            // Cộng ví Chủ
+            if (lessorReceived > 0) {
+                lessor.setCoinBalance(lessor.getCoinBalance() + lessorReceived);
+                createTransaction(system.getId(), lessor.getId(), lessorReceived, TransactionType.COMPENSATION_PAYOUT, booking.getId());
+            }
 
-            // Thông báo kết quả tranh chấp bị từ chối cho cả lessor và lessee
-            notificationService.create(NotificationCreationRequest.builder()
-                    .receiverId(lessor.getId())
-                    .senderId(adminId)
-                    .type(NotificationType.DISPUTE_RESOLVED_REJECTED)
-                    .title("Kết quả xử lý khiếu nại")
-                    .content("Admin đã từ chối khiếu nại liên quan đến đơn " + booking.getId() + ".")
-                    .referenceType(ReferenceType.BOOKING)
-                    .referenceId(booking.getId())
-                    .build());
+            // Cộng ví Khách
+            if (lesseeReceived > 0) {
+                lessee.setCoinBalance(lessee.getCoinBalance() + lesseeReceived);
+                createTransaction(system.getId(), lessee.getId(), lesseeReceived, TransactionType.REFUND_FULL, booking.getId());
+            }
 
-            notificationService.create(NotificationCreationRequest.builder()
-                    .receiverId(lessee.getId())
-                    .senderId(adminId)
-                    .type(NotificationType.DISPUTE_RESOLVED_REJECTED)
-                    .title("Kết quả xử lý khiếu nại")
-                    .content("Admin đã từ chối khiếu nại liên quan đến đơn " + booking.getId() + ".")
-                    .referenceType(ReferenceType.BOOKING)
-                    .referenceId(booking.getId())
-                    .build());
+            accountRepository.saveAll(List.of(system, lessor, lessee));
         }
 
+        booking.setStatus(BookingStatus.COMPLETED);
+        bookingRepository.save(booking);
+
         disputeRepository.save(dispute);
+
+        sendDisputeResolutionNotifications(
+                adminId,
+                dispute,
+                booking,
+                request.getIsApproved(),
+                compensationAmount
+        );
+
         return enrichDisputeResponse(dispute);
     }
 
@@ -270,16 +235,75 @@ public class DisputeServiceImpl implements DisputeService {
                 .toList();
     }
 
-    private void closeOpenReturnRequest(Booking booking) {
-        List<ReturnRequestStatus> activeStatuses = List.of(ReturnRequestStatus.PENDING, ReturnRequestStatus.PROCESSING);
-
+    private void freezeReturnRequestIfAny(Booking booking) {
+        // Tìm xem có request nào đang chạy không để đóng băng
         returnRequestRepository
-                .findFirstByBookingIdAndStatusIn(booking.getId(), activeStatuses)
+                .findFirstByBookingIdAndStatusIn(booking.getId(), List.of(ReturnRequestStatus.PENDING, ReturnRequestStatus.PROCESSING))
                 .ifPresent(rr -> {
-                    rr.setStatus(ReturnRequestStatus.CLOSED_BY_DISPUTE);
-                    rr.setResolvedAt(LocalDateTime.now());
+                    rr.setStatus(ReturnRequestStatus.CLOSED_BY_DISPUTE); // Đánh dấu tạm khóa
                     returnRequestRepository.save(rr);
                 });
+    }
+
+    private void createTransaction(UUID from, UUID to, double amount, TransactionType type, UUID bookingId) {
+        Transaction tx = Transaction.builder()
+                .fromAccountId(from).toAccountId(to).amount(amount).type(type)
+                .status(TransactionStatus.SUCCESS).createdAt(LocalDateTime.now()).build();
+        transactionRepository.save(tx);
+        transactionBookingRepository.save(TransactionBooking.builder().transactionId(tx.getId()).bookingId(bookingId).build());
+    }
+
+    private void sendDisputeResolutionNotifications(UUID adminId, Dispute dispute, Booking booking, Boolean isApproved, double compensationAmount) {
+        String bookingIdStr = booking.getId().toString();
+
+        // 1. Cấu hình nội dung cho trường hợp CHẤP THUẬN (Lessor thắng)
+        if (Boolean.TRUE.equals(isApproved)) {
+            // ---> Gửi cho Chủ (Lessor)
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(dispute.getReporterId()) // Chủ
+                    .senderId(adminId)
+                    .type(NotificationType.DISPUTE_RESOLVED_ACCEPTED)
+                    .title("Khiếu nại được chấp thuận")
+                    .content(String.format("Khiếu nại đơn hàng %s đã được chấp thuận. Bạn nhận được %.0f VND tiền bồi thường.", bookingIdStr, compensationAmount))
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+
+            // ---> Gửi cho Khách (Lessee)
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(dispute.getDefenderId()) // Khách
+                    .senderId(adminId)
+                    .type(NotificationType.DISPUTE_RESOLVED_ACCEPTED)
+                    .title("Quyết định xử lý khiếu nại")
+                    .content(String.format("Admin đã chấp thuận khiếu nại của chủ xe đơn hàng %s. Bạn bị trừ %.0f VND tiền cọc.", bookingIdStr, compensationAmount))
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+        }
+        // 2. Cấu hình nội dung cho trường hợp TỪ CHỐI (Lessor thua)
+        else {
+            // ---> Gửi cho Chủ (Lessor)
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(dispute.getReporterId()) // Chủ
+                    .senderId(adminId)
+                    .type(NotificationType.DISPUTE_RESOLVED_REJECTED)
+                    .title("Khiếu nại bị từ chối")
+                    .content(String.format("Khiếu nại đơn hàng %s đã bị từ chối do không đủ cơ sở.", bookingIdStr))
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+
+            // ---> Gửi cho Khách (Lessee)
+            notificationService.create(NotificationCreationRequest.builder()
+                    .receiverId(dispute.getDefenderId()) // Khách
+                    .senderId(adminId)
+                    .type(NotificationType.DISPUTE_RESOLVED_REJECTED)
+                    .title("Khiếu nại đã được giải quyết")
+                    .content(String.format("Khiếu nại từ chủ xe đối với đơn hàng %s đã bị bác bỏ. Bạn không phải chịu trách nhiệm.", bookingIdStr))
+                    .referenceType(ReferenceType.BOOKING)
+                    .referenceId(booking.getId())
+                    .build());
+        }
     }
 
     private DisputeResponse enrichDisputeResponse(Dispute dispute) {

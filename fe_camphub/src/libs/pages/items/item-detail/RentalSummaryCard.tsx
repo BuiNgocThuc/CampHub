@@ -30,8 +30,6 @@ export default function RentalSummaryCard({
   const [quantity, setQuantity] = useState(1); // Số lượng mặc định là 1
   const [isCheckingQuantity, setIsCheckingQuantity] = useState(false);
   const { addToCart, isLoading } = useCartStore();
-
-  // State cho PrimaryAlert
   const [alert, setAlert] = useState<{
     content: string;
     type: "success" | "error" | "warning" | "info";

@@ -296,7 +296,7 @@ public class BookingServiceImpl implements BookingService {
                     .toAccountId(lessee.getId())
                     .amount(refundTotal.doubleValue())
                     .type(TransactionType.REFUND_FULL)
-                    .status(TransactionStatus.PENDING)
+                    .status(TransactionStatus.SUCCESS)
                     .createdAt(LocalDateTime.now())
                     .build();
             transactionRepository.save(tx);
@@ -349,7 +349,14 @@ public class BookingServiceImpl implements BookingService {
             bookingRepository.save(booking);
 
             // update item status to RENTED
-            item.setStatus(ItemStatus.RENTED);
+
+            int currQuantity = item.getQuantity() - booking.getQuantity();
+            if (currQuantity == 0) {
+                item.setStatus(ItemStatus.RENTED);
+            } else {
+                // Nếu còn nhiều hơn 1 sản phẩm, chỉ giảm số lượng mà không đổi trạng thái
+                item.setQuantity(currQuantity);
+            }
             itemRepository.save(item);
 
             // log deliver info (deliveryNote may be null)
@@ -738,7 +745,7 @@ public class BookingServiceImpl implements BookingService {
     private void handleUnreturnedBooking(Booking booking) {
         LocalDateTime now = LocalDateTime.now();
         // Cập nhật trạng thái Booking và Item
-        booking.setStatus(BookingStatus.FORFEITED);
+        booking.setStatus(BookingStatus.OVERDUE);
         booking.setUpdatedAt(now);
 
         Item item = itemRepository

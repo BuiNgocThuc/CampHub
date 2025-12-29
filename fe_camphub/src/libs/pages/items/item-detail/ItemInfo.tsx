@@ -1,6 +1,6 @@
 "use client";
 
-import { useChatStore } from "@/libs/stores/chat.store";
+import { useChatStore } from "@/libs/stores";
 import { Star, MessageCircle } from "lucide-react";
 
 interface OwnerInfo {
@@ -35,6 +35,14 @@ export default function ItemInfo({
   totalReviews,
 }: ItemInfoProps) {
   const { openChat } = useChatStore();
+
+  const handleChatClick = () => {
+    openChat({
+      id: owner.id,
+      fullName: owner.fullName,
+      avatar: owner.avatar,
+    })
+  }
 
   return (
     <div className="space-y-3">
@@ -71,7 +79,7 @@ export default function ItemInfo({
         <div className="ml-auto">
           <button
             className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-700"
-            onClick={() => openChat(owner.id)} // 👉 mở ChatModal global
+            onClick={handleChatClick}
           >
             <MessageCircle size={16} />
             Chat ngay

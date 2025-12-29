@@ -3,6 +3,7 @@ package org.camphub.be_camphub.service.impl;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.camphub.be_camphub.dto.request.notification.NotificationCreationRequest;
 import org.camphub.be_camphub.dto.response.notification.NotificationResponse;
@@ -10,6 +11,8 @@ import org.camphub.be_camphub.entity.Notification;
 import org.camphub.be_camphub.mapper.NotificationMapper;
 import org.camphub.be_camphub.repository.NotificationRepository;
 import org.camphub.be_camphub.service.NotificationService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import lombok.AccessLevel;
@@ -33,9 +36,24 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public List<NotificationResponse> getAllByReceiver(UUID receiverId) {
-        return notificationRepository.findByReceiverIdOrIsBroadcastTrueOrderByCreatedAtDesc(receiverId).stream()
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(r -> r.getAuthority().equals("ROLE_ADMIN"));
+
+        List<Notification> notifications;
+
+        // 2. Phân loại Query
+        if (isAdmin) {
+            // Admin: Xem tin cá nhân + Tin hệ thống
+            notifications = notificationRepository.findAllForAdmin(receiverId);
+        } else {
+            // User: Chỉ xem tin cá nhân
+            notifications = notificationRepository.findAllByReceiverIdOrderByCreatedAtDesc(receiverId);
+        }
+
+        return notifications.stream()
                 .map(notificationMapper::toResponse)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Override

@@ -215,47 +215,50 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         return enrichReturnRequestResponse(rr);
     }
 
-    // 4. Admin quyết định chấp nhận hay từ chối lý do hoàn tiền - nhằm xử phạt chủ thuê và sản phẩm nếu cần
-    @Override
+    @Scheduled(cron = "0 0 * * * *") // Chạy mỗi giờ (phút thứ 0)
     @Transactional
-    public ReturnReqResponse adminDecision(UUID adminId, AdminDecisionRequest request) {
+    public void processAutoRefundForConfirmedReturns() {
+        log.info("Starting scheduled job: Auto refund for confirmed return requests");
 
-        ReturnRequest rr = returnRequestRepository
-                .findById(request.getReturnRequestId())
-                .orElseThrow(() -> new AppException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
+        // Tìm tất cả booking đang chờ hoàn tiền (Chủ đã xác nhận nhận hàng)
+        List<Booking> bookingsToRefund = bookingRepository.findByStatus(BookingStatus.RETURN_REFUND_PROCESSING);
 
-        Booking booking = bookingRepository
-                .findById(rr.getBookingId())
-                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
-
-        if (rr.getStatus() != ReturnRequestStatus.PROCESSING
-                || booking.getStatus() != BookingStatus.RETURN_REFUND_PROCESSING) {
-            throw new AppException(ErrorCode.INVALID_RETURN_REQUEST_STATUS);
+        for (Booking booking : bookingsToRefund) {
+            try {
+                processSingleRefund(booking);
+            } catch (Exception e) {
+                log.error("Failed to auto-refund booking {}", booking.getId(), e);
+                // Continue to next booking
+            }
         }
+    }
 
-        // Refund amount = full rental price + deposit
+    private void processSingleRefund(Booking booking) {
+        log.info("Processing refund for booking: {}", booking.getId());
+
+        // Tính toán số tiền hoàn trả (Thuê + Cọc)
         long days = ChronoUnit.DAYS.between(booking.getStartDate(), booking.getEndDate()) + 1;
         double rentalFee = booking.getPricePerDay() * booking.getQuantity() * days;
-        // Deposit amount cần nhân với quantity (mỗi sản phẩm cần cọc)
         double deposit = Optional.ofNullable(booking.getDepositAmount()).orElse(0.0) * booking.getQuantity();
-
         double refundAmount = rentalFee + deposit;
 
-        Account system = accountRepository
-                .findSystemWallet()
+        // Lấy ví hệ thống và ví khách
+        Account system = accountRepository.findSystemWallet()
                 .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
-        Account lessee = accountRepository
-                .findById(rr.getLesseeId())
+        Account lessee = accountRepository.findById(booking.getLesseeId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (system.getCoinBalance() < refundAmount) throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+        if (system.getCoinBalance() < refundAmount) {
+            log.error("System wallet insufficient balance for booking {}", booking.getId());
+            return;
+        }
 
-        // chuyển tiền
+        // Chuyển tiền
         system.setCoinBalance(system.getCoinBalance() - refundAmount);
         lessee.setCoinBalance(lessee.getCoinBalance() + refundAmount);
         accountRepository.saveAll(List.of(system, lessee));
 
-        // lưu transaction
+        // Lưu Transaction
         Transaction tx = Transaction.builder()
                 .fromAccountId(system.getId())
                 .toAccountId(lessee.getId())
@@ -272,11 +275,46 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .createdAt(LocalDateTime.now())
                 .build());
 
+        // Cập nhật trạng thái Booking -> COMPLETED
+        booking.setStatus(BookingStatus.COMPLETED);
+        bookingRepository.save(booking);
+
+        returnRequestRepository.findByBookingId(booking.getId()).ifPresent(rr -> {
+            if (rr.getStatus() == ReturnRequestStatus.PROCESSING) {
+                rr.setRefundedAt(LocalDateTime.now()); // Đánh dấu là tiền đã trả rồi
+                rr.setAdminNote("Hệ thống: Đã hoàn tiền tự động (do chủ xác nhận). Đang chờ Admin xét duyệt vi phạm.");
+                returnRequestRepository.save(rr);
+            }
+        });
+
+        log.info("Refund completed for booking {}", booking.getId());
+    }
+
+    // 4. Admin quyết định chấp nhận hay từ chối lý do hoàn tiền - nhằm xử phạt chủ thuê và sản phẩm nếu cần
+    @Override
+    @Transactional
+    public ReturnReqResponse adminDecision(UUID adminId, AdminDecisionRequest request) {
+
+        ReturnRequest rr = returnRequestRepository
+                .findById(request.getReturnRequestId())
+                .orElseThrow(() -> new AppException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
+
+        Booking booking = bookingRepository
+                .findById(rr.getBookingId())
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+
+        if (rr.getStatus() != ReturnRequestStatus.PROCESSING) {
+            throw new AppException(ErrorCode.INVALID_RETURN_REQUEST_STATUS);
+        }
+
         // update return request
         rr.setAdminNote(request.getAdminNote());
         rr.setAdminReviewedAt(LocalDateTime.now());
-        rr.setRefundedAt(LocalDateTime.now());
         rr.setResolvedAt(LocalDateTime.now());
+
+        if (rr.getRefundedAt() == null) {
+            rr.setRefundedAt(LocalDateTime.now());
+        }
 
         // penalty logic
         if (request.getIsApproved()) {
@@ -304,7 +342,11 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         booking.setStatus(BookingStatus.COMPLETED);
 
-        bookingRepository.save(booking);
+        if (booking.getStatus() != BookingStatus.COMPLETED) {
+            booking.setStatus(BookingStatus.COMPLETED);
+            bookingRepository.save(booking);
+        }
+
         returnRequestRepository.save(rr);
 
         // thông báo cho hai bên về kết quả xử lý hoàn tiền
@@ -322,9 +364,8 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .title("Kết quả xử lý hoàn tiền")
                 .content(
                         request.getIsApproved()
-                                ? "Yêu cầu hoàn tiền của bạn đã được chấp nhận. Số tiền hoàn: " + refundAmount
-                                        + " coin."
-                                : "Yêu cầu hoàn tiền của bạn đã bị từ chối.")
+                                ? "Xử phạt chủ thuê"
+                                : "Lý do không hợp lý.")
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -349,7 +390,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                     .senderId(adminId)
                     .type(NotificationType.DEPOSIT_REFUNDED)
                     .title("Hoàn cọc thành công")
-                    .content("Bạn đã nhận được " + refundAmount + " coin (bao gồm tiền thuê và tiền cọc).")
+                    .content("Bạn đã nhận được tiền thuê và tiền cọc.")
                     .referenceType(ReferenceType.BOOKING)
                     .referenceId(booking.getId())
                     .build());
@@ -411,31 +452,6 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .findByBookingId(bookingId)
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
         return enrichReturnRequestResponse(rr);
-    }
-
-    @Override
-    @Scheduled(cron = "0 0 * * * *") // every hour
-    @Transactional
-    public void autoRefundUnprocessedRequests() {
-        LocalDateTime threshold = LocalDateTime.now().minusHours(72);
-        List<ReturnRequest> pending =
-                returnRequestRepository.findByStatusAndCreatedAtBefore(ReturnRequestStatus.PROCESSING, threshold);
-        for (ReturnRequest rr : pending) {
-            // perform auto refund: mark APPROVED + do refund (full)
-            try {
-                AdminDecisionRequest adminReq = AdminDecisionRequest.builder()
-                        .returnRequestId(rr.getId())
-                        .isApproved(true)
-                        .adminNote("Auto-approved refund after 72 hours of no admin action")
-                        .build();
-                adminDecision(UUID.fromString("00000000-0000-0000-0000-000000000000"), adminReq); // adminId dummy
-                rr.setStatus(ReturnRequestStatus.AUTO_REFUNDED);
-                returnRequestRepository.save(rr);
-            } catch (Exception ex) {
-                // log and continue
-                // do not rethrow to avoid breaking the scheduled loop
-            }
-        }
     }
 
     ReturnReqResponse enrichReturnRequestResponse(ReturnRequest req) {

@@ -24,7 +24,7 @@ const statusConfig: Record<BookingStatus, { label: string; color: string; icon: 
     WAITING_REFUND: { label: "Chờ hoàn tiền", color: "bg-cyan-100 text-cyan-800", icon: <Clock className="w-4 h-4" /> },
     COMPLETED: { label: "Hoàn thành", color: "bg-emerald-100 text-emerald-800", icon: <CheckCircle2 className="w-4 h-4" /> },
     COMPENSATION_COMPLETED: { label: "Đã bồi thường", color: "bg-emerald-100 text-emerald-800", icon: <CheckCircle2 className="w-4 h-4" /> },
-    DISPUTE_PENDING_REVIEW: { label: "Khiếu nại", color: "bg-red-200 text-red-900", icon: <MessageSquare className="w-4 h-4" /> },
+    DISPUTE_PENDING_REVIEW: { label: "Chờ duyệt khiếu nại", color: "bg-red-200 text-red-900", icon: <MessageSquare className="w-4 h-4" /> },
     LATE_RETURN: { label: "Trả trễ", color: "bg-red-100 text-red-800", icon: <AlertCircle className="w-4 h-4" /> },
     OVERDUE: { label: "Quá hạn", color: "bg-red-200 text-red-900", icon: <AlertCircle className="w-4 h-4" /> },
     DAMAGED_ITEM: { label: "Hỏng đồ", color: "bg-red-200 text-red-900", icon: <AlertCircle className="w-4 h-4" /> },
