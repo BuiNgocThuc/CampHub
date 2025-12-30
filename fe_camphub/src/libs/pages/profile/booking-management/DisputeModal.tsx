@@ -117,7 +117,7 @@ export default function DisputeModal({ open, onClose, booking, onSuccess }: Disp
         }
 
         // Check server duplicate
-        const isValid = await validateImageHash(booking.itemId, hash);
+        const isValid = await validateImageHash(hash);
         if (!isValid) {
           showAlert(`Ảnh ${file.name} đã tồn tại trong lịch sử của sản phẩm này`, "error");
           setIsUploading(false);

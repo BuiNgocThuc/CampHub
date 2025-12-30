@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
-import { PrimaryButton, OutlineButton, CustomizedButton } from "@/libs/components";
+import { OutlineButton, CustomizedButton } from "@/libs/components";
 interface PrimaryConfirmationProps {
     open: boolean;
     title: string;

@@ -110,7 +110,7 @@ export default function OwnerResponseModal({
                     continue;
                 }
 
-                const isValid = await validateImageHash(itemId, hash);
+                const isValid = await validateImageHash(hash);
 
                 if (!isValid) {
                     showAlert(`Ảnh ${file.name} đã tồn tại trong lịch sử của sản phẩm này.`, "error");

@@ -1,10 +1,8 @@
-// app/admin/disputes/DisputeDetailModal.tsx
 "use client";
 
 import { useState } from "react";
 import {
     Box,
-    Button,
     Chip,
     Divider,
     TextField,
@@ -52,22 +50,35 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                 isApproved: decision === DisputeDecision.APPROVED,
                 adminNote,
             }),
-        onSuccess: () => {
-            toast.success("Xử lý khiếu nại thành công!");
-            queryClient.invalidateQueries({ queryKey: ["pendingDisputes"] });
+        onSuccess: async () => {
+            // 1. Đóng modal trước
             onClose();
+            
+            // 2. Load lại table (dùng đúng key ["AllDisputes"] như bên file index)
+            await queryClient.invalidateQueries({ queryKey: ["AllDisputes"] });
+            
+            // 3. Alert thành công
+            toast.success("Xử lý khiếu nại thành công!");
         },
-        onError: () => toast.error("Xử lý thất bại"),
+        onError: (error: any) => {
+            const msg = error?.response?.data?.message || "Xử lý thất bại";
+            toast.error(msg);
+        },
     });
 
     const isPending = dispute.status === DisputeStatus.PENDING_REVIEW;
+
+    const isApproved = dispute.adminDecision === DisputeDecision.APPROVED;
+
+    console.log(isApproved);
+    
 
     return (
         <Box sx={{ minWidth: 900, maxWidth: 1200 }}>
             <Stack spacing={4}>
                 <Box>
                     <Typography variant="h5" fontWeight="bold" color="primary">
-                        Chi tiết khiếu nại #{dispute.id.slice(-6)}
+                        Chi tiết khiếu nại #{dispute.id.slice(0, 8)}
                     </Typography>
                     <Chip
                         label={isPending ? "Chờ xử lý" : "Đã xử lý"}
@@ -84,7 +95,7 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                         <Typography fontWeight="bold" color="primary" gutterBottom>
                             Thông tin khiếu nại
                         </Typography>
-                        <GridRow label="Mã đơn thuê" value={dispute.bookingId} />
+                        <GridRow label="Mã đơn thuê" value={dispute.bookingId.slice(0, 8)} />
                         <GridRow label="Người báo cáo" value={dispute.reporterName} />
                         <GridRow label="Người bị báo cáo" value={dispute.defenderName} />
                         <GridRow label="Loại hư hại" value={dispute.damageTypeName} />
@@ -127,7 +138,7 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                         <Typography color="text.secondary">Đang tải đơn thuê...</Typography>
                     ) : booking ? (
                         <>
-                            <GridRow label="Mã đơn thuê" value={booking.id} />
+                            <GridRow label="Mã đơn thuê (Full)" value={booking.id} />
                             <GridRow label="Người thuê" value={(booking as any).lesseeName || (booking as any).lessee?.fullName || "N/A"} />
                             <GridRow label="Chủ đồ" value={(booking as any).lessorName || (booking as any).lessor?.fullName || "N/A"} />
                             <GridRow
@@ -170,7 +181,7 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                     )}
                 </Box>
 
-                {/* MINH CHỨNG – DÙNG APPIMAGE → KHÔNG BAO GIỜ VỠ */}
+                {/* MINH CHỨNG */}
                 {dispute.evidenceUrls && dispute.evidenceUrls.length > 0 && (
                     <Box>
                         <Typography fontWeight="bold" color="primary" gutterBottom>
@@ -201,7 +212,6 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                                             poster="/img/placeholder.webp"
                                         >
                                             <source src={media.url} type="video/mp4" />
-                                            <track kind="captions" />
                                             Trình duyệt không hỗ trợ video.
                                         </video>
                                     ) : (
@@ -214,8 +224,6 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                                             priority={false}
                                         />
                                     )}
-
-                                    {/* Badge loại media */}
                                     <Chip
                                         label={media.type === "VIDEO" ? "VIDEO" : "ẢNH"}
                                         size="small"
@@ -238,7 +246,7 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
 
                 <Divider />
 
-                {/* NÚT XỬ LÝ */}
+                {/* NÚT XỬ LÝ HOẶC KẾT QUẢ */}
                 {isPending ? (
                     <Box>
                         <Alert severity="warning" sx={{ mb: 3, fontSize: "1rem" }}>
@@ -282,9 +290,10 @@ export default function DisputeDetailModal({ dispute, onClose }: DisputeDetailMo
                         </Stack>
                     </Box>
                 ) : (
-                    <Alert severity={dispute.adminDecision === "ACCEPTED" ? "success" : "error"} sx={{ fontSize: "1.1rem" }}>
+                    // [FIX UI Issue 2] Hiển thị đúng kết quả APPROVED/REJECTED
+                    <Alert severity={isApproved ? "success" : "error"} sx={{ fontSize: "1.1rem" }}>
                         <strong>Kết quả xử lý:</strong>{" "}
-                        {dispute.adminDecision === "ACCEPTED" ? "Đã chấp nhận bồi thường" : "Đã từ chối khiếu nại"}
+                        {isApproved ? "Đã chấp nhận bồi thường" : "Đã từ chối khiếu nại"}
                         {dispute.adminNote && (
                             <Typography mt={2}>
                                 <strong>Ghi chú admin:</strong> {dispute.adminNote}

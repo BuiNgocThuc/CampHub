@@ -13,7 +13,7 @@ export interface LesseeSubmitReturnRequest {
 }
 
 export interface LessorConfirmReturnRequest {
-    bookingId: string;
+    returnRequestId: string;
 }
 
 export interface ReturnReqCreationRequest {

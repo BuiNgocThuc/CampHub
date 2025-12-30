@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { CustomizedButton, Tabs, TabsList, TabsTrigger, PrimaryButton, PrimaryAlert, PrimaryPagination } from "@/libs/components";
+import { CustomizedButton, Tabs, TabsList, TabsTrigger, PrimaryButton, PrimaryAlert, PrimaryPagination, PrimaryConfirmation } from "@/libs/components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBookingsByLessor, lessorConfirmReturn, lessorConfirmReturnForReturnRequest } from "@/libs/api";
+import { getBookingsByLessor, lessorConfirmReturn, lessorConfirmReturnForReturnRequest, getReturnRequestByBooking } from "@/libs/api";
 import { MessageSquare } from "lucide-react";
 import BookingList from "./BookingList";
 import { Booking, ExtensionRequest } from "@/libs/core/types";
@@ -44,6 +44,7 @@ export default function RentalOrders() {
     const itemsPerPage = 3;
     const [selectedDisputeBooking, setSelectedDisputeBooking] = useState<Booking | null>(null);
     const [viewReturnRequestBookingId, setViewReturnRequestBookingId] = useState<string | null>(null);
+    const [bookingToConfirmReturn, setBookingToConfirmReturn] = useState<Booking | null>(null);
     const [alert, setAlert] = useState<{
         visible: boolean;
         content: string;
@@ -60,7 +61,14 @@ export default function RentalOrders() {
     });
 
     const confirmRefundReturnMut = useMutation({
-        mutationFn: lessorConfirmReturnForReturnRequest,
+        mutationFn: async ({ bookingId }: { bookingId: string }) => {
+            // Lấy thông tin yêu cầu trả hàng từ Booking ID
+            const returnReq = await getReturnRequestByBooking(bookingId);
+
+            return lessorConfirmReturnForReturnRequest({
+                returnRequestId: returnReq.id
+            });
+        },
         onSuccess: () => {
             toast.success("Đã xác nhận nhận lại hàng trả");
             queryClient.invalidateQueries({ queryKey: ["lessorBookings"] });
@@ -86,15 +94,7 @@ export default function RentalOrders() {
 
     const handleLessorConfirmReturn = (booking: Booking) => {
         if (confirmRefundReturnMut.isPending || confirmNormalReturnMut.isPending) return;
-
-        if (!window.confirm("Xác nhận bạn đã nhận lại đầy đủ đồ từ khách thuê?")) {
-            return;
-        }
-        if (booking.status === "RETURN_REFUND_REQUESTED") {
-            confirmRefundReturnMut.mutate({ bookingId: booking.id } as LessorConfirmReturnRequest); 
-        } else {
-            confirmNormalReturnMut.mutate(booking.id);
-        }
+        setBookingToConfirmReturn(booking);
     };
 
     const filteredBookings = useMemo(() => {
@@ -136,7 +136,7 @@ export default function RentalOrders() {
         }
         if (["RETURNED_PENDING_CHECK", "RETURN_REFUND_REQUESTED"].includes(booking.status)) {
             const isProcessing = confirmRefundReturnMut.isPending || confirmNormalReturnMut.isPending;
-            
+
             return (
                 <div className="flex gap-3">
                     <PrimaryButton
@@ -199,7 +199,7 @@ export default function RentalOrders() {
                     role="lessor"
                     renderActions={renderActions}
                     onViewReturnRequest={(bookingId) => {
-                        console.log("🟢 [RentalOrders] onViewReturnRequest called with bookingId:", bookingId);
+                        console.log("[RentalOrders] onViewReturnRequest called with bookingId:", bookingId);
                         setViewReturnRequestBookingId(bookingId);
                     }}
                 />
@@ -226,6 +226,29 @@ export default function RentalOrders() {
                     bookingId={viewReturnRequestBookingId}
                     onClose={() => setViewReturnRequestBookingId(null)}
                 />
+
+                <PrimaryConfirmation
+                    open={!!bookingToConfirmReturn}
+                    title="Xác nhận nhận lại đồ"
+                    message="Xác nhận bạn đã nhận lại đầy đủ đồ từ khách thuê? Hành động này sẽ hoàn tất đơn thuê."
+                    confirmText="Xác nhận"
+                    confirmColor="#2563eb"
+                    loading={confirmRefundReturnMut.isPending || confirmNormalReturnMut.isPending}
+                    onConfirm={() => {
+                        if (bookingToConfirmReturn) {
+                            const options = {
+                                onSettled: () => setBookingToConfirmReturn(null)
+                            };
+
+                            if (bookingToConfirmReturn.status === "RETURN_REFUND_REQUESTED") {
+                                confirmRefundReturnMut.mutate({ bookingId: bookingToConfirmReturn.id }, options);
+                            } else {
+                                confirmNormalReturnMut.mutate(bookingToConfirmReturn.id, options);
+                            }
+                        }
+                    }}
+                    onCancel={() => setBookingToConfirmReturn(null)}
+                />
             </div>
         </>
     );
@@ -237,6 +260,10 @@ interface LessorExtensionActionsProps {
 
 function LessorExtensionActions({ booking }: LessorExtensionActionsProps) {
     const queryClient = useQueryClient();
+
+    // States cho confirmation modals
+    const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+    const [showRejectConfirm, setShowRejectConfirm] = useState(false);
 
     const { data: extensionRequests = [], isLoading } = useQuery<ExtensionRequest[]>({
         queryKey: ["extensionRequestsByBooking", booking.id],
@@ -298,26 +325,46 @@ function LessorExtensionActions({ booking }: LessorExtensionActionsProps) {
                     content={approveMut.isPending ? "Đang đồng ý..." : "Đồng ý gia hạn"}
                     onClick={() => {
                         if (approveMut.isPending) return;
-                        if (window.confirm("Đồng ý gia hạn thuê cho đơn này?")) {
-                            approveMut.mutate({ requestId: pendingReq.id });
-                        }
+                        setShowApproveConfirm(true);
                     }}
                     disabled={approveMut.isPending || rejectMut.isPending}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="hover:opacity-80 transition-opacity"
                 />
                 <CustomizedButton
                     content={rejectMut.isPending ? "Đang từ chối..." : "Từ chối"}
                     onClick={() => {
                         if (rejectMut.isPending) return;
-                        if (window.confirm("Từ chối yêu cầu gia hạn này?")) {
-                            rejectMut.mutate({ requestId: pendingReq.id });
-                        }
+                        setShowRejectConfirm(true);
                     }}
                     disabled={approveMut.isPending || rejectMut.isPending}
-                    color="#f97316"
-                    className="hover:bg-orange-50"
+                    color="#dc2626"
+                    className="hover:opacity-80 transition-opacity"
                 />
             </div>
+
+            {/* Modal Đồng ý */}
+            <PrimaryConfirmation
+                open={showApproveConfirm}
+                title="Đồng ý gia hạn"
+                message="Bạn có chắc muốn đồng ý gia hạn thuê cho đơn hàng này?"
+                confirmText="Đồng ý"
+                confirmColor="#16a34a" // Green
+                loading={approveMut.isPending}
+                onConfirm={() => approveMut.mutate({ requestId: pendingReq.id }, { onSettled: () => setShowApproveConfirm(false) })}
+                onCancel={() => setShowApproveConfirm(false)}
+            />
+
+            {/* Modal Từ chối */}
+            <PrimaryConfirmation
+                open={showRejectConfirm}
+                title="Từ chối gia hạn"
+                message="Bạn có chắc muốn từ chối yêu cầu gia hạn này?"
+                confirmText="Từ chối"
+                confirmColor="#f97316" // Orange
+                loading={rejectMut.isPending}
+                onConfirm={() => rejectMut.mutate({ requestId: pendingReq.id }, { onSettled: () => setShowRejectConfirm(false) })}
+                onCancel={() => setShowRejectConfirm(false)}
+            />
         </div>
     );
 }

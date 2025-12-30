@@ -10,14 +10,14 @@ import {
     Alert,
     Stack,
     CircularProgress,
+    duration,
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ReasonReturnType, ReturnRequestStatus } from "@/libs/core/constants";
 import { useState } from "react";
 import { adminDecisionOnReturnRequest } from "@/libs/api";
-import { toast } from "sonner";
 import { ReturnRequest } from "@/libs/core/types";
-import { CustomizedButton, MediaPreview, PrimaryButton } from "@/libs/components";
+import { CustomizedButton, MediaPreview, PrimaryAlert, PrimaryButton } from "@/libs/components";
 import { format } from "date-fns";
 
 const reasonLabels: Record<ReasonReturnType, string> = {
@@ -52,6 +52,20 @@ export default function ReturnRequestDetailModal({ request, onClose, onResult }:
     const queryClient = useQueryClient();
     const [adminNote, setAdminNote] = useState("");
     const [pendingAction, setPendingAction] = useState<"APPROVE" | "REJECT" | null>(null);
+    const [alert, setAlert] = useState <{
+        content: string;
+        type: "success" | "error" | "info" | "warning";
+        duration: number;
+    } | null>(null);
+
+    const showAlert = (
+        content: string,
+        type: "success" | "error" | "info" | "warning",
+        duration = 2000
+    ) => {
+        setAlert({ content, type, duration });
+    }
+
 
     // 1. Chuẩn hóa status
     const rawStatus = request.status as unknown;
@@ -84,7 +98,7 @@ export default function ReturnRequestDetailModal({ request, onClose, onResult }:
                 ? "chấp nhận hoàn tiền"
                 : "từ chối yêu cầu";
 
-            toast.success(`Đã ${actionText} thành công!`);
+            showAlert(`Đã ${actionText} thành công!`, "success");
             onResult?.(
                 updatedRequest.status === ReturnRequestStatus.APPROVED
                     ? "Đã chấp nhận hoàn tiền"
@@ -97,7 +111,7 @@ export default function ReturnRequestDetailModal({ request, onClose, onResult }:
             onClose();
         },
         onError: (error: any) => {
-            toast.error(error?.message || "Xử lý thất bại. Vui lòng thử lại!");
+            showAlert("Xử lý thất bại. Vui lòng thử lại!", "error")
         },
         onSettled: () => {
             setPendingAction(null);
@@ -192,10 +206,10 @@ export default function ReturnRequestDetailModal({ request, onClose, onResult }:
                             />
                             <Stack direction="row" spacing={2} justifyContent="flex-end">
                                 <CustomizedButton
-                                    content="Từ chối hoàn tiền"
+                                    content="Từ chối xử phạt"
                                     onClick={() => {
                                         if (!adminNote.trim()) {
-                                            toast.error("Vui lòng nhập lý do khi từ chối!");
+                                            showAlert("Vui lòng nhập lý do khi từ chối!", "error");
                                             return;
                                         }
                                         decisionMutation.mutate("REJECT");
@@ -205,7 +219,7 @@ export default function ReturnRequestDetailModal({ request, onClose, onResult }:
                                     icon={pendingAction === "REJECT" ? <CircularProgress size={20} color="inherit" /> : undefined}
                                 />
                                 <PrimaryButton
-                                    content="Chấp nhận hoàn tiền"
+                                    content="Đồng ý xử phạt"
                                     onClick={() => decisionMutation.mutate("APPROVE")}
                                     disabled={!!pendingAction}
                                     icon={pendingAction === "APPROVE" ? <CircularProgress size={20} color="inherit" /> : undefined}
@@ -240,6 +254,15 @@ export default function ReturnRequestDetailModal({ request, onClose, onResult }:
                     )}
                 </Box>
             </Stack>
+
+            {alert && (
+                <PrimaryAlert
+                    content={alert.content}
+                    type={alert.type}
+                    duration={alert.duration}
+                    onClose={() => setAlert(null)}
+                />
+            )}
         </Box>
     );
 }

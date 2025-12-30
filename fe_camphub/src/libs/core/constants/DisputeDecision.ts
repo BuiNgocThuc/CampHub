@@ -1,4 +1,4 @@
 export enum DisputeDecision {
-    APPROVED = "ACCEPTED",
+    APPROVED = "APPROVED",
     REJECTED = "REJECTED",
 }

@@ -7,8 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { PrimaryModal, PrimaryButton, CustomizedButton, PrimaryAlert } from "@/libs/components";
-import { useCloudinaryUpload } from "@/libs/hooks";
-import type { Booking, MediaResource } from "@/libs/core/types";
+import type { Booking } from "@/libs/core/types";
 import { MediaType, ReasonReturnType } from "@/libs/core/constants";
 import { calculateFileHash, isFileSizeValid, isFileTypeAllowed, uploadMedia } from "@/libs/utils";
 import { validateImageHash, createReturnRequest } from "@/libs/api";
@@ -106,7 +105,7 @@ export default function ReturnRequestModal({ open, onClose, booking, onSuccess }
         }
 
         // Check server duplicate
-        const isValid = await validateImageHash(booking.itemId, hash);
+        const isValid = await validateImageHash(hash);
         if (!isValid) {
           showAlert(`Ảnh ${file.name} đã tồn tại trong hệ thống (trùng lặp)`, "error");
           continue;

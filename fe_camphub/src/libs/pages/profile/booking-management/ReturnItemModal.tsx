@@ -102,7 +102,7 @@ export default function ReturnItemModal({ open, onClose, booking, onSuccess }: R
           continue;
         }
 
-        const isValid = await validateImageHash(booking.itemId, hash);
+        const isValid = await validateImageHash(hash);
         if (!isValid) {
           showAlert(`Ảnh ${file.name} đã tồn tại trong lịch sử (trùng lặp)`, "error");
           continue;

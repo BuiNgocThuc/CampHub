@@ -49,7 +49,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
     public ExtensionReqResponse createExtensionRequest(UUID lesseeId, ExtensionReqCreationRequest request) {
         Booking booking = getBookingOrThrow(request.getBookingId());
 
-        // Validate permission & status
         if (!booking.getLesseeId().equals(lesseeId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
@@ -67,6 +66,24 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
 
         double additionalFee = booking.getPricePerDay() * booking.getQuantity() * request.getAdditionalDays();
 
+        // trừ tiền ngay lập tức (Giữ tiền vào ví hệ thống)
+        Account lessee = getAccountOrThrow(lesseeId);
+        Account systemWallet = getSystemWalletOrThrow();
+
+        if (lessee.getCoinBalance() < additionalFee) {
+            throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+        }
+
+        lessee.setCoinBalance(lessee.getCoinBalance() - additionalFee);
+        systemWallet.setCoinBalance(systemWallet.getCoinBalance() + additionalFee);
+        accountRepository.saveAll(List.of(lessee, systemWallet));
+
+        // Lưu giao dịch thanh toán
+        Transaction tx = createTransaction(lessee.getId(), systemWallet.getId(), additionalFee,
+                TransactionType.EXTENSION_PAYMENT);
+
+        createTransactionBooking(tx.getId(), booking.getId());
+
         ExtensionRequest entity = ExtensionRequest.builder()
                 .bookingId(booking.getId())
                 .lesseeId(lesseeId)
@@ -81,14 +98,14 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
 
         ExtensionRequest saved = extensionRequestRepository.save(entity);
 
-        // thông báo cho Lessor về yêu cầu gia hạn
+        // Thông báo
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(booking.getLessorId())
                 .senderId(lesseeId)
                 .type(NotificationType.EXTENSION_REQUEST_CREATED)
                 .title("Yêu cầu gia hạn đơn thuê")
                 .content("Khách thuê yêu cầu gia hạn đơn " + booking.getId() + " thêm " + request.getAdditionalDays()
-                        + " ngày.")
+                        + " ngày. Đã thanh toán trước: " + additionalFee + " coin.")
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -105,38 +122,7 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         }
 
         Booking booking = getBookingOrThrow(ext.getBookingId());
-        Account lessee = getAccountOrThrow(ext.getLesseeId());
-        Account systemWallet = accountRepository
-                .findSystemWallet()
-                .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
 
-        if (lessee.getCoinBalance() < ext.getAdditionalFee()) {
-            throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
-        }
-
-        // Deduct & transfer
-        lessee.setCoinBalance(lessee.getCoinBalance() - ext.getAdditionalFee());
-        systemWallet.setCoinBalance(systemWallet.getCoinBalance() + ext.getAdditionalFee());
-        accountRepository.saveAll(List.of(lessee, systemWallet));
-
-        // Create transaction
-        Transaction tx = Transaction.builder()
-                .fromAccountId(lessee.getId())
-                .toAccountId(systemWallet.getId())
-                .amount(ext.getAdditionalFee())
-                .type(TransactionType.EXTENSION_PAYMENT)
-                .status(TransactionStatus.SUCCESS)
-                .createdAt(LocalDateTime.now())
-                .build();
-        Transaction savedTx = transactionRepository.save(tx);
-
-        transactionBookingRepository.save(TransactionBooking.builder()
-                .transactionId(savedTx.getId())
-                .bookingId(booking.getId())
-                .createdAt(LocalDateTime.now())
-                .build());
-
-        // Update booking & request
         booking.setEndDate(ext.getRequestedNewEndDate());
         bookingRepository.save(booking);
 
@@ -144,14 +130,12 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         ext.setNote(request.getNote());
         extensionRequestRepository.save(ext);
 
-        // thông báo cho Lessee về việc yêu cầu gia hạn đã được chấp nhận
         notificationService.create(NotificationCreationRequest.builder()
-                .receiverId(lessee.getId())
+                .receiverId(ext.getLesseeId())
                 .senderId(lessorId)
                 .type(NotificationType.EXTENSION_REQUEST_APPROVED)
                 .title("Yêu cầu gia hạn đã được chấp nhận")
-                .content("Chủ đồ đã chấp nhận gia hạn đơn " + booking.getId() + ". Phí gia hạn: "
-                        + ext.getAdditionalFee() + " coin.")
+                .content("Chủ đồ đã chấp nhận gia hạn đơn " + booking.getId() + ". Thời hạn mới: " + ext.getRequestedNewEndDate())
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -167,19 +151,20 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
+        // hoàn tiền
+        processRefund(ext);
+
         ext.setStatus(ExtensionStatus.REJECTED);
         ext.setNote(request.getNote());
         extensionRequestRepository.save(ext);
 
-        // thông báo cho Lessee về việc yêu cầu gia hạn đã bị từ chối
         Booking booking = getBookingOrThrow(ext.getBookingId());
         notificationService.create(NotificationCreationRequest.builder()
                 .receiverId(ext.getLesseeId())
                 .senderId(lessorId)
                 .type(NotificationType.EXTENSION_REQUEST_REJECTED)
                 .title("Yêu cầu gia hạn đã bị từ chối")
-                .content("Chủ đồ đã từ chối gia hạn đơn " + booking.getId()
-                        + (request.getNote() != null ? ". Lý do: " + request.getNote() : "."))
+                .content("Chủ đồ đã từ chối gia hạn. Số tiền " + ext.getAdditionalFee() + " coin đã được hoàn lại.")
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -195,12 +180,56 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
+        // Gọi hàm hoàn tiền chung
+        processRefund(ext);
+
         ext.setStatus(ExtensionStatus.CANCELLED);
         extensionRequestRepository.save(ext);
 
         return toEnrichedResponse(ext);
     }
 
+    // ================= HELPER METHODS =================
+
+    /**
+     * Hàm xử lý hoàn tiền chung để tránh duplicate code
+     */
+    private void processRefund(ExtensionRequest ext) {
+        Account lessee = getAccountOrThrow(ext.getLesseeId());
+        Account systemWallet = getSystemWalletOrThrow();
+
+        // Hoàn tiền từ Ví hệ thống về Ví khách
+        systemWallet.setCoinBalance(systemWallet.getCoinBalance() - ext.getAdditionalFee());
+        lessee.setCoinBalance(lessee.getCoinBalance() + ext.getAdditionalFee());
+        accountRepository.saveAll(List.of(lessee, systemWallet));
+
+        // Lưu giao dịch
+        Transaction tx = createTransaction(systemWallet.getId(), lessee.getId(), ext.getAdditionalFee(),
+                TransactionType.REFUND_FULL);
+
+        createTransactionBooking(tx.getId(), ext.getBookingId());
+    }
+
+    private Transaction createTransaction(UUID fromId, UUID toId, double amount, TransactionType type) {
+        return transactionRepository.save(Transaction.builder()
+                .fromAccountId(fromId)
+                .toAccountId(toId)
+                .amount(amount)
+                .type(type)
+                .status(TransactionStatus.SUCCESS)
+                .createdAt(LocalDateTime.now())
+                .build());
+    }
+
+    private void createTransactionBooking(UUID txId, UUID bookingId) {
+        transactionBookingRepository.save(TransactionBooking.builder()
+                .transactionId(txId)
+                .bookingId(bookingId)
+                .createdAt(LocalDateTime.now())
+                .build());
+    }
+
+    // ... (Các hàm autoExpire, getAll, getById giữ nguyên) ...
     @Override
     @Scheduled(cron = "0 0 * * * *") // Mỗi giờ
     @Transactional
@@ -211,14 +240,16 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
 
         if (expired.isEmpty()) return;
 
-        expired.forEach(req -> req.setStatus(ExtensionStatus.EXPIRED));
+        for (ExtensionRequest req : expired) {
+            processRefund(req);
+            req.setStatus(ExtensionStatus.EXPIRED);
+        }
         extensionRequestRepository.saveAllAndFlush(expired);
     }
 
     @Override
     public List<ExtensionReqResponse> getAllExtensionRequestsFiltered(
             String status, UUID bookingId, UUID lesseeId, UUID lessorId) {
-
         return extensionRequestRepository.findAllFiltered(status, bookingId, lesseeId, lessorId).stream()
                 .map(this::toEnrichedResponse)
                 .toList();
@@ -234,7 +265,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
 
     private ExtensionReqResponse toEnrichedResponse(ExtensionRequest ext) {
         ExtensionReqResponse res = mapper.entityToResponse(ext);
-
         Booking booking = getBookingOrThrow(ext.getBookingId());
         Item item = getItemOrThrow(booking.getItemId());
         Account lessee = getAccountOrThrow(ext.getLesseeId());
@@ -243,7 +273,6 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         res.setItemName(item.getName());
         res.setLesseeName(lessee.getFirstname() + " " + lessee.getLastname());
         res.setLessorName(lessor.getFirstname() + " " + lessor.getLastname());
-
         return res;
     }
 
@@ -263,6 +292,11 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
 
     private Account getAccountOrThrow(UUID id) {
         return accountRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private Account getSystemWalletOrThrow() {
+        return accountRepository.findSystemWallet()
+                .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
     }
 
     private Item getItemOrThrow(UUID id) {
