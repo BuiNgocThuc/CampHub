@@ -22,4 +22,5 @@ export interface BookingResponse {
     note: string;
     status: BookingStatus;
     createdAt: string;       // ISO datetime
+    hasReviewed: boolean;
 }

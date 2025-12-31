@@ -79,8 +79,8 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         accountRepository.saveAll(List.of(lessee, systemWallet));
 
         // Lưu giao dịch thanh toán
-        Transaction tx = createTransaction(lessee.getId(), systemWallet.getId(), additionalFee,
-                TransactionType.EXTENSION_PAYMENT);
+        Transaction tx = createTransaction(
+                lessee.getId(), systemWallet.getId(), additionalFee, TransactionType.EXTENSION_PAYMENT);
 
         createTransactionBooking(tx.getId(), booking.getId());
 
@@ -135,7 +135,8 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
                 .senderId(lessorId)
                 .type(NotificationType.EXTENSION_REQUEST_APPROVED)
                 .title("Yêu cầu gia hạn đã được chấp nhận")
-                .content("Chủ đồ đã chấp nhận gia hạn đơn " + booking.getId() + ". Thời hạn mới: " + ext.getRequestedNewEndDate())
+                .content("Chủ đồ đã chấp nhận gia hạn đơn " + booking.getId() + ". Thời hạn mới: "
+                        + ext.getRequestedNewEndDate())
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());
@@ -204,8 +205,8 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
         accountRepository.saveAll(List.of(lessee, systemWallet));
 
         // Lưu giao dịch
-        Transaction tx = createTransaction(systemWallet.getId(), lessee.getId(), ext.getAdditionalFee(),
-                TransactionType.REFUND_FULL);
+        Transaction tx = createTransaction(
+                systemWallet.getId(), lessee.getId(), ext.getAdditionalFee(), TransactionType.REFUND_FULL);
 
         createTransactionBooking(tx.getId(), ext.getBookingId());
     }
@@ -295,7 +296,8 @@ public class ExtensionRequestServiceImpl implements ExtensionRequestService {
     }
 
     private Account getSystemWalletOrThrow() {
-        return accountRepository.findSystemWallet()
+        return accountRepository
+                .findSystemWallet()
                 .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
     }
 

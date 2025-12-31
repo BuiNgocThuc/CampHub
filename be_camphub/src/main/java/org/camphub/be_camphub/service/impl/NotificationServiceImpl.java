@@ -51,9 +51,7 @@ public class NotificationServiceImpl implements NotificationService {
             notifications = notificationRepository.findAllByReceiverIdOrderByCreatedAtDesc(receiverId);
         }
 
-        return notifications.stream()
-                .map(notificationMapper::toResponse)
-                .collect(Collectors.toList());
+        return notifications.stream().map(notificationMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override

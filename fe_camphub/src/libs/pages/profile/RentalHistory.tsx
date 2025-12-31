@@ -137,7 +137,7 @@ export default function RentalHistory() {
       return (
         <div className="flex flex-wrap gap-3 justify-end">
           {hasReviewed ? (
-            <Link href={`/items/${booking.itemId}`}>
+            <Link href={`items/${booking.itemId}`}>
               <PrimaryButton content="Thuê lại" />
             </Link>
           ) : (
@@ -242,6 +242,7 @@ export default function RentalHistory() {
           booking={selectedReviewBooking}
           onSuccess={() => {
             setAlert({ visible: true, content: "Đánh giá sản phẩm thành công", type: "success", duration: 3000 });
+            queryClient.invalidateQueries({ queryKey: ["myRentals"] });
             setSelectedReviewBooking(null);
           }}
         />

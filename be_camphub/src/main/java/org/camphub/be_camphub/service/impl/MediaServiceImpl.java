@@ -1,10 +1,11 @@
 package org.camphub.be_camphub.service.impl;
 
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import org.camphub.be_camphub.repository.MediaRepository;
 import org.camphub.be_camphub.service.MediaService;
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 @Service
 @RequiredArgsConstructor

@@ -35,7 +35,7 @@ type StatusConfig = {
 const modalStatusConfig: Record<string, StatusConfig> = {
     PENDING: { label: "Chờ nhận hàng", color: "warning" },
     PROCESSING: { label: "Chờ xử lý", color: "info" },
-    APPROVED: { label: "Đã hoàn tiền", color: "success" },
+    APPROVED: { label: "Đã xử lý", color: "success" },
     REJECTED: { label: "Bị từ chối", color: "error" },
     AUTO_REFUNDED: { label: "Tự hoàn tiền (hết hạn)", color: "success" },
     RESOLVED: { label: "Đã hoàn tất", color: "success" },
@@ -95,14 +95,14 @@ export default function ReturnRequestDetailModal({ request, onClose, onResult }:
         },
         onSuccess: (updatedRequest: ReturnRequest) => {
             const actionText = updatedRequest.status === ReturnRequestStatus.APPROVED
-                ? "chấp nhận hoàn tiền"
-                : "từ chối yêu cầu";
+                ? "chấp nhận lý do trả hàng"
+                : "từ chối xử phạt chủ thuê";
 
             showAlert(`Đã ${actionText} thành công!`, "success");
             onResult?.(
                 updatedRequest.status === ReturnRequestStatus.APPROVED
-                    ? "Đã chấp nhận hoàn tiền"
-                    : "Đã từ chối yêu cầu hoàn tiền",
+                    ? "Đã chấp nhận lý do trả hàng"
+                    : "Đã từ chối xử phạt chủ thuê",
                 "success"
             );
 

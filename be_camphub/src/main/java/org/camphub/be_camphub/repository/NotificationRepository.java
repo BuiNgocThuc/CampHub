@@ -17,6 +17,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
             "SELECT COUNT(n) FROM Notification n WHERE (n.receiverId = :receiverId OR n.isBroadcast = true) AND n.isRead = false")
     Integer countUnreadByReceiverIdOrBroadcast(UUID receiverId);
 
-    @Query("SELECT n FROM Notification n WHERE n.receiverId = :userId OR n.isBroadcast = true ORDER BY n.createdAt DESC")
+    @Query(
+            "SELECT n FROM Notification n WHERE n.receiverId = :userId OR n.isBroadcast = true ORDER BY n.createdAt DESC")
     List<Notification> findAllForAdmin(@Param("userId") UUID userId);
 }

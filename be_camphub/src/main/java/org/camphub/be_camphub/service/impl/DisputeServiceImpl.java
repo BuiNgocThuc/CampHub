@@ -8,7 +8,6 @@ import java.util.UUID;
 
 import jakarta.transaction.Transactional;
 
-import lombok.extern.slf4j.Slf4j;
 import org.camphub.be_camphub.dto.request.dispute.AdminReviewDisputeRequest;
 import org.camphub.be_camphub.dto.request.dispute.DisputeCreationRequest;
 import org.camphub.be_camphub.dto.request.notification.NotificationCreationRequest;
@@ -26,6 +25,7 @@ import org.springframework.stereotype.Service;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -106,7 +106,8 @@ public class DisputeServiceImpl implements DisputeService {
         double totalDeposit = Optional.ofNullable(booking.getDepositAmount()).orElse(0.0) * booking.getQuantity();
 
         // Tính tiền Phạt (Compensation) từ Cọc
-        DamageType damageType = damageTypeRepository.findById(dispute.getDamageTypeId()).orElse(null);
+        DamageType damageType =
+                damageTypeRepository.findById(dispute.getDamageTypeId()).orElse(null);
         double rate = (damageType != null) ? damageType.getCompensationRate() : 0.0;
         double compensationAmount = 0.0;
 
@@ -120,11 +121,9 @@ public class DisputeServiceImpl implements DisputeService {
         }
         dispute.setCompensationAmount(compensationAmount);
 
-
         // Tìm cả những cái đang bị CLOSED_BY_DISPUTE
-        Optional<ReturnRequest> returnReqOpt = returnRequestRepository
-                .findFirstByBookingIdAndStatusIn(booking.getId(),
-                        List.of(ReturnRequestStatus.CLOSED_BY_DISPUTE));
+        Optional<ReturnRequest> returnReqOpt = returnRequestRepository.findFirstByBookingIdAndStatusIn(
+                booking.getId(), List.of(ReturnRequestStatus.CLOSED_BY_DISPUTE));
 
         double lessorReceived = 0.0;
         double lesseeReceived = 0.0;
@@ -165,7 +164,6 @@ public class DisputeServiceImpl implements DisputeService {
                 .findById(booking.getLesseeId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-
         if (system.getCoinBalance() < (lessorReceived + lesseeReceived)) {
             // Log error critical, nhưng vẫn save dispute state
             log.error("System wallet error ID: {}", booking.getId());
@@ -178,13 +176,19 @@ public class DisputeServiceImpl implements DisputeService {
             // Cộng ví Chủ
             if (lessorReceived > 0) {
                 lessor.setCoinBalance(lessor.getCoinBalance() + lessorReceived);
-                createTransaction(system.getId(), lessor.getId(), lessorReceived, TransactionType.COMPENSATION_PAYOUT, booking.getId());
+                createTransaction(
+                        system.getId(),
+                        lessor.getId(),
+                        lessorReceived,
+                        TransactionType.COMPENSATION_PAYOUT,
+                        booking.getId());
             }
 
             // Cộng ví Khách
             if (lesseeReceived > 0) {
                 lessee.setCoinBalance(lessee.getCoinBalance() + lesseeReceived);
-                createTransaction(system.getId(), lessee.getId(), lesseeReceived, TransactionType.REFUND_FULL, booking.getId());
+                createTransaction(
+                        system.getId(), lessee.getId(), lesseeReceived, TransactionType.REFUND_FULL, booking.getId());
             }
 
             accountRepository.saveAll(List.of(system, lessor, lessee));
@@ -195,13 +199,7 @@ public class DisputeServiceImpl implements DisputeService {
 
         disputeRepository.save(dispute);
 
-        sendDisputeResolutionNotifications(
-                adminId,
-                dispute,
-                booking,
-                request.getIsApproved(),
-                compensationAmount
-        );
+        sendDisputeResolutionNotifications(adminId, dispute, booking, request.getIsApproved(), compensationAmount);
 
         return enrichDisputeResponse(dispute);
     }
@@ -238,7 +236,8 @@ public class DisputeServiceImpl implements DisputeService {
     private void freezeReturnRequestIfAny(Booking booking) {
         // Tìm xem có request nào đang chạy không để đóng băng
         returnRequestRepository
-                .findFirstByBookingIdAndStatusIn(booking.getId(), List.of(ReturnRequestStatus.PENDING, ReturnRequestStatus.PROCESSING))
+                .findFirstByBookingIdAndStatusIn(
+                        booking.getId(), List.of(ReturnRequestStatus.PENDING, ReturnRequestStatus.PROCESSING))
                 .ifPresent(rr -> {
                     rr.setStatus(ReturnRequestStatus.CLOSED_BY_DISPUTE); // Đánh dấu tạm khóa
                     returnRequestRepository.save(rr);
@@ -247,13 +246,22 @@ public class DisputeServiceImpl implements DisputeService {
 
     private void createTransaction(UUID from, UUID to, double amount, TransactionType type, UUID bookingId) {
         Transaction tx = Transaction.builder()
-                .fromAccountId(from).toAccountId(to).amount(amount).type(type)
-                .status(TransactionStatus.SUCCESS).createdAt(LocalDateTime.now()).build();
+                .fromAccountId(from)
+                .toAccountId(to)
+                .amount(amount)
+                .type(type)
+                .status(TransactionStatus.SUCCESS)
+                .createdAt(LocalDateTime.now())
+                .build();
         transactionRepository.save(tx);
-        transactionBookingRepository.save(TransactionBooking.builder().transactionId(tx.getId()).bookingId(bookingId).build());
+        transactionBookingRepository.save(TransactionBooking.builder()
+                .transactionId(tx.getId())
+                .bookingId(bookingId)
+                .build());
     }
 
-    private void sendDisputeResolutionNotifications(UUID adminId, Dispute dispute, Booking booking, Boolean isApproved, double compensationAmount) {
+    private void sendDisputeResolutionNotifications(
+            UUID adminId, Dispute dispute, Booking booking, Boolean isApproved, double compensationAmount) {
         String bookingIdStr = booking.getId().toString();
 
         // 1. Cấu hình nội dung cho trường hợp CHẤP THUẬN (Lessor thắng)
@@ -264,7 +272,9 @@ public class DisputeServiceImpl implements DisputeService {
                     .senderId(adminId)
                     .type(NotificationType.DISPUTE_RESOLVED_ACCEPTED)
                     .title("Khiếu nại được chấp thuận")
-                    .content(String.format("Khiếu nại đơn hàng %s đã được chấp thuận. Bạn nhận được %.0f VND tiền bồi thường.", bookingIdStr, compensationAmount))
+                    .content(String.format(
+                            "Khiếu nại đơn hàng %s đã được chấp thuận. Bạn nhận được %.0f VND tiền bồi thường.",
+                            bookingIdStr, compensationAmount))
                     .referenceType(ReferenceType.BOOKING)
                     .referenceId(booking.getId())
                     .build());
@@ -275,7 +285,9 @@ public class DisputeServiceImpl implements DisputeService {
                     .senderId(adminId)
                     .type(NotificationType.DISPUTE_RESOLVED_ACCEPTED)
                     .title("Quyết định xử lý khiếu nại")
-                    .content(String.format("Admin đã chấp thuận khiếu nại của chủ xe đơn hàng %s. Bạn bị trừ %.0f VND tiền cọc.", bookingIdStr, compensationAmount))
+                    .content(String.format(
+                            "Admin đã chấp thuận khiếu nại của chủ xe đơn hàng %s. Bạn bị trừ %.0f VND tiền cọc.",
+                            bookingIdStr, compensationAmount))
                     .referenceType(ReferenceType.BOOKING)
                     .referenceId(booking.getId())
                     .build());
@@ -299,7 +311,9 @@ public class DisputeServiceImpl implements DisputeService {
                     .senderId(adminId)
                     .type(NotificationType.DISPUTE_RESOLVED_REJECTED)
                     .title("Khiếu nại đã được giải quyết")
-                    .content(String.format("Khiếu nại từ chủ xe đối với đơn hàng %s đã bị bác bỏ. Bạn không phải chịu trách nhiệm.", bookingIdStr))
+                    .content(String.format(
+                            "Khiếu nại từ chủ xe đối với đơn hàng %s đã bị bác bỏ. Bạn không phải chịu trách nhiệm.",
+                            bookingIdStr))
                     .referenceType(ReferenceType.BOOKING)
                     .referenceId(booking.getId())
                     .build());

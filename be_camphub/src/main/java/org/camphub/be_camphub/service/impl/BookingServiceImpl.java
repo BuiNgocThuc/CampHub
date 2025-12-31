@@ -448,7 +448,7 @@ public class BookingServiceImpl implements BookingService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
-        if (booking.getStatus() != BookingStatus.DUE_FOR_RETURN) {
+        if (booking.getStatus() != BookingStatus.DUE_FOR_RETURN && booking.getStatus() != BookingStatus.LATE_RETURN) {
             throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
         }
 

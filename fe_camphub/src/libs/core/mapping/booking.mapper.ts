@@ -31,6 +31,7 @@ PojosMetadataMap.create<Booking>("Booking", {
     note: String,
     status: String,
     createdAt: String,
+    hasReviewed: Boolean,
 });
 
 PojosMetadataMap.create<BookingResponse>("BookingResponse", {
@@ -50,6 +51,7 @@ PojosMetadataMap.create<BookingResponse>("BookingResponse", {
     note: String,
     status: String,
     createdAt: String,
+    hasReviewed: Boolean,
 });
 
 PojosMetadataMap.create<BookingCreationRequest>("BookingCreationRequest", {

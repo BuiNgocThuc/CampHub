@@ -243,9 +243,11 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         double refundAmount = rentalFee + deposit;
 
         // Lấy ví hệ thống và ví khách
-        Account system = accountRepository.findSystemWallet()
+        Account system = accountRepository
+                .findSystemWallet()
                 .orElseThrow(() -> new AppException(ErrorCode.SYSTEM_WALLET_NOT_FOUND));
-        Account lessee = accountRepository.findById(booking.getLesseeId())
+        Account lessee = accountRepository
+                .findById(booking.getLesseeId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (system.getCoinBalance() < refundAmount) {
@@ -362,10 +364,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .senderId(adminId)
                 .type(lesseeNotificationType)
                 .title("Kết quả xử lý hoàn tiền")
-                .content(
-                        request.getIsApproved()
-                                ? "Xử phạt chủ thuê"
-                                : "Lý do không hợp lý.")
+                .content(request.getIsApproved() ? "Xử phạt chủ thuê" : "Lý do không hợp lý.")
                 .referenceType(ReferenceType.BOOKING)
                 .referenceId(booking.getId())
                 .build());

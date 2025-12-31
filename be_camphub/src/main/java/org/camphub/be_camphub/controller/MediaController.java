@@ -1,14 +1,15 @@
 package org.camphub.be_camphub.controller;
 
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import org.camphub.be_camphub.dto.response.ApiResponse;
 import org.camphub.be_camphub.service.MediaService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 @RestController
 @RequestMapping("/media")
@@ -18,8 +19,7 @@ public class MediaController {
     MediaService mediaService;
 
     @GetMapping("/validate-hash")
-    public ApiResponse<Boolean> checkImageHash(
-            @RequestParam String hash) {
+    public ApiResponse<Boolean> checkImageHash(@RequestParam String hash) {
 
         boolean isValid = mediaService.validateImageHash(hash);
 

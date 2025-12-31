@@ -23,7 +23,7 @@ const statusConfig: Record<string, { label: string; color: "warning" | "success"
     // numeric enum values
     [ReturnRequestStatus.PENDING]: { label: "Chờ nhận hàng", color: "warning" },
     [ReturnRequestStatus.PROCESSING]: { label: "Chờ xử lý", color: "info" },
-    [ReturnRequestStatus.APPROVED]: { label: "Đã hoàn tiền", color: "success" },
+    [ReturnRequestStatus.APPROVED]: { label: "Đã xử lý", color: "success" },
     [ReturnRequestStatus.REJECTED]: { label: "Bị từ chối", color: "error" },
     [ReturnRequestStatus.AUTO_REFUNDED]: { label: "Tự hoàn tiền (hết hạn)", color: "success" },
     [ReturnRequestStatus.RESOLVED]: { label: "Đã hoàn tất", color: "success" },
@@ -31,7 +31,7 @@ const statusConfig: Record<string, { label: string; color: "warning" | "success"
     // string values from API
     PENDING: { label: "Chờ nhận hàng", color: "warning" },
     PROCESSING: { label: "Chờ xử lý", color: "info" },
-    APPROVED: { label: "Đã hoàn tiền", color: "success" },
+    APPROVED: { label: "Đã xử lý", color: "success" },
     REJECTED: { label: "Bị từ chối", color: "error" },
     AUTO_REFUNDED: { label: "Tự hoàn tiền (hết hạn)", color: "success" },
     RESOLVED: { label: "Đã hoàn tất", color: "success" },
